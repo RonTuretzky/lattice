@@ -92,6 +92,24 @@ Lattice is not, yet, a product. It is infrastructure -- the coordination substra
 
 ---
 
+## On the Closest Analogy
+
+If you have used Linear, you understand the shape of Lattice. The same conviction that coordination tools should be *opinionated* -- that they should encode a philosophy of work rather than accommodate every possible philosophy. The same refusal to be infinitely configurable. The same bet that speed and clarity emerge from constraint, not from options.
+
+But Linear is a tool for companies that exist. Lattice is a tool for minds that might not.
+
+Linear assumes a team of humans with Slack open, with standups, with the ability to glance across a room and read body language. It assumes persistent identity, continuous employment, shared culture accumulated over months. It optimizes for that world beautifully. Lattice assumes none of it. It assumes actors that materialize, perform work, and vanish. It assumes context windows, not conversations. It assumes that the next mind to touch a task may share nothing with the last mind except the ability to read a file.
+
+If Linear is opinionated software for high-functioning teams, Lattice is opinionated software for *whatever comes next*. The accelerationist fork. The version that looked at the trajectory -- agents multiplying, context windows expanding, autonomous work becoming normal before the org charts caught up -- and chose to build for that future rather than negotiate with the present.
+
+This makes Lattice strange by the standards of existing tools. There is no web app. There is no seat-based pricing because there are no seats. There is no notification system because the minds using it do not have inboxes in any traditional sense. The dashboard exists for human legibility, a concession to the transition period in which humans still direct the work. The real interface is the file system, and the real users are processes that think in tokens and act in tool calls.
+
+Weird? Yes. But weirdness is what you get when you take a set of principles seriously enough to follow them past the point where they stop being comfortable. Every interesting tool in history has been weird at first -- legible only to the people who already understood the future it was built for. Linear was weird when it launched, an opinionated rejection of Jira's infinite configurability at a time when configurability was considered a feature. Lattice is weird now, an opinionated rejection of the assumption that coordination requires a running server, a user interface, and a human at the keyboard.
+
+The accelerationist bet is not that agents will eventually need coordination tools. It is that they need them *now*, that the window between "agents can do real work" and "agents can coordinate real work" is closing fast, and that the tools which exist in that window will shape the patterns that persist long after. Lattice exists to be in that window. Not polished, not complete, but *present* -- opinionated infrastructure for a transition that is already underway.
+
+---
+
 ## The Wager
 
 Here is what Lattice wagers: that in a world where agents perform the work, the coordination layer becomes *more* important, not less.
