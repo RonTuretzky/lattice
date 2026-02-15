@@ -600,10 +600,10 @@ function renderBoard() {
       html += '<div class="card-meta">';
       if (t.priority) html += '<span class="badge pri-' + esc(t.priority) + '">' + esc(t.priority) + "</span>";
       if (t.type) html += '<span class="badge type-badge">' + esc(t.type) + "</span>";
-      if (t.assigned_to) html += '<span style="color:#6c757d;font-size:.8rem">' + esc(t.assigned_to) + "</span>";
+      if (t.assigned_to) html += '<span style="color:var(--text-muted);font-size:.8rem">' + esc(t.assigned_to) + "</span>";
       html += "</div></div>";
     });
-    if (items.length === 0) html += '<div style="color:#adb5bd;font-size:.8rem;padding:8px;text-align:center">No tasks</div>';
+    if (items.length === 0) html += '<div style="color:var(--text-muted);font-size:.8rem;padding:8px;text-align:center">No tasks</div>';
     html += "</div></div>";
   });
   html += "</div>";
@@ -954,7 +954,7 @@ async function renderDetail(taskId) {
 
     // Notes
     if (task.notes_exists) {
-      html += '<div class="detail-section"><h3>Notes</h3><p style="font-size:.85rem;color:#6c757d">Notes file exists: <code>notes/' + esc(task.id) + '.md</code></p></div>';
+      html += '<div class="detail-section"><h3>Notes</h3><p style="font-size:.85rem;color:var(--text-muted)">Notes file exists: <code>notes/' + esc(task.id) + '.md</code></p></div>';
     }
 
     // --- Comments section ---
@@ -1584,6 +1584,8 @@ document.getElementById("refresh-btn").addEventListener("click", async function(
     tasks = results[1];
     archivedTasks = null;
     updateStatsBadges();
+    applyTheme(getTheme());
+    populateThemeSelector();
     populateLaneColorSettings();
     loadBackgroundSetting();
     await route(location.hash.slice(1));
@@ -1610,6 +1612,8 @@ function startAutoRefresh() {
         config = newConfig;
         updateStatsBadges();
         if (configChanged) {
+          applyTheme(getTheme());
+          populateThemeSelector();
           populateLaneColorSettings();
           loadBackgroundSetting();
         }
