@@ -1,4 +1,4 @@
-"""Tests for query commands: log, list, show."""
+"""Tests for query commands: event, list, show."""
 
 from __future__ import annotations
 
@@ -10,19 +10,19 @@ from lattice.core.tasks import serialize_snapshot
 
 
 # ---------------------------------------------------------------------------
-# TestLog
+# TestEvent
 # ---------------------------------------------------------------------------
 
 
-class TestLog:
-    """Tests for `lattice log <task_id> <event_type>`."""
+class TestEvent:
+    """Tests for `lattice event <task_id> <event_type>`."""
 
     def test_custom_event_accepted(self, invoke, create_task):
         """x_ prefix custom events are accepted."""
         task = create_task("Test task")
         task_id = task["id"]
 
-        result = invoke("log", task_id, "x_deployment", "--actor", "human:test")
+        result = invoke("event", task_id, "x_deployment", "--actor", "human:test")
         assert result.exit_code == 0
         assert "x_deployment" in result.output
 
@@ -31,7 +31,7 @@ class TestLog:
         task = create_task("Test task")
         task_id = task["id"]
 
-        result = invoke("log", task_id, "status_changed", "--actor", "human:test")
+        result = invoke("event", task_id, "status_changed", "--actor", "human:test")
         assert result.exit_code != 0
         assert "reserved" in result.stderr
 
@@ -40,7 +40,7 @@ class TestLog:
         task = create_task("Test task")
         task_id = task["id"]
 
-        result = invoke("log", task_id, "task_created", "--actor", "human:test")
+        result = invoke("event", task_id, "task_created", "--actor", "human:test")
         assert result.exit_code != 0
         assert "reserved" in result.stderr
 
@@ -49,7 +49,7 @@ class TestLog:
         task = create_task("Test task")
         task_id = task["id"]
 
-        result = invoke("log", task_id, "my_custom", "--actor", "human:test")
+        result = invoke("event", task_id, "my_custom", "--actor", "human:test")
         assert result.exit_code != 0
         assert "x_" in result.stderr
 
@@ -59,7 +59,7 @@ class TestLog:
         task_id = task["id"]
 
         result = invoke(
-            "log",
+            "event",
             task_id,
             "x_deploy",
             "--data",
@@ -80,7 +80,7 @@ class TestLog:
         task_id = task["id"]
 
         result = invoke(
-            "log",
+            "event",
             task_id,
             "x_ping",
             "--actor",
@@ -97,7 +97,7 @@ class TestLog:
         task_id = task["id"]
 
         result = invoke(
-            "log",
+            "event",
             task_id,
             "x_test",
             "--data",
@@ -114,7 +114,7 @@ class TestLog:
         task_id = task["id"]
 
         result = invoke(
-            "log",
+            "event",
             task_id,
             "x_test",
             "--data",
@@ -129,11 +129,11 @@ class TestLog:
         assert parsed["error"]["code"] == "VALIDATION_ERROR"
 
     def test_event_in_per_task_log_only(self, invoke, create_task, cli_env):
-        """Custom events go to per-task log but NOT to _global.jsonl."""
+        """Custom events go to per-task log but NOT to _lifecycle.jsonl."""
         task = create_task("Test task")
         task_id = task["id"]
 
-        result = invoke("log", task_id, "x_custom", "--actor", "human:test")
+        result = invoke("event", task_id, "x_custom", "--actor", "human:test")
         assert result.exit_code == 0
 
         # Check per-task log has the custom event
@@ -145,12 +145,12 @@ class TestLog:
         ]
         assert len(custom_events) == 1
 
-        # Check global log does NOT have the custom event
-        global_log = root / ".lattice" / "events" / "_global.jsonl"
-        global_lines = global_log.read_text().strip().splitlines()
-        for line in global_lines:
+        # Check lifecycle log does NOT have the custom event
+        lifecycle_log = root / ".lattice" / "events" / "_lifecycle.jsonl"
+        lifecycle_lines = lifecycle_log.read_text().strip().splitlines()
+        for line in lifecycle_lines:
             ev = json.loads(line)
-            assert ev["type"] != "x_custom", "Custom event should not be in global log"
+            assert ev["type"] != "x_custom", "Custom event should not be in lifecycle log"
 
     def test_event_id_accepted(self, invoke, create_task):
         """--id with valid ev_ prefix is accepted."""
@@ -159,7 +159,7 @@ class TestLog:
         ev_id = generate_event_id()
 
         result = invoke(
-            "log",
+            "event",
             task_id,
             "x_test",
             "--id",
@@ -178,7 +178,7 @@ class TestLog:
         task_id = task["id"]
 
         result = invoke(
-            "log",
+            "event",
             task_id,
             "x_test",
             "--id",
@@ -195,7 +195,7 @@ class TestLog:
         task_id = task["id"]
         original_event_id = task["last_event_id"]
 
-        invoke("log", task_id, "x_custom", "--actor", "human:test")
+        invoke("event", task_id, "x_custom", "--actor", "human:test")
 
         root = Path(cli_env["LATTICE_ROOT"])
         snap = json.loads((root / ".lattice" / "tasks" / f"{task_id}.json").read_text())
@@ -207,7 +207,7 @@ class TestLog:
         task_id = task["id"]
 
         result = invoke(
-            "log",
+            "event",
             task_id,
             "x_test",
             "--actor",
@@ -222,7 +222,7 @@ class TestLog:
     def test_task_not_found(self, invoke):
         """Logging to a non-existent task fails with NOT_FOUND."""
         result = invoke(
-            "log",
+            "event",
             "task_01ZZZZZZZZZZZZZZZZZZZZZZZ",
             "x_test",
             "--actor",
@@ -587,7 +587,7 @@ class TestShow:
 
         result = invoke("show", task_a["id"])
         assert result.exit_code == 0
-        assert "Relationships:" in result.output
+        assert "Relationships (outgoing):" in result.output
         assert "blocks" in result.output
         assert task_b["id"] in result.output
         assert "Blocked task" in result.output

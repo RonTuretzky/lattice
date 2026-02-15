@@ -1,4 +1,4 @@
-"""Query and display commands: log, list, show."""
+"""Query and display commands: event, list, show."""
 
 from __future__ import annotations
 
@@ -30,17 +30,17 @@ from lattice.core.tasks import apply_event_to_snapshot, compact_snapshot
 
 
 # ---------------------------------------------------------------------------
-# lattice log
+# lattice event
 # ---------------------------------------------------------------------------
 
 
-@cli.command("log")
+@cli.command("event")
 @click.argument("task_id")
 @click.argument("event_type")
 @click.option("--data", "data_str", default=None, help="JSON string for event data.")
 @click.option("--id", "ev_id", default=None, help="Caller-supplied event ID.")
 @common_options
-def log_cmd(
+def event_cmd(
     task_id: str,
     event_type: str,
     data_str: str | None,
@@ -51,7 +51,11 @@ def log_cmd(
     output_json: bool,
     quiet: bool,
 ) -> None:
-    """Log a custom event on a task."""
+    """Record a custom event on a task.
+
+    Custom event types must start with 'x_' (e.g., x_deployment_started).
+    Built-in types like status_changed or task_created are reserved.
+    """
     is_json = output_json
 
     lattice_dir = require_root(is_json)
@@ -115,13 +119,13 @@ def log_cmd(
     updated_snapshot = apply_event_to_snapshot(snapshot, event)
 
     # Write (event-first, then snapshot, under lock)
-    # Custom events do NOT go to _global.jsonl — write_task_event handles
-    # this automatically since the type is x_* (not in GLOBAL_LOG_TYPES).
+    # Custom events do NOT go to _lifecycle.jsonl — write_task_event handles
+    # this automatically since the type is x_* (not in LIFECYCLE_EVENT_TYPES).
     write_task_event(lattice_dir, task_id, [event], updated_snapshot)
 
     output_result(
         data=event,
-        human_message=f"Logged {event_type} on {task_id}",
+        human_message=f"Recorded {event_type} on {task_id}",
         quiet_value=event["id"],
         is_json=is_json,
         is_quiet=quiet,
@@ -259,8 +263,11 @@ def show_cmd(
         notes_path = lattice_dir / "notes" / f"{task_id}.md"
     has_notes = notes_path.exists()
 
-    # Read relationship target titles (best effort)
-    relationships = _enrich_relationships(lattice_dir, snapshot)
+    # Read outgoing relationship target titles (best effort)
+    relationships_out = _enrich_relationships(lattice_dir, snapshot)
+
+    # Derive incoming relationships by scanning all task snapshots
+    relationships_in = _find_incoming_relationships(lattice_dir, task_id)
 
     # Read artifact metadata (best effort)
     artifact_info = _read_artifact_info(lattice_dir, snapshot)
@@ -272,14 +279,16 @@ def show_cmd(
             data["archived"] = True
         if has_notes:
             data["notes_path"] = f"notes/{task_id}.md"
-        data["relationships_enriched"] = relationships
+        data["relationships_enriched"] = relationships_out
+        data["relationships_in"] = relationships_in
         data["artifact_info"] = artifact_info
         if full:
             data["_full"] = True
         click.echo(json_envelope(True, data=data))
     else:
         _print_human_show(
-            snapshot, events, relationships, artifact_info, has_notes, task_id, is_archived, full
+            snapshot, events, relationships_out, relationships_in,
+            artifact_info, has_notes, task_id, is_archived, full,
         )
 
 
@@ -329,6 +338,36 @@ def _enrich_relationships(lattice_dir: Path, snapshot: dict) -> list[dict]:
     return relationships
 
 
+def _find_incoming_relationships(lattice_dir: Path, task_id: str) -> list[dict]:
+    """Find all tasks that have outgoing relationships pointing at *task_id*.
+
+    Scans active and archived snapshots. Returns a list of dicts with
+    ``source_task_id``, ``source_title``, ``type``, and ``note``.
+    """
+    incoming: list[dict] = []
+
+    for directory in [lattice_dir / "tasks", lattice_dir / "archive" / "tasks"]:
+        if not directory.is_dir():
+            continue
+        for snap_file in directory.glob("*.json"):
+            if snap_file.stem == task_id:
+                continue  # skip self
+            try:
+                snap = json.loads(snap_file.read_text())
+            except (json.JSONDecodeError, OSError):
+                continue
+            for rel in snap.get("relationships_out", []):
+                if rel.get("target_task_id") == task_id:
+                    incoming.append({
+                        "source_task_id": snap.get("id", snap_file.stem),
+                        "source_title": snap.get("title"),
+                        "type": rel.get("type"),
+                        "note": rel.get("note"),
+                    })
+
+    return incoming
+
+
 def _read_artifact_info(lattice_dir: Path, snapshot: dict) -> list[dict]:
     """Read artifact metadata for each artifact ref (best effort)."""
     artifacts: list[dict] = []
@@ -365,6 +404,7 @@ def _print_human_show(
     snapshot: dict,
     events: list[dict],
     relationships: list[dict],
+    relationships_in: list[dict],
     artifact_info: list[dict],
     has_notes: bool,
     task_id: str,
@@ -396,7 +436,7 @@ def _print_human_show(
 
     if relationships:
         click.echo("")
-        click.echo("Relationships:")
+        click.echo("Relationships (outgoing):")
         for rel in relationships:
             rel_type = rel.get("type", "?")
             target_id = rel.get("target_task_id", "?")
@@ -405,6 +445,18 @@ def _print_human_show(
                 click.echo(f'  {rel_type} -> {target_id} "{target_title}"')
             else:
                 click.echo(f"  {rel_type} -> {target_id}")
+
+    if relationships_in:
+        click.echo("")
+        click.echo("Relationships (incoming):")
+        for rel in relationships_in:
+            rel_type = rel.get("type", "?")
+            source_id = rel.get("source_task_id", "?")
+            source_title = rel.get("source_title")
+            if source_title:
+                click.echo(f'  {source_id} "{source_title}" --[{rel_type}]--> this')
+            else:
+                click.echo(f"  {source_id} --[{rel_type}]--> this")
 
     if artifact_info:
         click.echo("")

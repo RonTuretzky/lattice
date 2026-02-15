@@ -13,7 +13,7 @@ from lattice.cli.helpers import (
     require_root,
 )
 from lattice.cli.main import cli
-from lattice.core.events import GLOBAL_LOG_TYPES, serialize_event
+from lattice.core.events import LIFECYCLE_EVENT_TYPES, serialize_event
 from lattice.core.ids import validate_id
 from lattice.core.tasks import apply_event_to_snapshot, serialize_snapshot
 from lattice.storage.fs import atomic_write
@@ -50,7 +50,7 @@ def _parse_jsonl_file(path: Path) -> tuple[list[dict], list[dict]]:
                         f"{'Truncated final line' if is_last else 'Invalid JSON at line ' + str(i + 1)}"
                         f" in {path.name}"
                     ),
-                    "task_id": path.stem if path.stem != "_global" else None,
+                    "task_id": path.stem if path.stem != "_lifecycle" else None,
                     "file": str(path),
                     "line": i + 1,
                     "is_truncated_final": is_last,
@@ -105,7 +105,7 @@ def _collect_event_files(lattice_dir: Path) -> list[Path]:
     for d in [lattice_dir / "events", lattice_dir / "archive" / "events"]:
         if d.is_dir():
             for f in sorted(d.glob("*.jsonl")):
-                if f.name != "_global.jsonl":
+                if f.name != "_lifecycle.jsonl":
                     result.append(f)
     return result
 
@@ -185,9 +185,9 @@ def doctor(fix: bool, output_json: bool) -> None:
     # Check 2: JSONL parseability
     # -----------------------------------------------------------------
     all_jsonl_files = list(event_files)
-    global_log_path = lattice_dir / "events" / "_global.jsonl"
-    if global_log_path.exists():
-        all_jsonl_files.append(global_log_path)
+    lifecycle_log_path = lattice_dir / "events" / "_lifecycle.jsonl"
+    if lifecycle_log_path.exists():
+        all_jsonl_files.append(lifecycle_log_path)
 
     jsonl_ok = True
     per_task_events: dict[str, list[dict]] = {}
@@ -206,7 +206,7 @@ def doctor(fix: bool, output_json: bool) -> None:
                             finding["level"] = "warning"
             findings.extend(parse_findings)
 
-        if jf.name == "_global.jsonl":
+        if jf.name == "_lifecycle.jsonl":
             global_events = events
         else:
             task_id = jf.stem
@@ -361,7 +361,7 @@ def doctor(fix: bool, output_json: bool) -> None:
             )
 
     # -----------------------------------------------------------------
-    # Check 9: Global log consistency
+    # Check 9: Lifecycle log consistency
     # -----------------------------------------------------------------
     global_ok = True
     # Build a set of (event_id) from global log
@@ -372,7 +372,7 @@ def doctor(fix: bool, output_json: bool) -> None:
     # Every lifecycle event in per-task logs should be in global
     for task_id, events in per_task_events.items():
         for ev in events:
-            if ev.get("type") in GLOBAL_LOG_TYPES:
+            if ev.get("type") in LIFECYCLE_EVENT_TYPES:
                 ev_id = ev.get("id", "")
                 if ev_id not in global_event_ids:
                     global_ok = False
@@ -382,7 +382,7 @@ def doctor(fix: bool, output_json: bool) -> None:
                             "check": "global_log_consistency",
                             "message": (
                                 f"Lifecycle event {ev_id} ({ev.get('type')}) "
-                                f"for {task_id} missing from _global.jsonl"
+                                f"for {task_id} missing from _lifecycle.jsonl"
                             ),
                             "task_id": task_id,
                         }
@@ -404,7 +404,7 @@ def doctor(fix: bool, output_json: bool) -> None:
                     "level": "warning",
                     "check": "global_log_consistency",
                     "message": (
-                        f"Global log event {ev_id} ({ev.get('type')}) "
+                        f"Lifecycle log event {ev_id} ({ev.get('type')}) "
                         f"has no matching per-task event"
                     ),
                     "task_id": ev.get("task_id"),
@@ -507,7 +507,7 @@ def doctor(fix: bool, output_json: bool) -> None:
                     click.echo(f"\u26a0 {f['message']}")
 
         if global_ok:
-            click.echo("\u2713 Global log consistent")
+            click.echo("\u2713 Lifecycle log consistent")
         else:
             for f in findings:
                 if f["check"] == "global_log_consistency":
@@ -566,8 +566,8 @@ def _rebuild_task(lattice_dir: Path, task_id: str) -> dict:
     return snapshot
 
 
-def _rebuild_global_log(lattice_dir: Path) -> list[str]:
-    """Rebuild _global.jsonl from all per-task event logs.
+def _rebuild_lifecycle_log(lattice_dir: Path) -> list[str]:
+    """Rebuild _lifecycle.jsonl from all per-task event logs.
 
     Returns list of rebuilt task IDs (for reporting).
     """
@@ -581,7 +581,7 @@ def _rebuild_global_log(lattice_dir: Path) -> list[str]:
         if not directory.is_dir():
             continue
         for jsonl_file in sorted(directory.glob("*.jsonl")):
-            if jsonl_file.name == "_global.jsonl":
+            if jsonl_file.name == "_lifecycle.jsonl":
                 continue
             for line in jsonl_file.read_text().splitlines():
                 stripped = line.strip()
@@ -591,19 +591,19 @@ def _rebuild_global_log(lattice_dir: Path) -> list[str]:
                     event = json.loads(stripped)
                 except json.JSONDecodeError:
                     continue  # skip malformed lines during rebuild
-                if event.get("type") in GLOBAL_LOG_TYPES:
+                if event.get("type") in LIFECYCLE_EVENT_TYPES:
                     all_lifecycle_events.append(event)
 
     # Sort by (ts, id) for deterministic ordering
     all_lifecycle_events.sort(key=lambda e: (e.get("ts", ""), e.get("id", "")))
 
     # Write atomically
-    global_path = lattice_dir / "events" / "_global.jsonl"
+    lifecycle_path = lattice_dir / "events" / "_lifecycle.jsonl"
     content = "".join(serialize_event(e) for e in all_lifecycle_events)
 
     locks_dir = lattice_dir / "locks"
-    with multi_lock(locks_dir, ["events__global"]):
-        atomic_write(global_path, content)
+    with multi_lock(locks_dir, ["events__lifecycle"]):
+        atomic_write(lifecycle_path, content)
 
     return [e.get("task_id", "") for e in all_lifecycle_events]
 
@@ -638,7 +638,7 @@ def rebuild(task_id: str | None, rebuild_all: bool, output_json: bool) -> None:
 
         if event_dir.is_dir():
             for jsonl_file in sorted(event_dir.glob("*.jsonl")):
-                if jsonl_file.name == "_global.jsonl":
+                if jsonl_file.name == "_lifecycle.jsonl":
                     continue
                 tid = jsonl_file.stem
                 try:
@@ -657,8 +657,8 @@ def rebuild(task_id: str | None, rebuild_all: bool, output_json: bool) -> None:
                     atomic_write(snapshot_path, serialize_snapshot(snapshot))
                 rebuilt_ids.append(tid)
 
-        # Rebuild global log
-        _rebuild_global_log(lattice_dir)
+        # Rebuild lifecycle log
+        _rebuild_lifecycle_log(lattice_dir)
 
         if is_json:
             click.echo(
@@ -673,7 +673,7 @@ def rebuild(task_id: str | None, rebuild_all: bool, output_json: bool) -> None:
         else:
             click.echo(
                 f"Rebuilt {len(rebuilt_ids)} task{'s' if len(rebuilt_ids) != 1 else ''}, "
-                f"regenerated global log"
+                f"regenerated lifecycle log"
             )
     else:
         # Single task rebuild

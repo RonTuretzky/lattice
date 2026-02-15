@@ -42,16 +42,16 @@ class TestArchive:
         assert last_event["task_id"] == task_id
         assert last_event["actor"] == "human:test"
 
-    def test_archive_in_global_log(self, create_task, invoke, initialized_root):
-        """task_archived should appear in _global.jsonl."""
-        task = create_task("Global log check")
+    def test_archive_in_lifecycle_log(self, create_task, invoke, initialized_root):
+        """task_archived should appear in _lifecycle.jsonl."""
+        task = create_task("Lifecycle log check")
         task_id = task["id"]
 
         invoke("archive", task_id, "--actor", "human:test")
 
         lattice = initialized_root / ".lattice"
-        global_path = lattice / "events" / "_global.jsonl"
-        content = global_path.read_text().strip()
+        lifecycle_path = lattice / "events" / "_lifecycle.jsonl"
+        content = lifecycle_path.read_text().strip()
         events = [json.loads(line) for line in content.split("\n")]
         archived_events = [
             e for e in events if e["type"] == "task_archived" and e["task_id"] == task_id

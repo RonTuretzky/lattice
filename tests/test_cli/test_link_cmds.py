@@ -358,30 +358,30 @@ class TestUnlinkErrors:
 class TestEventLogIntegrity:
     """Verify events are written correctly for link/unlink operations."""
 
-    def test_link_event_not_in_global_log(self, invoke, initialized_root: Path) -> None:
-        """relationship_added events should NOT go to _global.jsonl."""
+    def test_link_event_not_in_lifecycle_log(self, invoke, initialized_root: Path) -> None:
+        """relationship_added events should NOT go to _lifecycle.jsonl."""
         id_a, id_b = _create_two_tasks(invoke)
         invoke("link", id_a, "blocks", id_b, "--actor", "human:test")
 
-        global_path = initialized_root / LATTICE_DIR / "events" / "_global.jsonl"
-        global_events = [
-            json.loads(line) for line in global_path.read_text().strip().split("\n") if line
+        lifecycle_path = initialized_root / LATTICE_DIR / "events" / "_lifecycle.jsonl"
+        lifecycle_events = [
+            json.loads(line) for line in lifecycle_path.read_text().strip().split("\n") if line
         ]
-        # Only task_created events should be in global log
-        for ev in global_events:
+        # Only task_created events should be in lifecycle log
+        for ev in lifecycle_events:
             assert ev["type"] == "task_created"
 
-    def test_unlink_event_not_in_global_log(self, invoke, initialized_root: Path) -> None:
-        """relationship_removed events should NOT go to _global.jsonl."""
+    def test_unlink_event_not_in_lifecycle_log(self, invoke, initialized_root: Path) -> None:
+        """relationship_removed events should NOT go to _lifecycle.jsonl."""
         id_a, id_b = _create_two_tasks(invoke)
         invoke("link", id_a, "blocks", id_b, "--actor", "human:test")
         invoke("unlink", id_a, "blocks", id_b, "--actor", "human:test")
 
-        global_path = initialized_root / LATTICE_DIR / "events" / "_global.jsonl"
-        global_events = [
-            json.loads(line) for line in global_path.read_text().strip().split("\n") if line
+        lifecycle_path = initialized_root / LATTICE_DIR / "events" / "_lifecycle.jsonl"
+        lifecycle_events = [
+            json.loads(line) for line in lifecycle_path.read_text().strip().split("\n") if line
         ]
-        for ev in global_events:
+        for ev in lifecycle_events:
             assert ev["type"] == "task_created"
 
     def test_event_order_preserved(self, invoke, initialized_root: Path) -> None:

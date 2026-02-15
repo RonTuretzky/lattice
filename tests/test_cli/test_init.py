@@ -35,13 +35,13 @@ class TestInitDirectoryStructure:
         for d in expected_dirs:
             assert (lattice / d).is_dir(), f"Missing directory: {d}"
 
-    def test_creates_empty_global_jsonl(self, tmp_path: Path) -> None:
+    def test_creates_empty_lifecycle_jsonl(self, tmp_path: Path) -> None:
         runner = CliRunner()
         runner.invoke(cli, ["init", "--path", str(tmp_path)])
 
-        global_log = tmp_path / ".lattice" / "events" / "_global.jsonl"
-        assert global_log.is_file()
-        assert global_log.read_text() == ""
+        lifecycle_log = tmp_path / ".lattice" / "events" / "_lifecycle.jsonl"
+        assert lifecycle_log.is_file()
+        assert lifecycle_log.read_text() == ""
 
     def test_init_with_custom_path(self, tmp_path: Path) -> None:
         target = tmp_path / "myproject"

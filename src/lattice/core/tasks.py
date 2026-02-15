@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 import json
+import sys
 
 
 # ---------------------------------------------------------------------------
@@ -31,9 +32,9 @@ def apply_event_to_snapshot(snapshot: dict | None, event: dict) -> dict:
                 "snapshot (expected 'task_created' first)"
             )
             raise ValueError(msg)
-        # Work on a shallow copy so callers keep the original intact when
-        # they need it (e.g. for idempotency comparison).
-        snap = copy.copy(snapshot)
+        # Deep copy so callers keep the original intact (including nested
+        # dicts like custom_fields and lists like relationships_out).
+        snap = copy.deepcopy(snapshot)
         _apply_mutation(snap, etype, event)
 
     # Every event updates bookkeeping fields.
@@ -125,12 +126,10 @@ def _apply_mutation(snap: dict, etype: str, event: dict) -> None:
         value = data["to"]
         if field.startswith("custom_fields."):
             # Dot-notation for nested custom fields.
-            # Copy the dict to avoid mutating the caller's snapshot
-            # (shallow copy shares nested mutable objects).
             key = field[len("custom_fields.") :]
-            custom = dict(snap.get("custom_fields") or {})
-            custom[key] = value
-            snap["custom_fields"] = custom
+            if snap.get("custom_fields") is None:
+                snap["custom_fields"] = {}
+            snap["custom_fields"][key] = value
         else:
             snap[field] = value
 
@@ -142,10 +141,7 @@ def _apply_mutation(snap: dict, etype: str, event: dict) -> None:
             "created_by": event["actor"],
             "note": data.get("note"),
         }
-        # Ensure we have a mutable list (could be from a shared reference).
-        rels = list(snap.get("relationships_out", []))
-        rels.append(record)
-        snap["relationships_out"] = rels
+        snap.setdefault("relationships_out", []).append(record)
 
     elif etype == "relationship_removed":
         rm_type = data["type"]
@@ -158,14 +154,13 @@ def _apply_mutation(snap: dict, etype: str, event: dict) -> None:
         snap["relationships_out"] = rels
 
     elif etype == "artifact_attached":
-        refs = list(snap.get("artifact_refs", []))
-        refs.append(data["artifact_id"])
-        snap["artifact_refs"] = refs
+        snap.setdefault("artifact_refs", []).append(data["artifact_id"])
 
     elif etype in {
         "comment_added",
         "git_event",
         "task_archived",
+        "task_unarchived",
     }:
         # Recognised types that don't modify snapshot fields beyond the
         # bookkeeping handled by the caller.
@@ -175,5 +170,10 @@ def _apply_mutation(snap: dict, etype: str, event: dict) -> None:
         # Custom event type -- no snapshot field changes.
         pass
 
-    # Unknown built-in types are silently ignored for forward compatibility
-    # (section 6 -- tolerate unknown fields / types).
+    else:
+        # Unknown built-in types: warn for discoverability but don't fail,
+        # to preserve forward compatibility (section 6).
+        print(
+            f"Warning: unknown event type '{etype}' ignored during snapshot materialization",
+            file=sys.stderr,
+        )

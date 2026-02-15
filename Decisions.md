@@ -135,7 +135,7 @@
 
 ## 2026-02-15: Custom event types require x_ prefix
 
-- Decision: `lattice log` only accepts event types prefixed with `x_` (e.g., `x_deployment_started`). Built-in type names are reserved.
+- Decision: `lattice event` only accepts event types prefixed with `x_` (e.g., `x_deployment_started`). Built-in type names are reserved.
 - Rationale: Unbounded custom event writes would undermine schema integrity and complicate rebuild logic.
 - Consequence: Built-in event types form a closed enum. Extensions use a clear namespace.
 
@@ -170,3 +170,35 @@
 - Decision: The `.lattice/` directory no longer includes a `decisions.md` file.
 - Rationale: `.lattice/` should only contain machine-managed data. Project-level decision logs belong wherever the project keeps its documentation, not inside the Lattice runtime directory.
 - Consequence: One less file to confuse with the repo-level `Decisions.md` used during Lattice development.
+
+---
+
+## 2026-02-15: Renamed `_global.jsonl` to `_lifecycle.jsonl`
+
+- Decision: The derived convenience event log is now named `_lifecycle.jsonl` instead of `_global.jsonl`.
+- Rationale: The log only contains lifecycle events (task_created, task_archived, task_unarchived), not "global" events. The old name implied it contained all events, which was confusing.
+- Consequence: All code, tests, lock keys, and documentation updated. Variable names use `lifecycle_` prefix instead of `global_`.
+
+---
+
+## 2026-02-15: Renamed `lattice log` to `lattice event`
+
+- Decision: The custom event command is now `lattice event` instead of `lattice log`.
+- Rationale: `lattice log` collided with the mental model of "viewing a log" (like `git log`). The command actually records a custom event, so `event` is more descriptive.
+- Consequence: ProjectRequirements_v1.md still references `lattice log` in section 13.1 — it should be updated to match.
+
+---
+
+## 2026-02-15: Added `lattice unarchive` (reverses earlier decision)
+
+- Decision: `lattice unarchive` is now implemented, reversing the "No unarchive in v0" decision.
+- Rationale: The implementation was straightforward (reverse the archive file moves, append a `task_unarchived` event), and the lack of unarchive was flagged during review as a usability gap. Manual file recovery is error-prone.
+- Consequence: `task_unarchived` added to BUILTIN_EVENT_TYPES and LIFECYCLE_EVENT_TYPES. Archive round-trips are now fully supported.
+
+---
+
+## 2026-02-15: Bidirectional relationship display in `lattice show`
+
+- Decision: `lattice show` displays both outgoing relationships (from the task's snapshot) and incoming relationships (derived by scanning all snapshots).
+- Rationale: The original simplification of outgoing-only display was flagged as an oversimplification during review. Users expect to see "task B is blocked by task A" when viewing task B.
+- Consequence: Canonical storage remains outgoing-only (no schema change). Incoming relationships are computed at read time by scanning `tasks/` and `archive/tasks/`. Performance is acceptable at v0 scale.

@@ -24,7 +24,7 @@ def initialized_root(lattice_root: Path) -> Path:
     ensure_lattice_dirs(lattice_root)
     lattice_dir = lattice_root / LATTICE_DIR
     atomic_write(lattice_dir / "config.json", serialize_config(default_config()))
-    (lattice_dir / "events" / "_global.jsonl").touch()
+    (lattice_dir / "events" / "_lifecycle.jsonl").touch()
     return lattice_root
 
 

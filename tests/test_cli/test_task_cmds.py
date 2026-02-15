@@ -466,21 +466,21 @@ class TestCrossCutting:
         assert event["type"] == "task_created"
         assert event["task_id"] == task_id
 
-    def test_global_log_gets_task_created(self, create_task, initialized_root):
-        """task_created events should appear in _global.jsonl."""
-        task = create_task("Global log test")
+    def test_lifecycle_log_gets_task_created(self, create_task, initialized_root):
+        """task_created events should appear in _lifecycle.jsonl."""
+        task = create_task("Lifecycle log test")
         task_id = task["id"]
-        global_path = initialized_root / ".lattice" / "events" / "_global.jsonl"
-        content = global_path.read_text().strip()
+        lifecycle_path = initialized_root / ".lattice" / "events" / "_lifecycle.jsonl"
+        content = lifecycle_path.read_text().strip()
         assert content  # not empty
         events = [json.loads(line) for line in content.split("\n")]
         created_events = [e for e in events if e["type"] == "task_created"]
         assert any(e["task_id"] == task_id for e in created_events)
 
-    def test_global_log_excludes_non_lifecycle_events(self, create_task, invoke, initialized_root):
+    def test_lifecycle_log_excludes_non_lifecycle_events(self, create_task, invoke, initialized_root):
         """status_changed, field_updated, assignment_changed, comment_added
-        should NOT appear in _global.jsonl."""
-        task = create_task("Global exclusion")
+        should NOT appear in _lifecycle.jsonl."""
+        task = create_task("Lifecycle exclusion")
         task_id = task["id"]
 
         # Perform several non-lifecycle operations
@@ -489,12 +489,12 @@ class TestCrossCutting:
         invoke("assign", task_id, "agent:claude", "--actor", "human:test")
         invoke("comment", task_id, "A note", "--actor", "human:test")
 
-        global_path = initialized_root / ".lattice" / "events" / "_global.jsonl"
-        content = global_path.read_text().strip()
+        lifecycle_path = initialized_root / ".lattice" / "events" / "_lifecycle.jsonl"
+        content = lifecycle_path.read_text().strip()
         events = [json.loads(line) for line in content.split("\n")]
         for event in events:
             assert event["type"] in {"task_created", "task_archived"}, (
-                f"Unexpected event type in global log: {event['type']}"
+                f"Unexpected event type in lifecycle log: {event['type']}"
             )
 
     def test_json_error_envelope_format(self, invoke):

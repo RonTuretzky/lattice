@@ -8,7 +8,7 @@ from typing import NoReturn
 
 import click
 
-from lattice.core.events import GLOBAL_LOG_TYPES, serialize_event
+from lattice.core.events import LIFECYCLE_EVENT_TYPES, serialize_event
 from lattice.core.ids import validate_actor
 from lattice.core.tasks import serialize_snapshot
 from lattice.storage.fs import LATTICE_DIR, LatticeRootError, atomic_write, find_root, jsonl_append
@@ -154,19 +154,19 @@ def write_task_event(
     Follows the write path pattern:
     1. Acquire locks in sorted order
     2. Append events to per-task JSONL
-    3. Append lifecycle events to global JSONL
+    3. Append lifecycle events to _lifecycle.jsonl
     4. Atomic-write snapshot
     5. Release locks
     """
     locks_dir = lattice_dir / "locks"
 
-    # Determine which events go to global log
-    global_events = [e for e in events if e["type"] in GLOBAL_LOG_TYPES]
+    # Determine which events go to lifecycle log
+    lifecycle_events = [e for e in events if e["type"] in LIFECYCLE_EVENT_TYPES]
 
     # Build lock keys
     lock_keys = [f"events_{task_id}", f"tasks_{task_id}"]
-    if global_events:
-        lock_keys.append("events__global")
+    if lifecycle_events:
+        lock_keys.append("events__lifecycle")
     lock_keys.sort()
 
     with multi_lock(locks_dir, lock_keys):
@@ -175,11 +175,11 @@ def write_task_event(
         for event in events:
             jsonl_append(event_path, serialize_event(event))
 
-        # Lifecycle events go to global log
-        if global_events:
-            global_path = lattice_dir / "events" / "_global.jsonl"
-            for event in global_events:
-                jsonl_append(global_path, serialize_event(event))
+        # Lifecycle events go to lifecycle log
+        if lifecycle_events:
+            lifecycle_path = lattice_dir / "events" / "_lifecycle.jsonl"
+            for event in lifecycle_events:
+                jsonl_append(lifecycle_path, serialize_event(event))
 
         # Then materialize snapshot
         snapshot_path = lattice_dir / "tasks" / f"{task_id}.json"

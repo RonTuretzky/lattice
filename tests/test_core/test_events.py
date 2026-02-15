@@ -6,7 +6,7 @@ import json
 
 from lattice.core.events import (
     BUILTIN_EVENT_TYPES,
-    GLOBAL_LOG_TYPES,
+    LIFECYCLE_EVENT_TYPES,
     create_event,
     serialize_event,
     validate_custom_event_type,
@@ -25,6 +25,7 @@ class TestBuiltinEventTypes:
         {
             "task_created",
             "task_archived",
+            "task_unarchived",
             "status_changed",
             "assignment_changed",
             "field_updated",
@@ -36,32 +37,32 @@ class TestBuiltinEventTypes:
         }
     )
 
-    def test_contains_all_ten_types(self) -> None:
+    def test_contains_all_builtin_types(self) -> None:
         assert BUILTIN_EVENT_TYPES == self.EXPECTED
 
     def test_is_frozenset(self) -> None:
         assert isinstance(BUILTIN_EVENT_TYPES, frozenset)
 
     def test_count(self) -> None:
-        assert len(BUILTIN_EVENT_TYPES) == 10
+        assert len(BUILTIN_EVENT_TYPES) == 11
 
 
 # ---------------------------------------------------------------------------
-# GLOBAL_LOG_TYPES
+# LIFECYCLE_EVENT_TYPES
 # ---------------------------------------------------------------------------
 
 
-class TestGlobalLogTypes:
-    """Verify exactly task_created and task_archived go to _global.jsonl."""
+class TestLifecycleEventTypes:
+    """Verify exactly task_created and task_archived go to _lifecycle.jsonl."""
 
     def test_contains_exactly_lifecycle_events(self) -> None:
-        assert GLOBAL_LOG_TYPES == frozenset({"task_created", "task_archived"})
+        assert LIFECYCLE_EVENT_TYPES == frozenset({"task_created", "task_archived", "task_unarchived"})
 
     def test_is_frozenset(self) -> None:
-        assert isinstance(GLOBAL_LOG_TYPES, frozenset)
+        assert isinstance(LIFECYCLE_EVENT_TYPES, frozenset)
 
     def test_is_subset_of_builtin(self) -> None:
-        assert GLOBAL_LOG_TYPES <= BUILTIN_EVENT_TYPES
+        assert LIFECYCLE_EVENT_TYPES <= BUILTIN_EVENT_TYPES
 
 
 # ---------------------------------------------------------------------------

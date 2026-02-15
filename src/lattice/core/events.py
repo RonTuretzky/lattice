@@ -15,6 +15,7 @@ BUILTIN_EVENT_TYPES: frozenset[str] = frozenset(
     {
         "task_created",
         "task_archived",
+        "task_unarchived",
         "status_changed",
         "assignment_changed",
         "field_updated",
@@ -26,11 +27,12 @@ BUILTIN_EVENT_TYPES: frozenset[str] = frozenset(
     }
 )
 
-# Only lifecycle events go to _global.jsonl (section 9.1).
-GLOBAL_LOG_TYPES: frozenset[str] = frozenset(
+# Only lifecycle events go to _lifecycle.jsonl (section 9.1).
+LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset(
     {
         "task_created",
         "task_archived",
+        "task_unarchived",
     }
 )
 

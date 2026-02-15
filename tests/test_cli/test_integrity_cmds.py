@@ -212,18 +212,18 @@ class TestDoctor:
         assert "non-existent" in result.output
         assert "artifact" in result.output.lower()
 
-    def test_doctor_global_log_consistency(self, create_task, invoke, initialized_root):
-        """Remove event from per-task log that exists in global. Doctor detects."""
-        task = create_task("Global consistency test")
+    def test_doctor_lifecycle_log_consistency(self, create_task, invoke, initialized_root):
+        """Remove event from per-task log that exists in lifecycle log. Doctor detects."""
+        task = create_task("Lifecycle consistency test")
         task_id = task["id"]
 
-        # The global log has the task_created event. Clear the per-task log.
+        # The lifecycle log has the task_created event. Clear the per-task log.
         event_path = initialized_root / ".lattice" / "events" / f"{task_id}.jsonl"
         event_path.write_text("")
 
         result = invoke("doctor")
         assert result.exit_code == 0
-        assert "global" in result.output.lower() or "Global" in result.output
+        assert "lifecycle" in result.output.lower() or "Lifecycle" in result.output
 
 
 # ---------------------------------------------------------------------------
@@ -280,7 +280,7 @@ class TestRebuild:
         result = invoke("rebuild", "--all")
         assert result.exit_code == 0
         assert "Rebuilt" in result.output
-        assert "regenerated global log" in result.output
+        assert "regenerated lifecycle log" in result.output
 
         # Verify snapshots match originals
         for tid, orig in originals.items():
@@ -345,29 +345,29 @@ class TestRebuild:
         assert task_id in parsed["data"]["rebuilt_tasks"]
         assert parsed["data"]["global_log_rebuilt"] is False
 
-    def test_rebuild_regenerates_global_log(self, create_task, invoke, initialized_root):
-        """Rebuild --all regenerates global log with task_created events sorted by (ts, id)."""
-        task1 = create_task("Global log task 1")
-        task2 = create_task("Global log task 2")
+    def test_rebuild_regenerates_lifecycle_log(self, create_task, invoke, initialized_root):
+        """Rebuild --all regenerates lifecycle log with task_created events sorted by (ts, id)."""
+        task1 = create_task("Lifecycle log task 1")
+        task2 = create_task("Lifecycle log task 2")
 
-        # Corrupt the global log
-        global_path = initialized_root / ".lattice" / "events" / "_global.jsonl"
-        global_path.write_text("")
+        # Corrupt the lifecycle log
+        lifecycle_path = initialized_root / ".lattice" / "events" / "_lifecycle.jsonl"
+        lifecycle_path.write_text("")
 
         # Rebuild all
         result = invoke("rebuild", "--all")
         assert result.exit_code == 0
 
-        # Verify global log was regenerated
-        content = global_path.read_text().strip()
+        # Verify lifecycle log was regenerated
+        content = lifecycle_path.read_text().strip()
         assert content  # not empty
 
         events = [json.loads(line) for line in content.split("\n") if line.strip()]
 
         # Should contain exactly task_created events for both tasks
-        task_ids_in_global = {e["task_id"] for e in events}
-        assert task1["id"] in task_ids_in_global
-        assert task2["id"] in task_ids_in_global
+        task_ids_in_lifecycle = {e["task_id"] for e in events}
+        assert task1["id"] in task_ids_in_lifecycle
+        assert task2["id"] in task_ids_in_lifecycle
 
         # All events should be lifecycle events
         for ev in events:

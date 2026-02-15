@@ -36,7 +36,7 @@ The event log (JSONL) is the source of truth. Task JSON files are materialized s
 ├── config.json                    # Workflow, statuses, transitions, WIP limits
 ├── tasks/<task_id>.json           # Materialized task snapshots
 ├── events/<task_id>.jsonl         # Per-task event logs (append-only)
-├── events/_global.jsonl           # Derived convenience log (rebuildable from per-task logs)
+├── events/_lifecycle.jsonl         # Lifecycle event log (derived, rebuildable from per-task logs)
 ├── artifacts/meta/<art_id>.json   # Artifact metadata
 ├── artifacts/payload/<art_id>.*   # Artifact payloads
 ├── notes/<task_id>.md             # Human-editable markdown notes (non-authoritative)
@@ -216,7 +216,7 @@ Critical test categories (add as features land):
 Refer to `ProjectRequirements_v1.md` for full non-goals. Key reminders:
 - No agent registry (actor IDs are free-form strings)
 - No `lattice note` command (notes are direct file edits)
-- No `lattice unarchive` (manual recovery is documented)
+- ~~No `lattice unarchive`~~ — `lattice unarchive` is now implemented
 - No database or index (filesystem scanning is sufficient at v0 scale)
 - No real-time dashboard updates
 - No authentication or multi-user access control

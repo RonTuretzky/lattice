@@ -97,13 +97,17 @@ def create(
 
     # Validate inputs
     if not validate_status(config, status):
-        output_error(f"Invalid status: '{status}'.", "VALIDATION_ERROR", is_json)
+        valid = ", ".join(config.get("workflow", {}).get("statuses", []))
+        output_error(f"Invalid status: '{status}'. Valid statuses: {valid}.", "VALIDATION_ERROR", is_json)
     if not validate_task_type(config, task_type):
-        output_error(f"Invalid task type: '{task_type}'.", "VALIDATION_ERROR", is_json)
+        valid = ", ".join(config.get("task_types", []))
+        output_error(f"Invalid task type: '{task_type}'. Valid types: {valid}.", "VALIDATION_ERROR", is_json)
     if priority not in VALID_PRIORITIES:
-        output_error(f"Invalid priority: '{priority}'.", "VALIDATION_ERROR", is_json)
+        valid = ", ".join(VALID_PRIORITIES)
+        output_error(f"Invalid priority: '{priority}'. Valid priorities: {valid}.", "VALIDATION_ERROR", is_json)
     if urgency is not None and urgency not in VALID_URGENCIES:
-        output_error(f"Invalid urgency: '{urgency}'.", "VALIDATION_ERROR", is_json)
+        valid = ", ".join(VALID_URGENCIES)
+        output_error(f"Invalid urgency: '{urgency}'. Valid urgencies: {valid}.", "VALIDATION_ERROR", is_json)
     if assigned_to is not None and not validate_actor(assigned_to):
         output_error(f"Invalid assigned-to format: '{assigned_to}'.", "INVALID_ACTOR", is_json)
 
@@ -287,19 +291,24 @@ def update(
             continue
 
         if field not in _UPDATABLE_FIELDS:
+            valid = ", ".join(sorted(_UPDATABLE_FIELDS))
             output_error(
-                f"Unknown or non-updatable field: '{field}'.",
+                f"Unknown or non-updatable field: '{field}'. "
+                f"Updatable fields: {valid}. Use custom_fields.<key> for custom data.",
                 "VALIDATION_ERROR",
                 is_json,
             )
 
         # Validate enum fields
         if field == "priority" and value not in VALID_PRIORITIES:
-            output_error(f"Invalid priority: '{value}'.", "VALIDATION_ERROR", is_json)
+            valid = ", ".join(VALID_PRIORITIES)
+            output_error(f"Invalid priority: '{value}'. Valid priorities: {valid}.", "VALIDATION_ERROR", is_json)
         if field == "urgency" and value not in VALID_URGENCIES:
-            output_error(f"Invalid urgency: '{value}'.", "VALIDATION_ERROR", is_json)
+            valid = ", ".join(VALID_URGENCIES)
+            output_error(f"Invalid urgency: '{value}'. Valid urgencies: {valid}.", "VALIDATION_ERROR", is_json)
         if field == "type" and not validate_task_type(config, value):
-            output_error(f"Invalid task type: '{value}'.", "VALIDATION_ERROR", is_json)
+            valid = ", ".join(config.get("task_types", []))
+            output_error(f"Invalid task type: '{value}'. Valid types: {valid}.", "VALIDATION_ERROR", is_json)
 
         # Get old value and compute new value
         if field == "tags":
@@ -394,7 +403,8 @@ def status_cmd(
 
     # Validate new_status is a known status
     if not validate_status(config, new_status):
-        output_error(f"Invalid status: '{new_status}'.", "VALIDATION_ERROR", is_json)
+        valid = ", ".join(config.get("workflow", {}).get("statuses", []))
+        output_error(f"Invalid status: '{new_status}'. Valid statuses: {valid}.", "VALIDATION_ERROR", is_json)
 
     # Already at the target status
     if current_status == new_status:

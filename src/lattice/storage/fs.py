@@ -67,10 +67,10 @@ def ensure_lattice_dirs(root: Path) -> None:
     for subdir in subdirs:
         (lattice / subdir).mkdir(parents=True, exist_ok=True)
 
-    # Create empty _global.jsonl ready for appends
-    global_log = lattice / "events" / "_global.jsonl"
-    if not global_log.exists():
-        global_log.touch()
+    # Create empty _lifecycle.jsonl ready for appends
+    lifecycle_log = lattice / "events" / "_lifecycle.jsonl"
+    if not lifecycle_log.exists():
+        lifecycle_log.touch()
 
 
 def find_root(start: Path | None = None) -> Path | None:
