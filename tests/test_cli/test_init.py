@@ -131,6 +131,14 @@ class TestInitIdempotency:
         reloaded = json.loads(config_path.read_text())
         assert reloaded["custom_key"] == "user_value"
 
+    def test_second_init_prints_already_initialized(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+
+        result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        assert result.exit_code == 0
+        assert "already initialized" in result.output
+
     def test_existing_tasks_survive_second_init(self, tmp_path: Path) -> None:
         runner = CliRunner()
         runner.invoke(cli, ["init", "--path", str(tmp_path)])
@@ -145,3 +153,54 @@ class TestInitIdempotency:
         # Task file still exists
         assert task_file.is_file()
         assert json.loads(task_file.read_text())["id"] == "task_fake"
+
+
+class TestInitErrorHandling:
+    """lattice init handles filesystem errors gracefully."""
+
+    def test_file_collision_shows_error(self, tmp_path: Path) -> None:
+        """If .lattice exists as a file, init fails with a clear message."""
+        (tmp_path / ".lattice").write_text("not a directory")
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        assert result.exit_code != 0
+        assert "not a directory" in result.output
+
+    def test_file_collision_does_not_traceback(self, tmp_path: Path) -> None:
+        """File collision produces a Click error, not a Python traceback."""
+        (tmp_path / ".lattice").write_text("not a directory")
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        assert "Traceback" not in result.output
+
+    def test_permission_error_shows_message(self, tmp_path: Path, monkeypatch: Path) -> None:
+        """PermissionError is caught and reported cleanly."""
+        from lattice.cli import main as cli_module
+
+        def raise_permission_error(root: Path) -> None:
+            raise PermissionError("Operation not permitted")
+
+        monkeypatch.setattr(cli_module, "ensure_lattice_dirs", raise_permission_error)
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        assert result.exit_code != 0
+        assert "Permission denied" in result.output
+        assert "Traceback" not in result.output
+
+    def test_oserror_shows_message(self, tmp_path: Path, monkeypatch: Path) -> None:
+        """Generic OSError is caught and reported cleanly."""
+        from lattice.cli import main as cli_module
+
+        def raise_os_error(root: Path) -> None:
+            raise OSError("No space left on device")
+
+        monkeypatch.setattr(cli_module, "ensure_lattice_dirs", raise_os_error)
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        assert result.exit_code != 0
+        assert "Failed to initialize" in result.output
+        assert "Traceback" not in result.output

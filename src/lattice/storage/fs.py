@@ -28,7 +28,11 @@ def atomic_write(path: Path, content: str | bytes) -> None:
     fd, tmp_path = tempfile.mkstemp(dir=parent, prefix=".tmp.")
     closed = False
     try:
-        os.write(fd, data)
+        # os.write() can short-write; loop until all bytes are flushed.
+        mv = memoryview(data)
+        while mv:
+            written = os.write(fd, mv)
+            mv = mv[written:]
         os.fsync(fd)
         os.close(fd)
         closed = True

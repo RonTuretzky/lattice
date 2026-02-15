@@ -28,18 +28,32 @@ def init(target_path: str) -> None:
     root = Path(target_path)
     lattice_dir = root / LATTICE_DIR
 
-    # Idempotency: if .lattice/ already exists, exit without touching anything
+    # Idempotency: if .lattice/ already exists as a directory, skip
     if lattice_dir.is_dir():
         click.echo(f"Lattice already initialized in {LATTICE_DIR}/")
         return
 
-    # Create directory structure
-    ensure_lattice_dirs(root)
+    # Fail clearly if .lattice exists as a file (not a directory)
+    if lattice_dir.exists():
+        raise click.ClickException(
+            f"Cannot initialize: '{LATTICE_DIR}' exists but is not a directory. "
+            "Remove it and try again."
+        )
 
-    # Write default config atomically
-    config = default_config()
-    config_content = serialize_config(config)
-    atomic_write(lattice_dir / "config.json", config_content)
+    try:
+        # Create directory structure
+        ensure_lattice_dirs(root)
+
+        # Write default config atomically
+        config = default_config()
+        config_content = serialize_config(config)
+        atomic_write(lattice_dir / "config.json", config_content)
+    except PermissionError:
+        raise click.ClickException(
+            f"Permission denied: cannot create {LATTICE_DIR}/ in {root}"
+        )
+    except OSError as e:
+        raise click.ClickException(f"Failed to initialize Lattice: {e}")
 
     click.echo(f"Initialized empty Lattice in {LATTICE_DIR}/")
 
