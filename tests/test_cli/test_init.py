@@ -56,7 +56,7 @@ class TestInitDirectoryStructure:
         runner = CliRunner()
         result = runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n\n")
         assert result.exit_code == 0
-        assert "Initialized empty Lattice in .lattice/" in result.output
+        assert "Lattice initialized in .lattice/" in result.output
 
 
 class TestInitConfig:

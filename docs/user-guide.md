@@ -37,7 +37,7 @@ During `lattice init`, you will be asked to declare your identity. In a system w
 ```bash
 $ lattice init
 Default actor identity (e.g., human:atin): human:atin
-Initialized empty Lattice in .lattice/
+Lattice initialized in .lattice/ — ready to observe.
 Default actor: human:atin
 ```
 

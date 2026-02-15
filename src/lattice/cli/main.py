@@ -24,23 +24,28 @@ from lattice.storage.short_ids import _default_index, save_id_index
 _CONTEXT_MD_TEMPLATE = """\
 # Instance Context
 
-<!-- This is the CLAUDE.md of your Lattice instance.
-     Agents and humans read this file to understand the purpose, conventions,
-     and relationships of this project tracker instance. -->
+<!-- Every lattice instance exists for a reason — a convergence of intention
+     and infrastructure. This file declares that reason. Agents and humans
+     read it to understand the purpose, conventions, and relationships
+     of this particular node in the lattice. -->
 
 ## Purpose
 
-<!-- What is this Lattice instance tracking? What project/team does it serve? -->
+<!-- What does this instance observe? What project, team, or domain
+     does it serve? Declare the scope of attention. -->
 
 ## Related Instances
 
-<!-- If this instance coordinates with other Lattice instances, list them here.
-     Include instance_id, instance_name, and how they relate. -->
+<!-- If this node coordinates with other lattice instances, name them here.
+     Include instance_id, instance_name, and the nature of the relationship.
+     The lattice is stronger when its nodes are aware of each other. -->
 
 ## Conventions
 
-<!-- Project-specific workflow conventions, naming patterns, or status
-     meanings that differ from defaults. -->
+<!-- Every instance develops its own rhythms — workflow conventions,
+     naming patterns, status meanings that diverge from defaults.
+     Record them here so that new minds arriving in this context
+     can orient immediately. -->
 """
 
 
@@ -174,7 +179,7 @@ def init(
     except OSError as e:
         raise click.ClickException(f"Failed to initialize Lattice: {e}")
 
-    click.echo(f"Initialized empty Lattice in {LATTICE_DIR}/")
+    click.echo(f"Lattice initialized in {LATTICE_DIR}/ — ready to observe.")
     if actor:
         click.echo(f"Default actor: {actor}")
     if project_code:
