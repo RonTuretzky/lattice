@@ -91,21 +91,6 @@ def output_result(
 # ---------------------------------------------------------------------------
 
 
-def resolve_actor(actor: str | None, lattice_dir: Path, is_json: bool) -> str:
-    """Resolve actor from flag, LATTICE_ACTOR env var (via Click), or config default_actor."""
-    if actor:
-        return actor
-    config = load_project_config(lattice_dir)
-    default = config.get("default_actor")
-    if default:
-        return default
-    output_error(
-        "No --actor provided. Set LATTICE_ACTOR env var or default_actor in config.json.",
-        "MISSING_ACTOR",
-        is_json,
-    )
-
-
 def validate_actor_or_exit(actor: str, is_json: bool) -> None:
     """Validate actor format or exit with error."""
     if not validate_actor(actor):
@@ -128,13 +113,7 @@ def common_options(f):  # noqa: ANN001, ANN201
     f = click.option("--json", "output_json", is_flag=True, help="Output structured JSON.")(f)
     f = click.option("--session", default=None, help="Session identifier.")(f)
     f = click.option("--model", default=None, help="Model identifier.")(f)
-    f = click.option(
-        "--actor",
-        default=None,
-        envvar="LATTICE_ACTOR",
-        help="Actor (e.g., human:atin, agent:claude). "
-        "Defaults to LATTICE_ACTOR env var or config default_actor.",
-    )(f)
+    f = click.option("--actor", required=True, help="Actor (e.g., human:atin, agent:claude).")(f)
     return f
 
 

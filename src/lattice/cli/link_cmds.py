@@ -10,7 +10,6 @@ from lattice.cli.helpers import (
     output_result,
     read_snapshot_or_exit,
     require_root,
-    resolve_actor,
     validate_actor_or_exit,
     write_task_event,
 )
@@ -36,7 +35,7 @@ def link(
     rel_type: str,
     target_task_id: str,
     note: str | None,
-    actor: str | None,
+    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -46,7 +45,6 @@ def link(
     is_json = output_json
 
     lattice_dir = require_root(is_json)
-    actor = resolve_actor(actor, lattice_dir, is_json)
     validate_actor_or_exit(actor, is_json)
 
     # Validate relationship type
@@ -131,7 +129,7 @@ def unlink(
     task_id: str,
     rel_type: str,
     target_task_id: str,
-    actor: str | None,
+    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -141,7 +139,6 @@ def unlink(
     is_json = output_json
 
     lattice_dir = require_root(is_json)
-    actor = resolve_actor(actor, lattice_dir, is_json)
     validate_actor_or_exit(actor, is_json)
 
     # Validate relationship type

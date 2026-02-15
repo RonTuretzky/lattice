@@ -17,7 +17,7 @@ class TestInitDirectoryStructure:
 
     def test_creates_all_expected_directories(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        result = runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
         assert result.exit_code == 0
 
         lattice = tmp_path / ".lattice"
@@ -37,7 +37,7 @@ class TestInitDirectoryStructure:
 
     def test_creates_empty_lifecycle_jsonl(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
 
         lifecycle_log = tmp_path / ".lattice" / "events" / "_lifecycle.jsonl"
         assert lifecycle_log.is_file()
@@ -48,13 +48,13 @@ class TestInitDirectoryStructure:
         target.mkdir()
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["init", "--path", str(target)])
+        result = runner.invoke(cli, ["init", "--path", str(target)], input="\n")
         assert result.exit_code == 0
         assert (target / ".lattice" / "config.json").is_file()
 
     def test_prints_success_message(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        result = runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
         assert result.exit_code == 0
         assert "Initialized empty Lattice in .lattice/" in result.output
 
@@ -64,7 +64,7 @@ class TestInitConfig:
 
     def test_writes_valid_json(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
 
         config_path = tmp_path / ".lattice" / "config.json"
         config = json.loads(config_path.read_text())
@@ -72,7 +72,7 @@ class TestInitConfig:
 
     def test_config_has_schema_version_1(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
 
         config = json.loads((tmp_path / ".lattice" / "config.json").read_text())
         assert config["schema_version"] == 1
@@ -80,7 +80,7 @@ class TestInitConfig:
     def test_config_is_byte_identical_to_canonical(self, tmp_path: Path) -> None:
         """Config on disk must be byte-identical to json.dumps(default_config(), sort_keys=True, indent=2) + '\\n'."""
         runner = CliRunner()
-        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
 
         actual = (tmp_path / ".lattice" / "config.json").read_text()
         expected = serialize_config(default_config())
@@ -88,7 +88,7 @@ class TestInitConfig:
 
     def test_config_has_trailing_newline(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
 
         raw = (tmp_path / ".lattice" / "config.json").read_bytes()
         assert raw.endswith(b"\n")
@@ -101,13 +101,13 @@ class TestInitIdempotency:
 
     def test_second_init_does_not_clobber_config(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
 
         # Record config content after first init
         config_path = tmp_path / ".lattice" / "config.json"
         original = config_path.read_text()
 
-        # Run init again
+        # Run init again (no input needed — idempotency check returns before prompt)
         result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
         assert result.exit_code == 0
         assert "already initialized" in result.output
@@ -117,7 +117,7 @@ class TestInitIdempotency:
 
     def test_modified_config_survives_second_init(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
 
         # Modify config between runs
         config_path = tmp_path / ".lattice" / "config.json"
@@ -125,7 +125,7 @@ class TestInitIdempotency:
         config["custom_key"] = "user_value"
         config_path.write_text(json.dumps(config, sort_keys=True, indent=2) + "\n")
 
-        # Run init again
+        # Run init again (no input needed — idempotency check returns before prompt)
         runner.invoke(cli, ["init", "--path", str(tmp_path)])
 
         # Modified config is preserved
@@ -134,7 +134,7 @@ class TestInitIdempotency:
 
     def test_second_init_prints_already_initialized(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
 
         result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
         assert result.exit_code == 0
@@ -142,13 +142,13 @@ class TestInitIdempotency:
 
     def test_existing_tasks_survive_second_init(self, tmp_path: Path) -> None:
         runner = CliRunner()
-        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
 
         # Create a fake task file
         task_file = tmp_path / ".lattice" / "tasks" / "task_fake.json"
         task_file.write_text('{"id": "task_fake"}\n')
 
-        # Run init again
+        # Run init again (no input needed — idempotency check returns before prompt)
         runner.invoke(cli, ["init", "--path", str(tmp_path)])
 
         # Task file still exists
@@ -188,7 +188,7 @@ class TestInitErrorHandling:
         monkeypatch.setattr(cli_module, "ensure_lattice_dirs", raise_permission_error)
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        result = runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
         assert result.exit_code != 0
         assert "Permission denied" in result.output
         assert "Traceback" not in result.output
@@ -203,7 +203,7 @@ class TestInitErrorHandling:
         monkeypatch.setattr(cli_module, "ensure_lattice_dirs", raise_os_error)
 
         runner = CliRunner()
-        result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        result = runner.invoke(cli, ["init", "--path", str(tmp_path)], input="\n")
         assert result.exit_code != 0
         assert "Failed to initialize" in result.output
         assert "Traceback" not in result.output

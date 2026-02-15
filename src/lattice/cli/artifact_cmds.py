@@ -16,7 +16,6 @@ from lattice.cli.helpers import (
     output_result,
     read_snapshot_or_exit,
     require_root,
-    resolve_actor,
     validate_actor_or_exit,
     write_task_event,
 )
@@ -56,7 +55,7 @@ def attach(
     sensitive: bool,
     role: str | None,
     art_id: str | None,
-    actor: str | None,
+    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -68,7 +67,6 @@ def attach(
     lattice_dir = require_root(is_json)
     load_project_config(lattice_dir)  # validate config exists
 
-    actor = resolve_actor(actor, lattice_dir, is_json)
     validate_actor_or_exit(actor, is_json)
 
     # Validate task exists
@@ -103,36 +101,25 @@ def attach(
         else:
             title = Path(source).name
 
-    # Prepare metadata kwargs
-    payload_file: str | None = None
-    content_type: str | None = None
-    size_bytes: int | None = None
-    custom_fields: dict | None = None
-
-    if is_url:
-        # URL source: store in custom_fields, no payload file
-        custom_fields = {"url": source}
-    else:
-        # File source: verify it exists and copy
+    # For file sources, verify the file exists before idempotency check
+    src_path: Path | None = None
+    if not is_url:
         src_path = Path(source)
         if not src_path.is_file():
             output_error(f"Source file not found: '{source}'.", "NOT_FOUND", is_json)
 
-        ext = src_path.suffix  # includes the dot
-        dest_filename = f"{art_id}{ext}"
-        dest_path = lattice_dir / "artifacts" / "payload" / dest_filename
-        shutil.copy2(str(src_path), str(dest_path))
-
-        payload_file = dest_filename
-        guessed_type, _ = mimetypes.guess_type(src_path.name)
-        content_type = guessed_type
-        size_bytes = src_path.stat().st_size
+    # Compute expected payload filename for idempotency comparison
+    if not is_url and src_path is not None:
+        ext = src_path.suffix
+        payload_file: str | None = f"{art_id}{ext}"
+    else:
+        payload_file = None
 
     # Idempotency check: if --id provided and metadata already exists
+    # (must happen BEFORE file copy to avoid orphaned payloads on conflict)
     meta_path = lattice_dir / "artifacts" / "meta" / f"{art_id}.json"
     if meta_path.exists():
         existing = json.loads(meta_path.read_text())
-        # Compare type + title + source info
         conflict = False
         if existing.get("type") != art_type:
             conflict = True
@@ -144,8 +131,7 @@ def attach(
                 conflict = True
         else:
             existing_file = (existing.get("payload") or {}).get("file")
-            expected_file = payload_file
-            if existing_file != expected_file:
+            if existing_file != payload_file:
                 conflict = True
 
         if conflict:
@@ -155,7 +141,7 @@ def attach(
                 is_json,
             )
         else:
-            # Idempotent success
+            # Idempotent success — no file copy needed
             output_result(
                 data=existing,
                 human_message=f"Artifact {art_id} already exists (idempotent).",
@@ -165,26 +151,24 @@ def attach(
             )
             return
 
-    # Build artifact metadata
-    metadata = create_artifact_metadata(
-        art_id,
-        art_type,
-        title,
-        created_by=actor,
-        summary=summary,
-        model=model,
-        tags=None,
-        payload_file=payload_file,
-        content_type=content_type,
-        size_bytes=size_bytes,
-        sensitive=sensitive,
-        custom_fields=custom_fields,
-    )
+    # Prepare metadata kwargs
+    content_type: str | None = None
+    size_bytes: int | None = None
+    custom_fields: dict | None = None
 
-    # Write artifact metadata atomically
-    atomic_write(meta_path, serialize_artifact(metadata))
+    if is_url:
+        custom_fields = {"url": source}
+    else:
+        # File source: copy payload now (after idempotency check passed)
+        assert src_path is not None
+        dest_path = lattice_dir / "artifacts" / "payload" / f"{art_id}{src_path.suffix}"
+        shutil.copy2(str(src_path), str(dest_path))
 
-    # Build artifact_attached event
+        guessed_type, _ = mimetypes.guess_type(src_path.name)
+        content_type = guessed_type
+        size_bytes = src_path.stat().st_size
+
+    # Build the event first so we can use its timestamp for the artifact
     event_data: dict = {"artifact_id": art_id}
     if role is not None:
         event_data["role"] = role
@@ -197,6 +181,26 @@ def attach(
         model=model,
         session=session,
     )
+
+    # Build artifact metadata (use event ts for consistency)
+    metadata = create_artifact_metadata(
+        art_id,
+        art_type,
+        title,
+        created_by=actor,
+        created_at=event["ts"],
+        summary=summary,
+        model=model,
+        tags=None,
+        payload_file=payload_file,
+        content_type=content_type,
+        size_bytes=size_bytes,
+        sensitive=sensitive,
+        custom_fields=custom_fields,
+    )
+
+    # Write artifact metadata atomically
+    atomic_write(meta_path, serialize_artifact(metadata))
 
     # Apply event to snapshot
     snapshot = apply_event_to_snapshot(snapshot, event)

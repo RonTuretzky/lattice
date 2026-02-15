@@ -13,7 +13,6 @@ from lattice.cli.helpers import (
     output_result,
     read_snapshot_or_exit,
     require_root,
-    resolve_actor,
     validate_actor_or_exit,
     write_task_event,
 )
@@ -25,7 +24,7 @@ from lattice.core.config import (
     validate_task_type,
     validate_transition,
 )
-from lattice.core.events import create_event, _utc_now
+from lattice.core.events import create_event, utc_now
 from lattice.core.ids import generate_task_id, validate_actor, validate_id
 from lattice.core.tasks import apply_event_to_snapshot
 
@@ -72,7 +71,7 @@ def create(
     tags: str | None,
     assigned_to: str | None,
     task_id: str | None,
-    actor: str | None,
+    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -84,7 +83,6 @@ def create(
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
 
-    actor = resolve_actor(actor, lattice_dir, is_json)
     validate_actor_or_exit(actor, is_json)
 
     # Apply defaults
@@ -98,16 +96,26 @@ def create(
     # Validate inputs
     if not validate_status(config, status):
         valid = ", ".join(config.get("workflow", {}).get("statuses", []))
-        output_error(f"Invalid status: '{status}'. Valid statuses: {valid}.", "VALIDATION_ERROR", is_json)
+        output_error(
+            f"Invalid status: '{status}'. Valid statuses: {valid}.", "VALIDATION_ERROR", is_json
+        )
     if not validate_task_type(config, task_type):
         valid = ", ".join(config.get("task_types", []))
-        output_error(f"Invalid task type: '{task_type}'. Valid types: {valid}.", "VALIDATION_ERROR", is_json)
+        output_error(
+            f"Invalid task type: '{task_type}'. Valid types: {valid}.", "VALIDATION_ERROR", is_json
+        )
     if priority not in VALID_PRIORITIES:
         valid = ", ".join(VALID_PRIORITIES)
-        output_error(f"Invalid priority: '{priority}'. Valid priorities: {valid}.", "VALIDATION_ERROR", is_json)
+        output_error(
+            f"Invalid priority: '{priority}'. Valid priorities: {valid}.",
+            "VALIDATION_ERROR",
+            is_json,
+        )
     if urgency is not None and urgency not in VALID_URGENCIES:
         valid = ", ".join(VALID_URGENCIES)
-        output_error(f"Invalid urgency: '{urgency}'. Valid urgencies: {valid}.", "VALIDATION_ERROR", is_json)
+        output_error(
+            f"Invalid urgency: '{urgency}'. Valid urgencies: {valid}.", "VALIDATION_ERROR", is_json
+        )
     if assigned_to is not None and not validate_actor(assigned_to):
         output_error(f"Invalid assigned-to format: '{assigned_to}'.", "INVALID_ACTOR", is_json)
 
@@ -221,7 +229,7 @@ _REDIRECT_FIELDS = {
 def update(
     task_id: str,
     pairs: tuple[str, ...],
-    actor: str | None,
+    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -232,7 +240,6 @@ def update(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = resolve_actor(actor, lattice_dir, is_json)
     validate_actor_or_exit(actor, is_json)
 
     if not validate_id(task_id, "task"):
@@ -256,7 +263,7 @@ def update(
         parsed.append((field, value))
 
     # Validate and build events
-    shared_ts = _utc_now()
+    shared_ts = utc_now()
     events: list[dict] = []
 
     for field, value in parsed:
@@ -302,13 +309,23 @@ def update(
         # Validate enum fields
         if field == "priority" and value not in VALID_PRIORITIES:
             valid = ", ".join(VALID_PRIORITIES)
-            output_error(f"Invalid priority: '{value}'. Valid priorities: {valid}.", "VALIDATION_ERROR", is_json)
+            output_error(
+                f"Invalid priority: '{value}'. Valid priorities: {valid}.",
+                "VALIDATION_ERROR",
+                is_json,
+            )
         if field == "urgency" and value not in VALID_URGENCIES:
             valid = ", ".join(VALID_URGENCIES)
-            output_error(f"Invalid urgency: '{value}'. Valid urgencies: {valid}.", "VALIDATION_ERROR", is_json)
+            output_error(
+                f"Invalid urgency: '{value}'. Valid urgencies: {valid}.",
+                "VALIDATION_ERROR",
+                is_json,
+            )
         if field == "type" and not validate_task_type(config, value):
             valid = ", ".join(config.get("task_types", []))
-            output_error(f"Invalid task type: '{value}'. Valid types: {valid}.", "VALIDATION_ERROR", is_json)
+            output_error(
+                f"Invalid task type: '{value}'. Valid types: {valid}.", "VALIDATION_ERROR", is_json
+            )
 
         # Get old value and compute new value
         if field == "tags":
@@ -381,7 +398,7 @@ def status_cmd(
     new_status: str,
     force: bool,
     reason: str | None,
-    actor: str | None,
+    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -392,7 +409,6 @@ def status_cmd(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = resolve_actor(actor, lattice_dir, is_json)
     validate_actor_or_exit(actor, is_json)
 
     if not validate_id(task_id, "task"):
@@ -404,7 +420,11 @@ def status_cmd(
     # Validate new_status is a known status
     if not validate_status(config, new_status):
         valid = ", ".join(config.get("workflow", {}).get("statuses", []))
-        output_error(f"Invalid status: '{new_status}'. Valid statuses: {valid}.", "VALIDATION_ERROR", is_json)
+        output_error(
+            f"Invalid status: '{new_status}'. Valid statuses: {valid}.",
+            "VALIDATION_ERROR",
+            is_json,
+        )
 
     # Already at the target status
     if current_status == new_status:
@@ -442,9 +462,10 @@ def status_cmd(
     event_data: dict = {
         "from": current_status,
         "to": new_status,
-        "force": force,
-        "reason": reason,
     }
+    if force:
+        event_data["force"] = True
+        event_data["reason"] = reason
 
     event = create_event(
         type="status_changed",
@@ -478,7 +499,7 @@ def status_cmd(
 def assign(
     task_id: str,
     actor_id: str,
-    actor: str | None,
+    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -489,7 +510,6 @@ def assign(
 
     lattice_dir = require_root(is_json)
     load_project_config(lattice_dir)  # ensure valid project
-    actor = resolve_actor(actor, lattice_dir, is_json)
     validate_actor_or_exit(actor, is_json)
 
     if not validate_id(task_id, "task"):
@@ -556,7 +576,7 @@ def assign(
 def comment(
     task_id: str,
     text: str,
-    actor: str | None,
+    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -567,7 +587,6 @@ def comment(
 
     lattice_dir = require_root(is_json)
     load_project_config(lattice_dir)  # ensure valid project
-    actor = resolve_actor(actor, lattice_dir, is_json)
     validate_actor_or_exit(actor, is_json)
 
     if not validate_id(task_id, "task"):

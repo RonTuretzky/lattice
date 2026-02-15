@@ -15,7 +15,6 @@ from lattice.cli.helpers import (
     read_snapshot,
     read_snapshot_or_exit,
     require_root,
-    resolve_actor,
     validate_actor_or_exit,
     write_task_event,
 )
@@ -45,7 +44,7 @@ def event_cmd(
     event_type: str,
     data_str: str | None,
     ev_id: str | None,
-    actor: str | None,
+    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -59,7 +58,6 @@ def event_cmd(
     is_json = output_json
 
     lattice_dir = require_root(is_json)
-    actor = resolve_actor(actor, lattice_dir, is_json)
     validate_actor_or_exit(actor, is_json)
 
     # Validate event type is custom (x_ prefix)
@@ -106,6 +104,35 @@ def event_cmd(
                 is_json,
             )
 
+        # Idempotency check: scan event log for matching ID
+        event_path = lattice_dir / "events" / f"{task_id}.jsonl"
+        if event_path.exists():
+            for line in event_path.read_text().splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    existing = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+                if existing.get("id") == ev_id:
+                    # Same ID found — check if payload matches
+                    if existing.get("type") == event_type and existing.get("data") == event_data:
+                        output_result(
+                            data=existing,
+                            human_message=f"Event {ev_id} already exists (idempotent).",
+                            quiet_value=ev_id,
+                            is_json=is_json,
+                            is_quiet=quiet,
+                        )
+                        return
+                    else:
+                        output_error(
+                            f"Conflict: event {ev_id} exists with different data.",
+                            "CONFLICT",
+                            is_json,
+                        )
+
     # Build event and apply to snapshot
     event = create_event(
         type=event_type,
@@ -144,6 +171,7 @@ def event_cmd(
 @click.option("--type", "task_type", default=None, help="Filter by task type.")
 @click.option("--compact", is_flag=True, help="Compact JSON output.")
 @click.option("--json", "output_json", is_flag=True, help="Output structured JSON.")
+@click.option("--quiet", is_flag=True, help="Print one task ID per line.")
 def list_cmd(
     status: str | None,
     assigned: str | None,
@@ -151,6 +179,7 @@ def list_cmd(
     task_type: str | None,
     compact: bool,
     output_json: bool,
+    quiet: bool,
 ) -> None:
     """List tasks with optional filters."""
     is_json = output_json
@@ -192,6 +221,9 @@ def list_cmd(
         else:
             data = filtered
         click.echo(json_envelope(True, data=data))
+    elif quiet:
+        for snap in filtered:
+            click.echo(snap.get("id", ""))
     else:
         # Human output: compact one-line-per-task table
         for snap in filtered:
@@ -287,8 +319,15 @@ def show_cmd(
         click.echo(json_envelope(True, data=data))
     else:
         _print_human_show(
-            snapshot, events, relationships_out, relationships_in,
-            artifact_info, has_notes, task_id, is_archived, full,
+            snapshot,
+            events,
+            relationships_out,
+            relationships_in,
+            artifact_info,
+            has_notes,
+            task_id,
+            is_archived,
+            full,
         )
 
 
@@ -358,12 +397,14 @@ def _find_incoming_relationships(lattice_dir: Path, task_id: str) -> list[dict]:
                 continue
             for rel in snap.get("relationships_out", []):
                 if rel.get("target_task_id") == task_id:
-                    incoming.append({
-                        "source_task_id": snap.get("id", snap_file.stem),
-                        "source_title": snap.get("title"),
-                        "type": rel.get("type"),
-                        "note": rel.get("note"),
-                    })
+                    incoming.append(
+                        {
+                            "source_task_id": snap.get("id", snap_file.stem),
+                            "source_title": snap.get("title"),
+                            "type": rel.get("type"),
+                            "note": rel.get("note"),
+                        }
+                    )
 
     return incoming
 

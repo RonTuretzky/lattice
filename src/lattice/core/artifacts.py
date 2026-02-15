@@ -31,6 +31,7 @@ def create_artifact_metadata(
     title: str,
     *,
     created_by: str,
+    created_at: str | None = None,
     summary: str | None = None,
     model: str | None = None,
     tags: list[str] | None = None,
@@ -44,14 +45,18 @@ def create_artifact_metadata(
 
     Flat ``payload_file``, ``content_type``, and ``size_bytes`` parameters are
     assembled into a nested ``payload`` object in the output.
+
+    If *created_at* is not provided, the current UTC time is used.
     """
+    if created_at is None:
+        created_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     return {
         "schema_version": 1,
         "id": art_id,
         "type": type,
         "title": title,
         "summary": summary,
-        "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "created_at": created_at,
         "created_by": created_by,
         "model": model,
         "tags": tags if tags is not None else [],

@@ -6,6 +6,24 @@ import copy
 import json
 import sys
 
+# Fields that cannot be overwritten by field_updated events.  These are
+# managed exclusively by internal bookkeeping or dedicated event types.
+PROTECTED_FIELDS: frozenset[str] = frozenset(
+    {
+        "schema_version",
+        "id",
+        "created_at",
+        "created_by",
+        "updated_at",
+        "last_event_id",
+        "status",
+        "assigned_to",
+        "relationships_out",
+        "artifact_refs",
+        "custom_fields",
+    }
+)
+
 
 # ---------------------------------------------------------------------------
 # Snapshot materialization
@@ -130,6 +148,11 @@ def _apply_mutation(snap: dict, etype: str, event: dict) -> None:
             if snap.get("custom_fields") is None:
                 snap["custom_fields"] = {}
             snap["custom_fields"][key] = value
+        elif field in PROTECTED_FIELDS:
+            raise ValueError(
+                f"Cannot update protected field '{field}' via field_updated. "
+                "Use the dedicated command (e.g., status, assign) instead."
+            )
         else:
             snap[field] = value
 

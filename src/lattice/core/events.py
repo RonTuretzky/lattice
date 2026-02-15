@@ -15,7 +15,6 @@ BUILTIN_EVENT_TYPES: frozenset[str] = frozenset(
     {
         "task_created",
         "task_archived",
-        "task_unarchived",
         "status_changed",
         "assignment_changed",
         "field_updated",
@@ -32,7 +31,6 @@ LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset(
     {
         "task_created",
         "task_archived",
-        "task_unarchived",
     }
 )
 
@@ -61,7 +59,7 @@ def create_event(
     event: dict = {
         "schema_version": 1,
         "id": event_id if event_id is not None else generate_event_id(),
-        "ts": ts if ts is not None else _utc_now(),
+        "ts": ts if ts is not None else utc_now(),
         "type": type,
         "task_id": task_id,
         "actor": actor,
@@ -105,6 +103,6 @@ def validate_custom_event_type(event_type: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _utc_now() -> str:
+def utc_now() -> str:
     """Return the current UTC time as an RFC 3339 string with ``Z`` suffix."""
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

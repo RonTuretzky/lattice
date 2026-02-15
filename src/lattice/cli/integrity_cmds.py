@@ -81,12 +81,12 @@ def _fix_truncated_jsonl(path: Path) -> bool:
         json.loads(lines[last_idx])
         return False  # Last line is valid
     except json.JSONDecodeError:
-        # Remove the truncated line and rewrite
+        # Remove the truncated line and rewrite atomically
         good_lines = lines[:last_idx]
         content = "\n".join(good_lines)
         if good_lines:
             content += "\n"
-        path.write_text(content)
+        atomic_write(path, content)
         return True
 
 
@@ -632,11 +632,18 @@ def rebuild(task_id: str | None, rebuild_all: bool, output_json: bool) -> None:
         )
 
     if rebuild_all:
-        # Rebuild all tasks
+        # Rebuild all tasks (active + archived)
         rebuilt_ids: list[str] = []
-        event_dir = lattice_dir / "events"
 
-        if event_dir.is_dir():
+        # Collect event files from both active and archive directories
+        event_dirs = [
+            (lattice_dir / "events", lattice_dir / "tasks"),
+            (lattice_dir / "archive" / "events", lattice_dir / "archive" / "tasks"),
+        ]
+
+        for event_dir, target_tasks_dir in event_dirs:
+            if not event_dir.is_dir():
+                continue
             for jsonl_file in sorted(event_dir.glob("*.jsonl")):
                 if jsonl_file.name == "_lifecycle.jsonl":
                     continue
@@ -650,8 +657,8 @@ def rebuild(task_id: str | None, rebuild_all: bool, output_json: bool) -> None:
                         click.echo(f"Error rebuilding {tid}: {e}", err=True)
                     continue
 
-                # Write snapshot atomically with lock
-                snapshot_path = lattice_dir / "tasks" / f"{tid}.json"
+                # Write snapshot to the correct location (active or archive)
+                snapshot_path = target_tasks_dir / f"{tid}.json"
                 locks_dir = lattice_dir / "locks"
                 with multi_lock(locks_dir, [f"tasks_{tid}"]):
                     atomic_write(snapshot_path, serialize_snapshot(snapshot))
