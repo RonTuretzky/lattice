@@ -15,7 +15,16 @@ from lattice.core.tasks import apply_event_to_snapshot, serialize_snapshot
 # ---------------------------------------------------------------------------
 
 valid_statuses = st.sampled_from(
-    ["backlog", "ready", "in_progress", "review", "done", "blocked", "cancelled"]
+    [
+        "backlog",
+        "in_planning",
+        "planned",
+        "in_implementation",
+        "implemented",
+        "in_review",
+        "done",
+        "cancelled",
+    ]
 )
 valid_priorities = st.sampled_from(["critical", "high", "medium", "low"])
 valid_urgencies = st.sampled_from(["immediate", "high", "normal", "low"])

@@ -138,7 +138,7 @@ class TestTasksEndpoint:
 class TestTaskDetailEndpoint:
     def test_get_task_detail(self, dashboard_server):
         base_url, _ld, ids = dashboard_server
-        task_id = ids["in_progress"]
+        task_id = ids["in_implementation"]
         status, body = _get(base_url, f"/api/tasks/{task_id}")
         assert status == 200
         assert body["ok"] is True
@@ -161,7 +161,7 @@ class TestTaskDetailEndpoint:
 
     def test_task_detail_with_artifacts(self, dashboard_server):
         base_url, _ld, ids = dashboard_server
-        task_id = ids["in_progress"]
+        task_id = ids["in_implementation"]
         status, body = _get(base_url, f"/api/tasks/{task_id}")
         arts = body["data"]["artifacts"]
         assert len(arts) == 1
@@ -196,7 +196,7 @@ class TestTaskDetailEndpoint:
 class TestTaskEventsEndpoint:
     def test_get_events(self, dashboard_server):
         base_url, _ld, ids = dashboard_server
-        task_id = ids["in_progress"]
+        task_id = ids["in_implementation"]
         status, body = _get(base_url, f"/api/tasks/{task_id}/events")
         assert status == 200
         assert body["ok"] is True
@@ -257,7 +257,7 @@ class TestStatsEndpoint:
         assert total_from_status == data["total_active"]
         # Verify specific counts
         assert data["by_status"].get("backlog") == 1
-        assert data["by_status"].get("in_progress") == 1
+        assert data["by_status"].get("in_implementation") == 1
         assert data["by_status"].get("done") == 1
 
 
@@ -381,25 +381,25 @@ class TestPostTaskStatus:
     def test_valid_transition(self, dashboard_server):
         """POST /api/tasks/<id>/status with a valid transition should succeed."""
         base_url, ld, ids = dashboard_server
-        task_id = ids["backlog"]  # backlog -> ready is valid
+        task_id = ids["backlog"]  # backlog -> in_planning is valid
 
         status, body = _post(
             base_url,
             f"/api/tasks/{task_id}/status",
             {
-                "status": "ready",
+                "status": "in_planning",
                 "actor": "dashboard:web",
             },
         )
         assert status == 200
         assert body["ok"] is True
         data = body["data"]
-        assert data["status"] == "ready"
+        assert data["status"] == "in_planning"
         assert data["id"] == task_id
 
         # Verify the snapshot on disk was updated
         snap = json.loads((ld / "tasks" / f"{task_id}.json").read_text())
-        assert snap["status"] == "ready"
+        assert snap["status"] == "in_planning"
 
     def test_valid_transition_default_actor(self, dashboard_server):
         """Actor should default to dashboard:web when not provided."""
@@ -410,7 +410,7 @@ class TestPostTaskStatus:
             base_url,
             f"/api/tasks/{task_id}/status",
             {
-                "status": "ready",
+                "status": "in_planning",
             },
         )
         assert status == 200
@@ -435,7 +435,7 @@ class TestPostTaskStatus:
             base_url,
             f"/api/tasks/{task_id}/status",
             {
-                "status": "ready",
+                "status": "in_planning",
                 "actor": "dashboard:web",
             },
         )
@@ -446,7 +446,7 @@ class TestPostTaskStatus:
         new_event = json.loads(lines_after[-1])
         assert new_event["type"] == "status_changed"
         assert new_event["data"]["from"] == "backlog"
-        assert new_event["data"]["to"] == "ready"
+        assert new_event["data"]["to"] == "in_planning"
         assert new_event["actor"] == "dashboard:web"
 
     def test_invalid_transition(self, dashboard_server):
@@ -507,7 +507,7 @@ class TestPostTaskStatus:
             base_url,
             "/api/tasks/not-valid/status",
             {
-                "status": "ready",
+                "status": "in_planning",
             },
         )
         assert status == 400
@@ -522,7 +522,7 @@ class TestPostTaskStatus:
             base_url,
             f"/api/tasks/{fake_id}/status",
             {
-                "status": "ready",
+                "status": "in_planning",
                 "actor": "dashboard:web",
             },
         )
@@ -554,7 +554,7 @@ class TestPostTaskStatus:
             base_url,
             f"/api/tasks/{task_id}/status",
             {
-                "status": "ready",
+                "status": "in_planning",
                 "actor": "bad-actor",
             },
         )
@@ -579,40 +579,62 @@ class TestPostTaskStatus:
         base_url, ld, ids = dashboard_server
         task_id = ids["backlog"]
 
-        # backlog -> ready
+        # backlog -> in_planning
         status, body = _post(
             base_url,
             f"/api/tasks/{task_id}/status",
             {
-                "status": "ready",
+                "status": "in_planning",
             },
         )
         assert status == 200
-        assert body["data"]["status"] == "ready"
+        assert body["data"]["status"] == "in_planning"
 
-        # ready -> in_progress
+        # in_planning -> planned
         status, body = _post(
             base_url,
             f"/api/tasks/{task_id}/status",
             {
-                "status": "in_progress",
+                "status": "planned",
             },
         )
         assert status == 200
-        assert body["data"]["status"] == "in_progress"
+        assert body["data"]["status"] == "planned"
 
-        # in_progress -> review
+        # planned -> in_implementation
         status, body = _post(
             base_url,
             f"/api/tasks/{task_id}/status",
             {
-                "status": "review",
+                "status": "in_implementation",
             },
         )
         assert status == 200
-        assert body["data"]["status"] == "review"
+        assert body["data"]["status"] == "in_implementation"
 
-        # review -> done
+        # in_implementation -> implemented
+        status, body = _post(
+            base_url,
+            f"/api/tasks/{task_id}/status",
+            {
+                "status": "implemented",
+            },
+        )
+        assert status == 200
+        assert body["data"]["status"] == "implemented"
+
+        # implemented -> in_review
+        status, body = _post(
+            base_url,
+            f"/api/tasks/{task_id}/status",
+            {
+                "status": "in_review",
+            },
+        )
+        assert status == 200
+        assert body["data"]["status"] == "in_review"
+
+        # in_review -> done
         status, body = _post(
             base_url,
             f"/api/tasks/{task_id}/status",
@@ -845,5 +867,5 @@ class TestPostRouting:
         base_url, _ld, ids = dashboard_server
         task_id = ids["backlog"]
 
-        status, body = _post(base_url, f"/api/tasks/{task_id}", {"status": "ready"})
+        status, body = _post(base_url, f"/api/tasks/{task_id}", {"status": "in_planning"})
         assert status == 404

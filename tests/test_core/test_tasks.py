@@ -123,10 +123,10 @@ class TestStatusChanged:
             "type": "status_changed",
             "task_id": _TASK_ID,
             "actor": "agent:claude",
-            "data": {"from": "backlog", "to": "in_progress"},
+            "data": {"from": "backlog", "to": "in_planning"},
         }
         snap = apply_event_to_snapshot(snap, ev)
-        assert snap["status"] == "in_progress"
+        assert snap["status"] == "in_planning"
         assert snap["last_event_id"] == _EV_2
         assert snap["updated_at"] == _TS_2
 
@@ -490,7 +490,7 @@ class TestBookkeepingAlwaysUpdated:
         return _make_snapshot()
 
     _EVENT_TYPES_AND_DATA: list[tuple[str, dict]] = [
-        ("status_changed", {"from": "backlog", "to": "ready"}),
+        ("status_changed", {"from": "backlog", "to": "in_planning"}),
         ("assignment_changed", {"from": "agent:claude", "to": "agent:codex"}),
         ("field_updated", {"field": "title", "from": "old", "to": "new"}),
         ("comment_added", {"body": "test"}),

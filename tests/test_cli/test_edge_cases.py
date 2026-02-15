@@ -135,8 +135,8 @@ class TestArchiveFullRoundTrip:
         task_id = task["id"]
         lattice_dir = initialized_root / ".lattice"
 
-        # Modify: change status to ready
-        invoke("status", task_id, "ready", "--actor", "human:test")
+        # Modify: change status to in_planning
+        invoke("status", task_id, "in_planning", "--actor", "human:test")
 
         # Archive
         result = invoke("archive", task_id, "--actor", "human:test")
@@ -152,7 +152,7 @@ class TestArchiveFullRoundTrip:
 
         # Verify archived snapshot has updated status
         snap = json.loads((lattice_dir / "archive" / "tasks" / f"{task_id}.json").read_text())
-        assert snap["status"] == "ready"
+        assert snap["status"] == "in_planning"
 
 
 class TestArchiveWithNotes:
@@ -241,7 +241,7 @@ class TestDoctorCleanProject:
         t1 = create_task("Clean task 1")
         t2 = create_task("Clean task 2")
 
-        invoke("status", t1["id"], "ready", "--actor", "human:test")
+        invoke("status", t1["id"], "in_planning", "--actor", "human:test")
         invoke("link", t1["id"], "blocks", t2["id"], "--actor", "human:test")
         invoke("comment", t2["id"], "A note", "--actor", "human:test")
 

@@ -35,11 +35,11 @@ def test_update_json_envelope(invoke, create_task):
 def test_status_json_envelope(invoke, create_task):
     task = create_task("Status test")
     task_id = task["id"]
-    result = invoke("status", task_id, "ready", "--actor", "human:test", "--json")
+    result = invoke("status", task_id, "in_planning", "--actor", "human:test", "--json")
     assert result.exit_code == 0
     data = json.loads(result.output)
     assert data["ok"] is True
-    assert data["data"]["status"] == "ready"
+    assert data["data"]["status"] == "in_planning"
 
 
 def test_assign_json_envelope(invoke, create_task):
@@ -163,7 +163,7 @@ def test_create_quiet_outputs_only_id(invoke):
 def test_status_quiet_outputs_ok(invoke, create_task):
     task = create_task("Quiet status")
     task_id = task["id"]
-    result = invoke("status", task_id, "ready", "--actor", "human:test", "--quiet")
+    result = invoke("status", task_id, "in_planning", "--actor", "human:test", "--quiet")
     assert result.exit_code == 0
     assert result.output.strip() == "ok"
 
@@ -193,7 +193,7 @@ def test_invalid_status_lists_valid(invoke):
     assert data["ok"] is False
     msg = data["error"]["message"]
     assert "backlog" in msg
-    assert "ready" in msg
+    assert "in_planning" in msg
     assert "done" in msg
 
 

@@ -3,15 +3,23 @@
 from __future__ import annotations
 
 import json
+import shutil
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from lattice.core.config import serialize_config, validate_status, validate_transition
-from lattice.core.events import create_event, serialize_event
-from lattice.core.ids import validate_actor, validate_id
+from lattice.core.config import (
+    VALID_PRIORITIES,
+    VALID_URGENCIES,
+    serialize_config,
+    validate_status,
+    validate_task_type,
+    validate_transition,
+)
+from lattice.core.events import LIFECYCLE_EVENT_TYPES, create_event, serialize_event, utc_now
+from lattice.core.ids import generate_task_id, validate_actor, validate_id
 from lattice.core.tasks import apply_event_to_snapshot, compact_snapshot, serialize_snapshot
 from lattice.storage.fs import atomic_write, jsonl_append
 from lattice.storage.locks import multi_lock
@@ -125,12 +133,22 @@ def _make_handler_class(lattice_dir: Path) -> type:
 
             if path == "/api/config/dashboard":
                 self._handle_post_dashboard_config(ld)
+            elif path == "/api/tasks":
+                self._handle_post_create_task(ld)
             elif path.startswith("/api/tasks/"):
                 remainder = path[len("/api/tasks/") :]
                 if "/" in remainder:
                     task_id, sub = remainder.rsplit("/", 1)
                     if sub == "status":
                         self._handle_post_task_status(ld, task_id)
+                    elif sub == "assign":
+                        self._handle_post_task_assign(ld, task_id)
+                    elif sub == "comment":
+                        self._handle_post_task_comment(ld, task_id)
+                    elif sub == "update":
+                        self._handle_post_task_update(ld, task_id)
+                    elif sub == "archive":
+                        self._handle_post_task_archive(ld, task_id)
                     else:
                         self._send_json(404, _err("NOT_FOUND", f"Not found: {path}"))
                 else:
@@ -516,6 +534,521 @@ def _make_handler_class(lattice_dir: Path) -> type:
                 return
 
             self._send_json(200, _ok(config.get("dashboard", {})))
+
+        # ---------------------------------------------------------------
+        # Write helpers (inline write_task_event pattern)
+        # ---------------------------------------------------------------
+
+        def _write_task_event(
+            self, ld: Path, task_id: str, events: list[dict], snapshot: dict
+        ) -> None:
+            """Write event(s) and snapshot atomically with proper locking.
+
+            Inlines the same logic as cli.helpers.write_task_event to avoid
+            a dashboard→cli dependency.
+            """
+            locks_dir = ld / "locks"
+            lifecycle_events = [e for e in events if e["type"] in LIFECYCLE_EVENT_TYPES]
+
+            lock_keys = [f"events_{task_id}", f"tasks_{task_id}"]
+            if lifecycle_events:
+                lock_keys.append("events__lifecycle")
+            lock_keys.sort()
+
+            with multi_lock(locks_dir, lock_keys):
+                event_path = ld / "events" / f"{task_id}.jsonl"
+                for event in events:
+                    jsonl_append(event_path, serialize_event(event))
+
+                if lifecycle_events:
+                    lifecycle_path = ld / "events" / "_lifecycle.jsonl"
+                    for event in lifecycle_events:
+                        jsonl_append(lifecycle_path, serialize_event(event))
+
+                snapshot_path = ld / "tasks" / f"{task_id}.json"
+                atomic_write(snapshot_path, serialize_snapshot(snapshot))
+
+        # ---------------------------------------------------------------
+        # POST /api/tasks — Create Task
+        # ---------------------------------------------------------------
+
+        def _handle_post_create_task(self, ld: Path) -> None:
+            """Handle POST /api/tasks — create a new task."""
+            body = self._read_request_body()
+            if body is None:
+                return
+
+            title = body.get("title")
+            actor = body.get("actor", "dashboard:web")
+
+            if not title or not isinstance(title, str) or not title.strip():
+                self._send_json(400, _err("VALIDATION_ERROR", "Missing or empty 'title' field"))
+                return
+
+            title = title.strip()
+
+            if not validate_actor(actor):
+                self._send_json(400, _err("VALIDATION_ERROR", f"Invalid actor format: '{actor}'"))
+                return
+
+            # Read config
+            config_path = ld / "config.json"
+            try:
+                config = json.loads(config_path.read_text())
+            except (json.JSONDecodeError, OSError) as exc:
+                self._send_json(500, _err("READ_ERROR", f"Failed to read config: {exc}"))
+                return
+
+            # Apply defaults
+            status = body.get("status") or config.get("default_status", "backlog")
+            priority = body.get("priority") or config.get("default_priority", "medium")
+            task_type = body.get("type") or "task"
+            description = body.get("description")
+            tags = body.get("tags")
+            assigned_to = body.get("assigned_to")
+            urgency = body.get("urgency")
+
+            # Validate
+            if not validate_status(config, status):
+                valid = ", ".join(config.get("workflow", {}).get("statuses", []))
+                self._send_json(
+                    400, _err("VALIDATION_ERROR", f"Invalid status: '{status}'. Valid: {valid}")
+                )
+                return
+
+            if not validate_task_type(config, task_type):
+                valid = ", ".join(config.get("task_types", []))
+                self._send_json(
+                    400,
+                    _err("VALIDATION_ERROR", f"Invalid task type: '{task_type}'. Valid: {valid}"),
+                )
+                return
+
+            if priority not in VALID_PRIORITIES:
+                valid = ", ".join(VALID_PRIORITIES)
+                self._send_json(
+                    400,
+                    _err("VALIDATION_ERROR", f"Invalid priority: '{priority}'. Valid: {valid}"),
+                )
+                return
+
+            if urgency is not None and urgency not in VALID_URGENCIES:
+                valid = ", ".join(VALID_URGENCIES)
+                self._send_json(
+                    400,
+                    _err("VALIDATION_ERROR", f"Invalid urgency: '{urgency}'. Valid: {valid}"),
+                )
+                return
+
+            if assigned_to is not None and not validate_actor(assigned_to):
+                self._send_json(
+                    400,
+                    _err("VALIDATION_ERROR", f"Invalid assigned_to format: '{assigned_to}'"),
+                )
+                return
+
+            if tags is not None and not isinstance(tags, list):
+                self._send_json(400, _err("VALIDATION_ERROR", "'tags' must be an array"))
+                return
+
+            if description is not None and not isinstance(description, str):
+                self._send_json(400, _err("VALIDATION_ERROR", "'description' must be a string"))
+                return
+
+            # Generate ID
+            task_id = generate_task_id()
+
+            # Build event data
+            event_data: dict = {
+                "title": title,
+                "status": status,
+                "type": task_type,
+                "priority": priority,
+            }
+            if urgency is not None:
+                event_data["urgency"] = urgency
+            if description is not None:
+                event_data["description"] = description
+            if tags:
+                event_data["tags"] = tags
+            if assigned_to is not None:
+                event_data["assigned_to"] = assigned_to
+
+            event = create_event(
+                type="task_created",
+                task_id=task_id,
+                actor=actor,
+                data=event_data,
+            )
+            snapshot = apply_event_to_snapshot(None, event)
+
+            try:
+                self._write_task_event(ld, task_id, [event], snapshot)
+            except Exception as exc:
+                self._send_json(500, _err("WRITE_ERROR", f"Failed to create task: {exc}"))
+                return
+
+            self._send_json(201, _ok(snapshot))
+
+        # ---------------------------------------------------------------
+        # POST /api/tasks/<id>/assign — Assign/Unassign
+        # ---------------------------------------------------------------
+
+        def _handle_post_task_assign(self, ld: Path, task_id: str) -> None:
+            """Handle POST /api/tasks/<id>/assign — assign or unassign a task."""
+            if not validate_id(task_id, "task"):
+                self._send_json(400, _err("INVALID_ID", "Invalid task ID format"))
+                return
+
+            body = self._read_request_body()
+            if body is None:
+                return
+
+            assigned_to = body.get("assigned_to")
+            actor = body.get("actor", "dashboard:web")
+
+            if not validate_actor(actor):
+                self._send_json(400, _err("VALIDATION_ERROR", f"Invalid actor format: '{actor}'"))
+                return
+
+            # assigned_to can be null (unassign) or a valid actor string
+            if assigned_to is not None and not validate_actor(assigned_to):
+                self._send_json(
+                    400,
+                    _err("VALIDATION_ERROR", f"Invalid assigned_to format: '{assigned_to}'"),
+                )
+                return
+
+            try:
+                locks_dir = ld / "locks"
+                lock_keys = sorted([f"events_{task_id}", f"tasks_{task_id}"])
+
+                with multi_lock(locks_dir, lock_keys):
+                    snapshot = _read_snapshot(ld, task_id)
+                    if snapshot is None:
+                        self._send_json(404, _err("NOT_FOUND", f"Task {task_id} not found"))
+                        return
+
+                    current_assigned = snapshot.get("assigned_to")
+
+                    if current_assigned == assigned_to:
+                        self._send_json(200, _ok(snapshot))
+                        return
+
+                    event = create_event(
+                        type="assignment_changed",
+                        task_id=task_id,
+                        actor=actor,
+                        data={"from": current_assigned, "to": assigned_to},
+                    )
+                    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+
+                    event_path = ld / "events" / f"{task_id}.jsonl"
+                    jsonl_append(event_path, serialize_event(event))
+
+                    snapshot_path = ld / "tasks" / f"{task_id}.json"
+                    atomic_write(snapshot_path, serialize_snapshot(updated_snapshot))
+
+            except Exception as exc:
+                self._send_json(500, _err("WRITE_ERROR", f"Failed to assign task: {exc}"))
+                return
+
+            self._send_json(200, _ok(updated_snapshot))
+
+        # ---------------------------------------------------------------
+        # POST /api/tasks/<id>/comment — Add Comment
+        # ---------------------------------------------------------------
+
+        def _handle_post_task_comment(self, ld: Path, task_id: str) -> None:
+            """Handle POST /api/tasks/<id>/comment — add a comment."""
+            if not validate_id(task_id, "task"):
+                self._send_json(400, _err("INVALID_ID", "Invalid task ID format"))
+                return
+
+            body = self._read_request_body()
+            if body is None:
+                return
+
+            comment_body = body.get("body")
+            actor = body.get("actor", "dashboard:web")
+
+            if not comment_body or not isinstance(comment_body, str) or not comment_body.strip():
+                self._send_json(400, _err("VALIDATION_ERROR", "Missing or empty 'body' field"))
+                return
+
+            if not validate_actor(actor):
+                self._send_json(400, _err("VALIDATION_ERROR", f"Invalid actor format: '{actor}'"))
+                return
+
+            try:
+                locks_dir = ld / "locks"
+                lock_keys = sorted([f"events_{task_id}", f"tasks_{task_id}"])
+
+                with multi_lock(locks_dir, lock_keys):
+                    snapshot = _read_snapshot(ld, task_id)
+                    if snapshot is None:
+                        self._send_json(404, _err("NOT_FOUND", f"Task {task_id} not found"))
+                        return
+
+                    event = create_event(
+                        type="comment_added",
+                        task_id=task_id,
+                        actor=actor,
+                        data={"body": comment_body.strip()},
+                    )
+                    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+
+                    event_path = ld / "events" / f"{task_id}.jsonl"
+                    jsonl_append(event_path, serialize_event(event))
+
+                    snapshot_path = ld / "tasks" / f"{task_id}.json"
+                    atomic_write(snapshot_path, serialize_snapshot(updated_snapshot))
+
+            except Exception as exc:
+                self._send_json(500, _err("WRITE_ERROR", f"Failed to add comment: {exc}"))
+                return
+
+            self._send_json(200, _ok(updated_snapshot))
+
+        # ---------------------------------------------------------------
+        # POST /api/tasks/<id>/update — Edit Fields
+        # ---------------------------------------------------------------
+
+        _UPDATABLE_FIELDS = frozenset(
+            {"title", "description", "priority", "urgency", "type", "tags"}
+        )
+
+        def _handle_post_task_update(self, ld: Path, task_id: str) -> None:
+            """Handle POST /api/tasks/<id>/update — edit task fields."""
+            if not validate_id(task_id, "task"):
+                self._send_json(400, _err("INVALID_ID", "Invalid task ID format"))
+                return
+
+            body = self._read_request_body()
+            if body is None:
+                return
+
+            fields = body.get("fields")
+            actor = body.get("actor", "dashboard:web")
+
+            if not fields or not isinstance(fields, dict):
+                self._send_json(
+                    400, _err("VALIDATION_ERROR", "Missing or invalid 'fields' object")
+                )
+                return
+
+            if not validate_actor(actor):
+                self._send_json(400, _err("VALIDATION_ERROR", f"Invalid actor format: '{actor}'"))
+                return
+
+            # Read config for validation
+            config_path = ld / "config.json"
+            try:
+                config = json.loads(config_path.read_text())
+            except (json.JSONDecodeError, OSError) as exc:
+                self._send_json(500, _err("READ_ERROR", f"Failed to read config: {exc}"))
+                return
+
+            # Validate field names
+            unknown = set(fields.keys()) - self._UPDATABLE_FIELDS
+            if unknown:
+                valid = ", ".join(sorted(self._UPDATABLE_FIELDS))
+                self._send_json(
+                    400,
+                    _err(
+                        "VALIDATION_ERROR",
+                        f"Unknown fields: {', '.join(sorted(unknown))}. Updatable: {valid}",
+                    ),
+                )
+                return
+
+            # Validate field values
+            if "priority" in fields and fields["priority"] not in VALID_PRIORITIES:
+                valid = ", ".join(VALID_PRIORITIES)
+                self._send_json(
+                    400,
+                    _err(
+                        "VALIDATION_ERROR",
+                        f"Invalid priority: '{fields['priority']}'. Valid: {valid}",
+                    ),
+                )
+                return
+
+            if "urgency" in fields and fields["urgency"] not in VALID_URGENCIES:
+                valid = ", ".join(VALID_URGENCIES)
+                self._send_json(
+                    400,
+                    _err(
+                        "VALIDATION_ERROR",
+                        f"Invalid urgency: '{fields['urgency']}'. Valid: {valid}",
+                    ),
+                )
+                return
+
+            if "type" in fields and not validate_task_type(config, fields["type"]):
+                valid = ", ".join(config.get("task_types", []))
+                self._send_json(
+                    400,
+                    _err(
+                        "VALIDATION_ERROR",
+                        f"Invalid task type: '{fields['type']}'. Valid: {valid}",
+                    ),
+                )
+                return
+
+            if "title" in fields:
+                if not isinstance(fields["title"], str) or not fields["title"].strip():
+                    self._send_json(
+                        400, _err("VALIDATION_ERROR", "Title must be a non-empty string")
+                    )
+                    return
+
+            if "tags" in fields:
+                if not isinstance(fields["tags"], list):
+                    self._send_json(400, _err("VALIDATION_ERROR", "'tags' must be an array"))
+                    return
+
+            try:
+                locks_dir = ld / "locks"
+                lock_keys = sorted([f"events_{task_id}", f"tasks_{task_id}"])
+
+                with multi_lock(locks_dir, lock_keys):
+                    snapshot = _read_snapshot(ld, task_id)
+                    if snapshot is None:
+                        self._send_json(404, _err("NOT_FOUND", f"Task {task_id} not found"))
+                        return
+
+                    # Build events for changed fields
+                    shared_ts = utc_now()
+                    events: list[dict] = []
+
+                    for field, new_value in fields.items():
+                        if field == "tags":
+                            old_value = snapshot.get("tags") or []
+                        else:
+                            old_value = snapshot.get(field)
+
+                        if old_value == new_value:
+                            continue
+
+                        events.append(
+                            create_event(
+                                type="field_updated",
+                                task_id=task_id,
+                                actor=actor,
+                                data={"field": field, "from": old_value, "to": new_value},
+                                ts=shared_ts,
+                            )
+                        )
+
+                    if not events:
+                        self._send_json(200, _ok(snapshot))
+                        return
+
+                    # Apply events incrementally
+                    updated_snapshot = snapshot
+                    for event in events:
+                        updated_snapshot = apply_event_to_snapshot(updated_snapshot, event)
+
+                    # Write events + snapshot
+                    event_path = ld / "events" / f"{task_id}.jsonl"
+                    for event in events:
+                        jsonl_append(event_path, serialize_event(event))
+
+                    snapshot_path = ld / "tasks" / f"{task_id}.json"
+                    atomic_write(snapshot_path, serialize_snapshot(updated_snapshot))
+
+            except Exception as exc:
+                self._send_json(500, _err("WRITE_ERROR", f"Failed to update task: {exc}"))
+                return
+
+            self._send_json(200, _ok(updated_snapshot))
+
+        # ---------------------------------------------------------------
+        # POST /api/tasks/<id>/archive — Archive Task
+        # ---------------------------------------------------------------
+
+        def _handle_post_task_archive(self, ld: Path, task_id: str) -> None:
+            """Handle POST /api/tasks/<id>/archive — archive a task."""
+            if not validate_id(task_id, "task"):
+                self._send_json(400, _err("INVALID_ID", "Invalid task ID format"))
+                return
+
+            body = self._read_request_body()
+            if body is None:
+                return
+
+            actor = body.get("actor", "dashboard:web")
+
+            if not validate_actor(actor):
+                self._send_json(400, _err("VALIDATION_ERROR", f"Invalid actor format: '{actor}'"))
+                return
+
+            # Check if already archived
+            archive_check = ld / "archive" / "tasks" / f"{task_id}.json"
+            if archive_check.is_file():
+                self._send_json(400, _err("CONFLICT", f"Task {task_id} is already archived"))
+                return
+
+            try:
+                locks_dir = ld / "locks"
+                lock_keys = sorted(
+                    [f"events_{task_id}", f"tasks_{task_id}", "events__lifecycle"]
+                )
+
+                with multi_lock(locks_dir, lock_keys):
+                    snapshot = _read_snapshot(ld, task_id)
+                    if snapshot is None:
+                        self._send_json(404, _err("NOT_FOUND", f"Task {task_id} not found"))
+                        return
+
+                    event = create_event(
+                        type="task_archived",
+                        task_id=task_id,
+                        actor=actor,
+                        data={},
+                    )
+                    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+
+                    # 1. Append event to per-task log
+                    event_path = ld / "events" / f"{task_id}.jsonl"
+                    jsonl_append(event_path, serialize_event(event))
+
+                    # 2. Append to lifecycle log
+                    lifecycle_path = ld / "events" / "_lifecycle.jsonl"
+                    jsonl_append(lifecycle_path, serialize_event(event))
+
+                    # 3. Write snapshot to archive
+                    atomic_write(
+                        ld / "archive" / "tasks" / f"{task_id}.json",
+                        serialize_snapshot(updated_snapshot),
+                    )
+
+                    # 4. Remove active snapshot
+                    snapshot_path = ld / "tasks" / f"{task_id}.json"
+                    if snapshot_path.exists():
+                        snapshot_path.unlink()
+
+                    # 5. Move event log to archive
+                    if event_path.exists():
+                        shutil.move(
+                            str(event_path),
+                            str(ld / "archive" / "events" / f"{task_id}.jsonl"),
+                        )
+
+                    # 6. Move notes if they exist
+                    notes_path = ld / "notes" / f"{task_id}.md"
+                    if notes_path.exists():
+                        shutil.move(
+                            str(notes_path),
+                            str(ld / "archive" / "notes" / f"{task_id}.md"),
+                        )
+
+            except Exception as exc:
+                self._send_json(500, _err("WRITE_ERROR", f"Failed to archive task: {exc}"))
+                return
+
+            self._send_json(200, _ok({"message": f"Task {task_id} archived"}))
 
     return LatticeHandler
 

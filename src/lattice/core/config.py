@@ -7,8 +7,8 @@ from typing import TypedDict
 
 
 class WipLimits(TypedDict, total=False):
-    in_progress: int
-    review: int
+    in_implementation: int
+    in_review: int
 
 
 class Workflow(TypedDict):
@@ -47,25 +47,27 @@ def default_config() -> LatticeConfig:
         "workflow": {
             "statuses": [
                 "backlog",
-                "ready",
-                "in_progress",
-                "review",
+                "in_planning",
+                "planned",
+                "in_implementation",
+                "implemented",
+                "in_review",
                 "done",
-                "blocked",
                 "cancelled",
             ],
             "transitions": {
-                "backlog": ["ready", "cancelled"],
-                "ready": ["in_progress", "blocked", "cancelled"],
-                "in_progress": ["review", "blocked", "cancelled"],
-                "review": ["done", "in_progress", "cancelled"],
+                "backlog": ["in_planning", "cancelled"],
+                "in_planning": ["planned", "cancelled"],
+                "planned": ["in_implementation", "cancelled"],
+                "in_implementation": ["implemented", "cancelled"],
+                "implemented": ["in_review", "cancelled"],
+                "in_review": ["done", "in_implementation", "cancelled"],
                 "done": [],
                 "cancelled": [],
-                "blocked": ["ready", "in_progress", "cancelled"],
             },
             "wip_limits": {
-                "in_progress": 10,
-                "review": 5,
+                "in_implementation": 10,
+                "in_review": 5,
             },
         },
     }

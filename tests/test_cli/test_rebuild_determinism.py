@@ -14,7 +14,7 @@ class TestRebuildDeterminism:
         task_id = task["id"]
 
         # Add some operations to build up event history
-        invoke("status", task_id, "ready", "--actor", "human:test")
+        invoke("status", task_id, "in_planning", "--actor", "human:test")
         invoke("update", task_id, "priority=high", "--actor", "human:test")
 
         # Read snapshot bytes before rebuild
@@ -36,7 +36,7 @@ class TestRebuildDeterminism:
         task_id = task["id"]
 
         # Build up some event history
-        invoke("status", task_id, "ready", "--actor", "human:test")
+        invoke("status", task_id, "in_planning", "--actor", "human:test")
         invoke("comment", task_id, "A comment", "--actor", "human:test")
         invoke("update", task_id, "priority=high", "--actor", "human:test")
 
@@ -61,7 +61,7 @@ class TestRebuildDeterminism:
 
         # Add some operations to each task
         for task in tasks:
-            invoke("status", task["id"], "ready", "--actor", "human:test")
+            invoke("status", task["id"], "in_planning", "--actor", "human:test")
 
         lattice_dir = initialized_root / ".lattice"
 
@@ -114,7 +114,7 @@ class TestRebuildDeterminism:
         task_b_id = task_b["id"]
 
         # Build up complex event history on task_a
-        invoke("status", task_a_id, "ready", "--actor", "human:test")
+        invoke("status", task_a_id, "in_planning", "--actor", "human:test")
         invoke("assign", task_a_id, "agent:claude", "--actor", "human:test")
         invoke("comment", task_a_id, "Working on this", "--actor", "agent:claude")
         invoke("link", task_a_id, "blocks", task_b_id, "--actor", "human:test")
@@ -145,7 +145,7 @@ class TestRebuildDeterminism:
 
         # Also verify individual fields are correct
         after = json.loads(after_bytes)
-        assert after["status"] == "ready"
+        assert after["status"] == "in_planning"
         assert after["assigned_to"] == "agent:claude"
         assert after["priority"] == "high"
         assert after["custom_fields"]["effort"] == "large"
@@ -191,7 +191,7 @@ class TestRebuildDeterminism:
 
         # Add operations to make snapshots non-trivial
         for i, task in enumerate(tasks):
-            invoke("status", task["id"], "ready", "--actor", "human:test")
+            invoke("status", task["id"], "in_planning", "--actor", "human:test")
             if i > 0:
                 invoke(
                     "link",
@@ -230,9 +230,9 @@ class TestRebuildDeterminism:
         task_id = task["id"]
 
         # Move through several statuses
-        invoke("status", task_id, "ready", "--actor", "human:test")
-        invoke("status", task_id, "in_progress", "--actor", "human:test")
-        invoke("status", task_id, "review", "--actor", "human:test")
+        invoke("status", task_id, "in_planning", "--actor", "human:test")
+        invoke("status", task_id, "planned", "--actor", "human:test")
+        invoke("status", task_id, "in_implementation", "--actor", "human:test")
 
         lattice_dir = initialized_root / ".lattice"
         snap_path = lattice_dir / "tasks" / f"{task_id}.json"
@@ -247,14 +247,14 @@ class TestRebuildDeterminism:
 
         # Verify final status is correct
         rebuilt = json.loads(after)
-        assert rebuilt["status"] == "review"
+        assert rebuilt["status"] == "in_implementation"
 
     def test_rebuild_json_output_consistent(self, invoke, create_task, invoke_json):
         """Rebuild --json envelope is consistent across runs."""
         task = create_task("JSON consistency")
         task_id = task["id"]
 
-        invoke("status", task_id, "ready", "--actor", "human:test")
+        invoke("status", task_id, "in_planning", "--actor", "human:test")
 
         data1, exit1 = invoke_json("rebuild", task_id)
         assert exit1 == 0

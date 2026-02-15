@@ -39,7 +39,7 @@ class TestCreate:
             "--urgency",
             "immediate",
             "--status",
-            "ready",
+            "in_planning",
             "--description",
             "A bug",
             "--tags",
@@ -54,7 +54,7 @@ class TestCreate:
         assert snap["type"] == "bug"
         assert snap["priority"] == "high"
         assert snap["urgency"] == "immediate"
-        assert snap["status"] == "ready"
+        assert snap["status"] == "in_planning"
         assert snap["description"] == "A bug"
         assert snap["tags"] == ["ui", "backend"]
         assert snap["assigned_to"] == "agent:claude"
@@ -265,10 +265,10 @@ class TestStatus:
     def test_valid_transition(self, create_task, invoke):
         task = create_task("Status test")
         task_id = task["id"]
-        # backlog -> ready is a valid transition
-        result = invoke("status", task_id, "ready", "--actor", "human:test")
+        # backlog -> in_planning is a valid transition
+        result = invoke("status", task_id, "in_planning", "--actor", "human:test")
         assert result.exit_code == 0
-        assert "ready" in result.output
+        assert "in_planning" in result.output
 
     def test_invalid_transition_without_force(self, create_task, invoke):
         task = create_task("Invalid trans")
@@ -312,10 +312,10 @@ class TestStatus:
     def test_json_output(self, create_task, invoke_json):
         task = create_task("JSON status")
         task_id = task["id"]
-        data, code = invoke_json("status", task_id, "ready", "--actor", "human:test")
+        data, code = invoke_json("status", task_id, "in_planning", "--actor", "human:test")
         assert code == 0
         assert data["ok"] is True
-        assert data["data"]["status"] == "ready"
+        assert data["data"]["status"] == "in_planning"
 
     def test_invalid_status_name(self, create_task, invoke):
         task = create_task("Bad status name")
@@ -326,13 +326,13 @@ class TestStatus:
     def test_status_event_in_jsonl(self, create_task, invoke, initialized_root):
         task = create_task("Event check")
         task_id = task["id"]
-        invoke("status", task_id, "ready", "--actor", "human:test")
+        invoke("status", task_id, "in_planning", "--actor", "human:test")
         events_path = initialized_root / ".lattice" / "events" / f"{task_id}.jsonl"
         lines = events_path.read_text().strip().split("\n")
         status_event = json.loads(lines[-1])
         assert status_event["type"] == "status_changed"
         assert status_event["data"]["from"] == "backlog"
-        assert status_event["data"]["to"] == "ready"
+        assert status_event["data"]["to"] == "in_planning"
 
 
 # ---------------------------------------------------------------------------
@@ -486,7 +486,7 @@ class TestCrossCutting:
         task_id = task["id"]
 
         # Perform several non-lifecycle operations
-        invoke("status", task_id, "ready", "--actor", "human:test")
+        invoke("status", task_id, "in_planning", "--actor", "human:test")
         invoke("update", task_id, "title=Changed", "--actor", "human:test")
         invoke("assign", task_id, "agent:claude", "--actor", "human:test")
         invoke("comment", task_id, "A note", "--actor", "human:test")
@@ -521,7 +521,7 @@ class TestCrossCutting:
     def test_task_not_found(self, invoke):
         """Operating on a non-existent task should fail with NOT_FOUND."""
         fake_id = "task_00000000000000000000000099"
-        result = invoke("status", fake_id, "ready", "--actor", "human:test", "--json")
+        result = invoke("status", fake_id, "in_planning", "--actor", "human:test", "--json")
         assert result.exit_code != 0
         parsed = json.loads(result.output)
         assert parsed["ok"] is False
@@ -540,9 +540,9 @@ class TestCrossCutting:
         assert data["data"]["title"] == "Lifecycle updated"
 
         # Status change
-        data, code = invoke_json("status", task_id, "ready", "--actor", "human:test")
+        data, code = invoke_json("status", task_id, "in_planning", "--actor", "human:test")
         assert code == 0
-        assert data["data"]["status"] == "ready"
+        assert data["data"]["status"] == "in_planning"
 
         # Assign
         data, code = invoke_json("assign", task_id, "agent:claude", "--actor", "human:test")
@@ -553,14 +553,14 @@ class TestCrossCutting:
         data, code = invoke_json("comment", task_id, "All done", "--actor", "human:test")
         assert code == 0
         assert data["data"]["title"] == "Lifecycle updated"
-        assert data["data"]["status"] == "ready"
+        assert data["data"]["status"] == "in_planning"
         assert data["data"]["assigned_to"] == "agent:claude"
 
     def test_event_count_after_lifecycle(self, create_task, invoke, initialized_root):
         """All events should be recorded in the per-task JSONL."""
         task = create_task("Event count")
         task_id = task["id"]
-        invoke("status", task_id, "ready", "--actor", "human:test")
+        invoke("status", task_id, "in_planning", "--actor", "human:test")
         invoke("update", task_id, "priority=high", "--actor", "human:test")
         invoke("assign", task_id, "human:bob", "--actor", "human:test")
         invoke("comment", task_id, "Note", "--actor", "human:test")

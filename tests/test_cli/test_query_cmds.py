@@ -267,13 +267,13 @@ class TestList:
     def test_filter_by_status(self, invoke, create_task):
         """--status filters tasks by exact status match."""
         create_task("Backlog task")
-        task_b = create_task("Ready task")
+        task_b = create_task("Planning task")
         task_b_id = task_b["id"]
-        invoke("status", task_b_id, "ready", "--actor", "human:test")
+        invoke("status", task_b_id, "in_planning", "--actor", "human:test")
 
-        result = invoke("list", "--status", "ready")
+        result = invoke("list", "--status", "in_planning")
         assert result.exit_code == 0
-        assert "Ready task" in result.output
+        assert "Planning task" in result.output
         assert "Backlog task" not in result.output
 
     def test_filter_by_assigned(self, invoke, create_task):
@@ -310,14 +310,14 @@ class TestList:
     def test_combined_filters_and(self, invoke, create_task):
         """Multiple filters are combined with AND logic."""
         create_task("Bug in backlog", "--type", "bug")
-        task_b = create_task("Bug ready", "--type", "bug")
-        invoke("status", task_b["id"], "ready", "--actor", "human:test")
+        task_b = create_task("Bug planning", "--type", "bug")
+        invoke("status", task_b["id"], "in_planning", "--actor", "human:test")
         create_task("Task in backlog")
 
         result = invoke("list", "--type", "bug", "--status", "backlog")
         assert result.exit_code == 0
         assert "Bug in backlog" in result.output
-        assert "Bug ready" not in result.output
+        assert "Bug planning" not in result.output
         assert "Task in backlog" not in result.output
 
     def test_no_matches(self, invoke, create_task):
@@ -409,10 +409,10 @@ class TestList:
     def test_quiet_with_filter(self, invoke, create_task):
         """--quiet with --status filter outputs only matching IDs."""
         create_task("Backlog task")
-        t2 = create_task("Ready task")
-        invoke("status", t2["id"], "ready", "--actor", "human:test")
+        t2 = create_task("Planning task")
+        invoke("status", t2["id"], "in_planning", "--actor", "human:test")
 
-        result = invoke("list", "--quiet", "--status", "ready")
+        result = invoke("list", "--quiet", "--status", "in_planning")
         assert result.exit_code == 0
         lines = result.output.strip().splitlines()
         assert len(lines) == 1
@@ -691,7 +691,7 @@ class TestShow:
         """Show displays multiple event types."""
         task = create_task("Test task")
         task_id = task["id"]
-        invoke("status", task_id, "ready", "--actor", "human:test")
+        invoke("status", task_id, "in_planning", "--actor", "human:test")
         invoke("comment", task_id, "A comment", "--actor", "agent:claude")
 
         result = invoke("show", task_id)

@@ -73,11 +73,12 @@ a:hover{text-decoration:underline}
 
 /* Status colors for column headers (fallback) */
 .status-done .board-col-header{background:#198754;color:#fff}
-.status-blocked .board-col-header{background:#dc3545;color:#fff}
 .status-cancelled .board-col-header{background:#6c757d;color:#fff}
-.status-in_progress .board-col-header{background:#0d6efd;color:#fff}
-.status-review .board-col-header{background:#6f42c1;color:#fff}
-.status-ready .board-col-header{background:#20c997;color:#fff}
+.status-in_planning .board-col-header{background:#17a2b8;color:#fff}
+.status-planned .board-col-header{background:#20c997;color:#fff}
+.status-in_implementation .board-col-header{background:#0d6efd;color:#fff}
+.status-implemented .board-col-header{background:#0dcaf0;color:#fff}
+.status-in_review .board-col-header{background:#6f42c1;color:#fff}
 .status-backlog .board-col-header{background:#adb5bd;color:#fff}
 
 /* List view */
@@ -132,6 +133,51 @@ tr:hover td{background:#f8f9fa}
 .lane-color-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:.85rem}
 .lane-color-row .lane-name{min-width:90px}
 .lane-color-row input[type="color"]{width:32px;height:28px;border:1px solid #dee2e6;border-radius:4px;padding:1px;cursor:pointer}
+
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:50;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal{background:#fff;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.2);width:90%;max-width:560px;max-height:90vh;overflow-y:auto;animation:slideUp .2s ease}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{padding:16px 20px;border-bottom:1px solid #dee2e6;display:flex;justify-content:space-between;align-items:center}
+.modal-header h2{font-size:1.1rem;font-weight:700;margin:0}
+.modal-body{padding:20px}
+.modal-footer{padding:12px 20px;border-top:1px solid #dee2e6;display:flex;justify-content:flex-end;gap:8px}
+
+/* Form controls */
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.85rem;font-weight:600;color:#495057;margin-bottom:4px}
+.form-control{width:100%;padding:6px 10px;border:1px solid #dee2e6;border-radius:4px;font-size:.875rem;font-family:inherit;line-height:1.5}
+.form-control:focus{outline:none;border-color:#0d6efd;box-shadow:0 0 0 2px rgba(13,110,253,.15)}
+textarea.form-control{min-height:80px;resize:vertical}
+select.form-control{cursor:pointer}
+
+/* Buttons */
+.btn-primary{background:#0d6efd;color:#fff;border-color:#0d6efd}
+.btn-primary:hover{background:#0b5ed7}
+.btn-danger{background:#dc3545;color:#fff;border-color:#dc3545}
+.btn-danger:hover{background:#bb2d3b}
+.btn-sm{padding:2px 8px;font-size:.8rem}
+.btn-new-task{background:#0d6efd;color:#fff;border-color:#0d6efd;font-weight:600}
+.btn-new-task:hover{background:#0b5ed7}
+
+/* Detail view: inline editing */
+.editable{cursor:pointer;border-bottom:1px dashed transparent;transition:border-color .15s}
+.editable:hover{border-bottom-color:#0d6efd}
+.inline-edit{display:flex;gap:6px;align-items:center}
+.inline-edit .form-control{flex:1}
+.inline-edit .btn{flex-shrink:0}
+
+/* Detail view: action bar */
+.detail-actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+.detail-actions select{padding:4px 8px;border:1px solid #dee2e6;border-radius:4px;font-size:.85rem}
+
+/* Comment section */
+.comment-form{display:flex;gap:8px;margin-top:8px}
+.comment-form textarea{flex:1;min-height:60px}
+.comment-item{padding:8px;background:#f8f9fa;border-radius:4px;margin-bottom:6px;font-size:.85rem}
+.comment-item .comment-meta{font-size:.8rem;color:#6c757d;margin-bottom:2px}
+.comment-item .comment-body{white-space:pre-wrap}
 </style>
 </head>
 <body>
@@ -143,8 +189,9 @@ tr:hover td{background:#f8f9fa}
   <span class="nav-tab" data-view="activity">Activity</span>
   <div class="nav-right">
     <span id="stats-badges"></span>
-    <button class="btn-icon" id="settings-btn" title="Dashboard Settings">&#9881;</button>
-    <button class="btn" id="refresh-btn" title="Refresh">Refresh</button>
+    <button type="button" class="btn btn-new-task" id="new-task-btn" title="Create new task">+ New Task</button>
+    <button type="button" class="btn-icon" id="settings-btn" title="Dashboard Settings">&#9881;</button>
+    <button type="button" class="btn" id="refresh-btn" title="Refresh">Refresh</button>
   </div>
 </div>
 
@@ -154,6 +201,50 @@ tr:hover td{background:#f8f9fa}
 
 <div class="toast-container" id="toast-container"></div>
 
+<div class="modal-overlay" id="create-task-modal" style="display:none">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Create Task</h2>
+      <button class="settings-close" id="create-task-close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label for="ct-title">Title *</label>
+        <input type="text" class="form-control" id="ct-title" placeholder="Task title">
+      </div>
+      <div class="form-group">
+        <label for="ct-type">Type</label>
+        <select class="form-control" id="ct-type"></select>
+      </div>
+      <div class="form-group">
+        <label for="ct-priority">Priority</label>
+        <select class="form-control" id="ct-priority">
+          <option value="critical">critical</option>
+          <option value="high">high</option>
+          <option value="medium" selected>medium</option>
+          <option value="low">low</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="ct-description">Description</label>
+        <textarea class="form-control" id="ct-description" placeholder="Optional description"></textarea>
+      </div>
+      <div class="form-group">
+        <label for="ct-tags">Tags</label>
+        <input type="text" class="form-control" id="ct-tags" placeholder="Comma-separated tags">
+      </div>
+      <div class="form-group">
+        <label for="ct-assigned">Assigned To</label>
+        <input type="text" class="form-control" id="ct-assigned" placeholder="e.g. human:atin, agent:claude">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn" id="create-task-cancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="create-task-submit">Create Task</button>
+    </div>
+  </div>
+</div>
+
 <div class="settings-panel" id="settings-panel">
   <div class="settings-header">
     <span>Dashboard Settings</span>
@@ -162,17 +253,17 @@ tr:hover td{background:#f8f9fa}
   <div class="settings-body">
     <div class="settings-group">
       <label for="bg-image-input">Background Image URL</label>
-      <input type="url" id="bg-image-input" placeholder="https://example.com/bg.jpg">
+      <input type="text" id="bg-image-input" placeholder="https://example.com/bg.jpg">
       <div class="hint">Set a background image for the board view. Leave empty to clear.</div>
-      <button class="btn" id="bg-image-save">Apply</button>
-      <button class="btn" id="bg-image-clear">Clear</button>
+      <button type="button" class="btn" id="bg-image-save">Apply</button>
+      <button type="button" class="btn" id="bg-image-clear">Clear</button>
     </div>
     <div class="settings-group">
       <label>Lane Colors</label>
       <div class="hint" style="margin-bottom:8px">Click a color to customize each swim lane header.</div>
       <div id="lane-colors-list"></div>
-      <button class="btn" id="lane-colors-save" style="margin-top:8px">Apply Lane Colors</button>
-      <button class="btn" id="lane-colors-reset" style="margin-top:4px">Reset to Defaults</button>
+      <button type="button" class="btn" id="lane-colors-save" style="margin-top:8px">Apply Lane Colors</button>
+      <button type="button" class="btn" id="lane-colors-reset" style="margin-top:4px">Reset to Defaults</button>
     </div>
   </div>
 </div>
@@ -184,11 +275,12 @@ tr:hover td{background:#f8f9fa}
 // --- Default lane colors (fallback) ---
 var DEFAULT_LANE_COLORS = {
   backlog: "#adb5bd",
-  ready: "#20c997",
-  in_progress: "#0d6efd",
-  review: "#6f42c1",
+  in_planning: "#17a2b8",
+  planned: "#20c997",
+  in_implementation: "#0d6efd",
+  implemented: "#0dcaf0",
+  in_review: "#6f42c1",
   done: "#198754",
-  blocked: "#dc3545",
   cancelled: "#6c757d"
 };
 
@@ -755,6 +847,81 @@ function showError(msg) {
   document.getElementById("app").innerHTML = '<div class="error-box"><p>' + esc(msg) + '</p><button class="btn" onclick="location.reload()">Retry</button></div>';
 }
 
+// --- Create Task Modal ---
+function showCreateTaskModal() {
+  var modal = document.getElementById("create-task-modal");
+  // Populate type dropdown from config
+  var typeSelect = document.getElementById("ct-type");
+  typeSelect.innerHTML = "";
+  var types = (config && config.task_types) || ["task"];
+  types.forEach(function(t) {
+    var opt = document.createElement("option");
+    opt.value = t;
+    opt.textContent = t;
+    if (t === "task") opt.selected = true;
+    typeSelect.appendChild(opt);
+  });
+  // Reset form
+  document.getElementById("ct-title").value = "";
+  document.getElementById("ct-priority").value = config ? (config.default_priority || "medium") : "medium";
+  document.getElementById("ct-description").value = "";
+  document.getElementById("ct-tags").value = "";
+  document.getElementById("ct-assigned").value = "";
+  modal.style.display = "flex";
+  document.getElementById("ct-title").focus();
+}
+
+function hideCreateTaskModal() {
+  document.getElementById("create-task-modal").style.display = "none";
+}
+
+document.getElementById("new-task-btn").addEventListener("click", showCreateTaskModal);
+document.getElementById("create-task-close").addEventListener("click", hideCreateTaskModal);
+document.getElementById("create-task-cancel").addEventListener("click", hideCreateTaskModal);
+
+document.getElementById("create-task-modal").addEventListener("click", function(e) {
+  if (e.target === this) hideCreateTaskModal();
+});
+
+document.getElementById("create-task-submit").addEventListener("click", async function() {
+  var title = document.getElementById("ct-title").value.trim();
+  if (!title) {
+    showToast("Title is required", "error");
+    return;
+  }
+  var payload = { title: title };
+  var taskType = document.getElementById("ct-type").value;
+  if (taskType) payload.type = taskType;
+  var priority = document.getElementById("ct-priority").value;
+  if (priority) payload.priority = priority;
+  var desc = document.getElementById("ct-description").value.trim();
+  if (desc) payload.description = desc;
+  var tags = document.getElementById("ct-tags").value.trim();
+  if (tags) payload.tags = tags.split(",").map(function(t){ return t.trim(); }).filter(Boolean);
+  var assigned = document.getElementById("ct-assigned").value.trim();
+  if (assigned) payload.assigned_to = assigned;
+
+  try {
+    var created = await apiPost("/api/tasks", payload);
+    hideCreateTaskModal();
+    showToast("Task created: " + title, "success");
+    tasks = await api("/api/tasks");
+    updateStatsBadges();
+    // Navigate to the new task's detail
+    location.hash = "#/task/" + created.id;
+  } catch(e) {
+    showToast(e.message, "error");
+  }
+});
+
+// Allow Enter in title to submit
+document.getElementById("ct-title").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    document.getElementById("create-task-submit").click();
+  }
+});
+
 // --- Settings Panel ---
 document.getElementById("settings-btn").addEventListener("click", function() {
   document.getElementById("settings-panel").classList.add("open");
@@ -838,8 +1005,55 @@ document.getElementById("refresh-btn").addEventListener("click", async function(
   } catch(e) { showError(e.message); }
 });
 
+// --- Auto-refresh ---
+var autoRefreshInterval = null;
+var AUTO_REFRESH_MS = 5000;
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  autoRefreshInterval = setInterval(async function() {
+    // Only auto-refresh on board, list, and activity views
+    if (currentView !== "board" && currentView !== "list" && currentView !== "activity") return;
+    try {
+      var newTasks = await api("/api/tasks");
+      var newConfig = await api("/api/config");
+      // Only re-render if data actually changed
+      var tasksChanged = JSON.stringify(newTasks) !== JSON.stringify(tasks);
+      var configChanged = JSON.stringify(newConfig) !== JSON.stringify(config);
+      if (tasksChanged || configChanged) {
+        tasks = newTasks;
+        config = newConfig;
+        updateStatsBadges();
+        if (configChanged) {
+          populateLaneColorSettings();
+          loadBackgroundSetting();
+        }
+        await route(location.hash.slice(1));
+      }
+    } catch(e) {
+      // Silently ignore refresh errors — server may be restarting
+    }
+  }, AUTO_REFRESH_MS);
+}
+
+function stopAutoRefresh() {
+  if (autoRefreshInterval) {
+    clearInterval(autoRefreshInterval);
+    autoRefreshInterval = null;
+  }
+}
+
+// Pause auto-refresh when tab is hidden to avoid unnecessary requests
+document.addEventListener("visibilitychange", function() {
+  if (document.hidden) {
+    stopAutoRefresh();
+  } else {
+    startAutoRefresh();
+  }
+});
+
 // --- Boot ---
-init();
+init().then(function() { startAutoRefresh(); });
 
 })();
 </script>

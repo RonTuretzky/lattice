@@ -65,7 +65,7 @@ class TestCrashAfterEventBeforeSnapshot:
             type="status_changed",
             task_id=task_id,
             actor="human:test",
-            data={"from": "backlog", "to": "ready"},
+            data={"from": "backlog", "to": "in_planning"},
         )
         event_path = ld / "events" / f"{task_id}.jsonl"
         with open(event_path, "a") as f:
@@ -84,7 +84,7 @@ class TestCrashAfterEventBeforeSnapshot:
 
         # Snapshot now reflects the status change
         recovered_snap = _read_snapshot(ld, task_id)
-        assert recovered_snap["status"] == "ready"
+        assert recovered_snap["status"] == "in_planning"
         assert recovered_snap["last_event_id"] == event["id"]
 
 
@@ -195,7 +195,7 @@ class TestTruncatedJsonlFinalLine:
             type="status_changed",
             task_id=task_id,
             actor="human:test",
-            data={"from": "backlog", "to": "ready"},
+            data={"from": "backlog", "to": "in_planning"},
         )
         event_path = ld / "events" / f"{task_id}.jsonl"
         with open(event_path, "a") as f:
@@ -215,7 +215,7 @@ class TestTruncatedJsonlFinalLine:
         assert result.exit_code == 0
 
         recovered = _read_snapshot(ld, task_id)
-        assert recovered["status"] == "ready"
+        assert recovered["status"] == "in_planning"
 
 
 class TestMissingSnapshotEventsExist:
@@ -292,7 +292,7 @@ class TestRebuildFromMultipleEvents:
         ld = _lattice_dir(initialized_root)
 
         # Change status
-        result = invoke("status", task_id, "ready", "--actor", "human:test", "--json")
+        result = invoke("status", task_id, "in_planning", "--actor", "human:test", "--json")
         assert result.exit_code == 0
 
         # Update title
@@ -307,7 +307,7 @@ class TestRebuildFromMultipleEvents:
 
         # Verify current snapshot state
         snap_before = _read_snapshot(ld, task_id)
-        assert snap_before["status"] == "ready"
+        assert snap_before["status"] == "in_planning"
         assert snap_before["title"] == "Updated title"
 
         # Delete snapshot
@@ -320,7 +320,7 @@ class TestRebuildFromMultipleEvents:
 
         # Verify all mutations are reflected
         recovered = _read_snapshot(ld, task_id)
-        assert recovered["status"] == "ready"
+        assert recovered["status"] == "in_planning"
         assert recovered["title"] == "Updated title"
         assert recovered["id"] == task_id
         assert recovered["created_by"] == "human:test"
@@ -343,7 +343,7 @@ class TestRebuildAllRecoversMultipleTasks:
             type="status_changed",
             task_id=task_a_id,
             actor="human:test",
-            data={"from": "backlog", "to": "in_progress"},
+            data={"from": "backlog", "to": "in_planning"},
         )
         with open(ld / "events" / f"{task_a_id}.jsonl", "a") as f:
             f.write(serialize_event(event_a))
@@ -361,7 +361,7 @@ class TestRebuildAllRecoversMultipleTasks:
 
         # Verify both are correct
         snap_a = _read_snapshot(ld, task_a_id)
-        assert snap_a["status"] == "in_progress"
+        assert snap_a["status"] == "in_planning"
 
         snap_b = _read_snapshot(ld, task_b_id)
         assert snap_b["title"] == "Task B"
@@ -385,7 +385,7 @@ class TestDoctorDetectsSnapshotDrift:
             type="status_changed",
             task_id=task_id,
             actor="human:test",
-            data={"from": "backlog", "to": "ready"},
+            data={"from": "backlog", "to": "in_planning"},
         )
         with open(ld / "events" / f"{task_id}.jsonl", "a") as f:
             f.write(serialize_event(event))

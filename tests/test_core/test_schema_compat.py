@@ -110,7 +110,7 @@ def test_schema_version_preserved_through_rebuild():
         type="status_changed",
         task_id="task_CCCC",
         actor="human:test",
-        data={"from": "backlog", "to": "in_progress"},
+        data={"from": "backlog", "to": "in_planning"},
     )
     snapshot = apply_event_to_snapshot(snapshot, status_event)
 

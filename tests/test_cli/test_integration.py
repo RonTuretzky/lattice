@@ -35,7 +35,7 @@ class TestFullLifecycleWorkflow:
     """Test a complete task lifecycle from creation through archival."""
 
     def test_full_lifecycle_workflow(self, invoke, create_task, initialized_root):
-        """Create -> ready -> in_progress -> assign -> comment -> link -> attach -> review -> done -> archive.
+        """Create -> in_planning -> planned -> in_implementation -> assign -> comment -> link -> attach -> implemented -> in_review -> done -> archive.
 
         Verify that the full event log captures every operation in order.
         """
@@ -45,30 +45,34 @@ class TestFullLifecycleWorkflow:
         task = create_task("Lifecycle test task")
         task_id = task["id"]
 
-        # 2. Status: backlog -> ready
-        r = invoke("status", task_id, "ready", "--actor", "human:test")
+        # 2. Status: backlog -> in_planning
+        r = invoke("status", task_id, "in_planning", "--actor", "human:test")
         assert r.exit_code == 0
 
-        # 3. Status: ready -> in_progress
-        r = invoke("status", task_id, "in_progress", "--actor", "human:test")
+        # 3. Status: in_planning -> planned
+        r = invoke("status", task_id, "planned", "--actor", "human:test")
         assert r.exit_code == 0
 
-        # 4. Assign
+        # 4. Status: planned -> in_implementation
+        r = invoke("status", task_id, "in_implementation", "--actor", "human:test")
+        assert r.exit_code == 0
+
+        # 5. Assign
         r = invoke("assign", task_id, "agent:bot", "--actor", "human:test")
         assert r.exit_code == 0
 
-        # 5. Comment
+        # 6. Comment
         r = invoke("comment", task_id, "Work in progress", "--actor", "human:test")
         assert r.exit_code == 0
 
-        # 6. Create a second task and link
+        # 7. Create a second task and link
         task_b = create_task("Blocked by lifecycle")
         task_b_id = task_b["id"]
 
         r = invoke("link", task_id, "blocks", task_b_id, "--actor", "human:test")
         assert r.exit_code == 0
 
-        # 7. Attach a URL
+        # 8. Attach a URL
         r = invoke(
             "attach",
             task_id,
@@ -78,15 +82,19 @@ class TestFullLifecycleWorkflow:
         )
         assert r.exit_code == 0
 
-        # 8. Status: in_progress -> review
-        r = invoke("status", task_id, "review", "--actor", "human:test")
+        # 9. Status: in_implementation -> implemented
+        r = invoke("status", task_id, "implemented", "--actor", "human:test")
         assert r.exit_code == 0
 
-        # 9. Status: review -> done
+        # 10. Status: implemented -> in_review
+        r = invoke("status", task_id, "in_review", "--actor", "human:test")
+        assert r.exit_code == 0
+
+        # 11. Status: in_review -> done
         r = invoke("status", task_id, "done", "--actor", "human:test")
         assert r.exit_code == 0
 
-        # 10. Archive
+        # 12. Archive
         r = invoke("archive", task_id, "--actor", "human:test")
         assert r.exit_code == 0
 
@@ -100,10 +108,12 @@ class TestFullLifecycleWorkflow:
             "task_created",
             "status_changed",
             "status_changed",
+            "status_changed",
             "assignment_changed",
             "comment_added",
             "relationship_added",
             "artifact_attached",
+            "status_changed",
             "status_changed",
             "status_changed",
             "task_archived",
@@ -180,9 +190,11 @@ class TestDoctorAfterLifecycle:
         task_id = task["id"]
 
         # Transition through states
-        invoke("status", task_id, "ready", "--actor", "human:test")
-        invoke("status", task_id, "in_progress", "--actor", "human:test")
-        invoke("status", task_id, "review", "--actor", "human:test")
+        invoke("status", task_id, "in_planning", "--actor", "human:test")
+        invoke("status", task_id, "planned", "--actor", "human:test")
+        invoke("status", task_id, "in_implementation", "--actor", "human:test")
+        invoke("status", task_id, "implemented", "--actor", "human:test")
+        invoke("status", task_id, "in_review", "--actor", "human:test")
         invoke("status", task_id, "done", "--actor", "human:test")
         invoke("archive", task_id, "--actor", "human:test")
 
@@ -379,8 +391,8 @@ class TestShowAfterMultipleOperations:
         task_id = task["id"]
 
         # Perform operations
-        invoke("status", task_id, "ready", "--actor", "human:test")
-        invoke("status", task_id, "in_progress", "--actor", "human:test")
+        invoke("status", task_id, "in_planning", "--actor", "human:test")
+        invoke("status", task_id, "planned", "--actor", "human:test")
         invoke("assign", task_id, "agent:worker", "--actor", "human:test")
         invoke("comment", task_id, "Making progress", "--actor", "human:test")
         invoke(
@@ -414,6 +426,6 @@ class TestShowAfterMultipleOperations:
         ]
 
         # Verify final snapshot state
-        assert show_data["status"] == "in_progress"
+        assert show_data["status"] == "planned"
         assert show_data["assigned_to"] == "agent:worker"
         assert show_data["priority"] == "high"

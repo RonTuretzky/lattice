@@ -261,7 +261,7 @@ class TestConcurrentStatusChanges:
 
         result = runner.invoke(
             cli,
-            ["status", task_id, "ready", "--actor", "human:test"],
+            ["status", task_id, "in_planning", "--actor", "human:test"],
             env=cli_env,
         )
         assert result.exit_code == 0
@@ -269,7 +269,7 @@ class TestConcurrentStatusChanges:
         # Read current snapshot
         lattice_dir = initialized_root / ".lattice"
         snapshot = json.loads((lattice_dir / "tasks" / f"{task_id}.json").read_text())
-        assert snapshot["status"] == "ready"
+        assert snapshot["status"] == "in_planning"
 
         # Two threads apply different status changes using core APIs + write path
         # (bypassing CLI to avoid CliRunner thread-safety issues)
@@ -296,8 +296,8 @@ class TestConcurrentStatusChanges:
             except Exception as exc:
                 errors.append(exc)
 
-        t1 = threading.Thread(target=change_status, args=("ready", "in_progress"))
-        t2 = threading.Thread(target=change_status, args=("ready", "blocked"))
+        t1 = threading.Thread(target=change_status, args=("in_planning", "planned"))
+        t2 = threading.Thread(target=change_status, args=("in_planning", "cancelled"))
         t1.start()
         t2.start()
         t1.join(timeout=15)
@@ -310,11 +310,11 @@ class TestConcurrentStatusChanges:
         event_lines = event_path.read_text().strip().split("\n")
         events = [json.loads(line) for line in event_lines]
 
-        # task_created + status(ready) + 2 concurrent changes = 4
+        # task_created + status(in_planning) + 2 concurrent changes = 4
         assert len(events) == 4
 
         status_events = [e for e in events if e["type"] == "status_changed"]
-        assert len(status_events) == 3  # ready + in_progress + blocked
+        assert len(status_events) == 3  # in_planning + planned + cancelled
 
         # All events are valid
         for ev in events:
