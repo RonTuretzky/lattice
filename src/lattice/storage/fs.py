@@ -1,0 +1,113 @@
+"""Atomic file writes, directory management, and root discovery."""
+
+from __future__ import annotations
+
+import os
+import tempfile
+from pathlib import Path
+
+LATTICE_DIR = ".lattice"
+LATTICE_ROOT_ENV = "LATTICE_ROOT"
+
+
+def atomic_write(path: Path, content: str | bytes) -> None:
+    """Write content to path atomically via temp file + fsync + rename.
+
+    The temp file is created in the same directory as the target to ensure
+    os.rename() is an atomic operation (same filesystem).
+
+    Raises:
+        FileNotFoundError: If the parent directory does not exist.
+    """
+    parent = path.parent
+    if not parent.is_dir():
+        raise FileNotFoundError(f"Parent directory does not exist: {parent}")
+
+    data = content.encode("utf-8") if isinstance(content, str) else content
+
+    fd, tmp_path = tempfile.mkstemp(dir=parent, prefix=".tmp.")
+    try:
+        os.write(fd, data)
+        os.fsync(fd)
+        os.close(fd)
+        os.rename(tmp_path, path)
+    except BaseException:
+        os.close(fd) if not _fd_closed(fd) else None
+        # Clean up temp file on failure
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
+def _fd_closed(fd: int) -> bool:
+    """Check if a file descriptor has already been closed."""
+    try:
+        os.fstat(fd)
+        return False
+    except OSError:
+        return True
+
+
+def ensure_lattice_dirs(root: Path) -> None:
+    """Create the full .lattice/ directory structure under root.
+
+    root is the project directory (the directory that will contain .lattice/).
+    """
+    lattice = root / LATTICE_DIR
+    subdirs = [
+        "tasks",
+        "events",
+        "artifacts/meta",
+        "artifacts/payload",
+        "notes",
+        "archive/tasks",
+        "archive/events",
+        "archive/notes",
+        "locks",
+    ]
+    for subdir in subdirs:
+        (lattice / subdir).mkdir(parents=True, exist_ok=True)
+
+
+def find_root(start: Path | None = None) -> Path | None:
+    """Find the project root containing .lattice/.
+
+    Checks LATTICE_ROOT env var first. If set, validates it and returns
+    the path or raises an error (no fallback to walk-up).
+
+    Otherwise, walks up from start (defaults to cwd) looking for .lattice/.
+
+    Returns:
+        Path to the directory containing .lattice/, or None if not found.
+
+    Raises:
+        LatticeRootError: If LATTICE_ROOT is set but invalid.
+    """
+    env_root = os.environ.get(LATTICE_ROOT_ENV)
+    if env_root is not None:
+        env_path = Path(env_root)
+        if not env_path.is_dir():
+            raise LatticeRootError(
+                f"LATTICE_ROOT points to a path that does not exist: {env_root}"
+            )
+        if not (env_path / LATTICE_DIR).is_dir():
+            raise LatticeRootError(
+                f"LATTICE_ROOT points to a directory with no {LATTICE_DIR}/ inside: {env_root}"
+            )
+        return env_path
+
+    current = (start or Path.cwd()).resolve()
+    while True:
+        if (current / LATTICE_DIR).is_dir():
+            return current
+        parent = current.parent
+        if parent == current:
+            # Reached filesystem root
+            return None
+        current = parent
+
+
+class LatticeRootError(Exception):
+    """Raised when LATTICE_ROOT env var is set but invalid."""

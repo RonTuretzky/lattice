@@ -1,0 +1,147 @@
+"""Tests for the `lattice init` CLI command."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+from click.testing import CliRunner
+
+from lattice.cli.main import cli
+from lattice.core.config import default_config, serialize_config
+
+
+class TestInitDirectoryStructure:
+    """lattice init creates the full .lattice/ directory tree."""
+
+    def test_creates_all_expected_directories(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        assert result.exit_code == 0
+
+        lattice = tmp_path / ".lattice"
+        expected_dirs = [
+            "tasks",
+            "events",
+            "artifacts/meta",
+            "artifacts/payload",
+            "notes",
+            "archive/tasks",
+            "archive/events",
+            "archive/notes",
+            "locks",
+        ]
+        for d in expected_dirs:
+            assert (lattice / d).is_dir(), f"Missing directory: {d}"
+
+    def test_creates_empty_global_jsonl(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+
+        global_log = tmp_path / ".lattice" / "events" / "_global.jsonl"
+        assert global_log.is_file()
+        assert global_log.read_text() == ""
+
+    def test_init_with_custom_path(self, tmp_path: Path) -> None:
+        target = tmp_path / "myproject"
+        target.mkdir()
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["init", "--path", str(target)])
+        assert result.exit_code == 0
+        assert (target / ".lattice" / "config.json").is_file()
+
+    def test_prints_success_message(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        assert result.exit_code == 0
+        assert "Initialized empty Lattice in .lattice/" in result.output
+
+
+class TestInitConfig:
+    """lattice init writes a valid, deterministic config.json."""
+
+    def test_writes_valid_json(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+
+        config_path = tmp_path / ".lattice" / "config.json"
+        config = json.loads(config_path.read_text())
+        assert isinstance(config, dict)
+
+    def test_config_has_schema_version_1(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+
+        config = json.loads((tmp_path / ".lattice" / "config.json").read_text())
+        assert config["schema_version"] == 1
+
+    def test_config_is_byte_identical_to_canonical(self, tmp_path: Path) -> None:
+        """Config on disk must be byte-identical to json.dumps(default_config(), sort_keys=True, indent=2) + '\\n'."""
+        runner = CliRunner()
+        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+
+        actual = (tmp_path / ".lattice" / "config.json").read_text()
+        expected = serialize_config(default_config())
+        assert actual == expected
+
+    def test_config_has_trailing_newline(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+
+        raw = (tmp_path / ".lattice" / "config.json").read_bytes()
+        assert raw.endswith(b"\n")
+        # Exactly one trailing newline, not two
+        assert not raw.endswith(b"\n\n")
+
+
+class TestInitIdempotency:
+    """Running init twice must not clobber existing data."""
+
+    def test_second_init_does_not_clobber_config(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+
+        # Record config content after first init
+        config_path = tmp_path / ".lattice" / "config.json"
+        original = config_path.read_text()
+
+        # Run init again
+        result = runner.invoke(cli, ["init", "--path", str(tmp_path)])
+        assert result.exit_code == 0
+        assert "already initialized" in result.output
+
+        # Config unchanged
+        assert config_path.read_text() == original
+
+    def test_modified_config_survives_second_init(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+
+        # Modify config between runs
+        config_path = tmp_path / ".lattice" / "config.json"
+        config = json.loads(config_path.read_text())
+        config["custom_key"] = "user_value"
+        config_path.write_text(json.dumps(config, sort_keys=True, indent=2) + "\n")
+
+        # Run init again
+        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+
+        # Modified config is preserved
+        reloaded = json.loads(config_path.read_text())
+        assert reloaded["custom_key"] == "user_value"
+
+    def test_existing_tasks_survive_second_init(self, tmp_path: Path) -> None:
+        runner = CliRunner()
+        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+
+        # Create a fake task file
+        task_file = tmp_path / ".lattice" / "tasks" / "task_fake.json"
+        task_file.write_text('{"id": "task_fake"}\n')
+
+        # Run init again
+        runner.invoke(cli, ["init", "--path", str(tmp_path)])
+
+        # Task file still exists
+        assert task_file.is_file()
+        assert json.loads(task_file.read_text())["id"] == "task_fake"
