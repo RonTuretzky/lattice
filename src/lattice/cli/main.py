@@ -41,9 +41,6 @@ def init(target_path: str) -> None:
     config_content = serialize_config(config)
     atomic_write(lattice_dir / "config.json", config_content)
 
-    # Create empty _global.jsonl ready for appends
-    (lattice_dir / "events" / "_global.jsonl").touch()
-
     click.echo(f"Initialized empty Lattice in {LATTICE_DIR}/")
 
 

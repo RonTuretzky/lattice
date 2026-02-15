@@ -26,28 +26,21 @@ def atomic_write(path: Path, content: str | bytes) -> None:
     data = content.encode("utf-8") if isinstance(content, str) else content
 
     fd, tmp_path = tempfile.mkstemp(dir=parent, prefix=".tmp.")
+    closed = False
     try:
         os.write(fd, data)
         os.fsync(fd)
         os.close(fd)
-        os.rename(tmp_path, path)
+        closed = True
+        os.replace(tmp_path, path)
     except BaseException:
-        os.close(fd) if not _fd_closed(fd) else None
-        # Clean up temp file on failure
+        if not closed:
+            os.close(fd)
         try:
             os.unlink(tmp_path)
         except OSError:
             pass
         raise
-
-
-def _fd_closed(fd: int) -> bool:
-    """Check if a file descriptor has already been closed."""
-    try:
-        os.fstat(fd)
-        return False
-    except OSError:
-        return True
 
 
 def ensure_lattice_dirs(root: Path) -> None:
@@ -70,6 +63,11 @@ def ensure_lattice_dirs(root: Path) -> None:
     for subdir in subdirs:
         (lattice / subdir).mkdir(parents=True, exist_ok=True)
 
+    # Create empty _global.jsonl ready for appends
+    global_log = lattice / "events" / "_global.jsonl"
+    if not global_log.exists():
+        global_log.touch()
+
 
 def find_root(start: Path | None = None) -> Path | None:
     """Find the project root containing .lattice/.
@@ -87,6 +85,8 @@ def find_root(start: Path | None = None) -> Path | None:
     """
     env_root = os.environ.get(LATTICE_ROOT_ENV)
     if env_root is not None:
+        if not env_root:
+            raise LatticeRootError("LATTICE_ROOT is set but empty")
         env_path = Path(env_root)
         if not env_path.is_dir():
             raise LatticeRootError(

@@ -1,5 +1,7 @@
 """Default config generation and validation."""
 
+import json
+
 
 def default_config() -> dict:
     """Return the default Lattice configuration.
@@ -48,6 +50,4 @@ def default_config() -> dict:
 
 def serialize_config(config: dict) -> str:
     """Serialize a config dict to the canonical JSON format."""
-    import json
-
     return json.dumps(config, sort_keys=True, indent=2) + "\n"

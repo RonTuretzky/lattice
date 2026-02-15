@@ -85,3 +85,12 @@ class TestFindRootEnvVar:
 
         with pytest.raises(LatticeRootError):
             find_root(start=tmp_path)
+
+    def test_env_var_empty_string_raises(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Empty LATTICE_ROOT is an error, not a silent cwd fallback."""
+        monkeypatch.setenv("LATTICE_ROOT", "")
+
+        with pytest.raises(LatticeRootError, match="empty"):
+            find_root(start=tmp_path)
