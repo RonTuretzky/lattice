@@ -468,3 +468,45 @@ class TestSubprojectShortIds:
         parsed = json.loads(result.output)
         short_ids = sorted(t["short_id"] for t in parsed["data"])
         assert short_ids == ["AUT-1", "AUT-2"]
+
+
+class TestBackfillWithSubprojectCode:
+    """Test backfill-ids with compound prefix (project + subproject)."""
+
+    def test_backfill_uses_compound_prefix(self, tmp_path: Path) -> None:
+        """Create tasks without IDs, set project+subproject, backfill."""
+        ensure_lattice_dirs(tmp_path)
+        lattice_dir = tmp_path / LATTICE_DIR
+        atomic_write(lattice_dir / "config.json", serialize_config(default_config()))
+        (lattice_dir / "events" / "_lifecycle.jsonl").touch()
+
+        runner = CliRunner()
+        env = {"LATTICE_ROOT": str(tmp_path)}
+
+        # Create 2 tasks without project code (no short IDs)
+        runner.invoke(cli, ["create", "Task A", "--actor", "human:test"], env=env)
+        runner.invoke(cli, ["create", "Task B", "--actor", "human:test"], env=env)
+
+        # Set project code and subproject code
+        runner.invoke(cli, ["set-project-code", "AUT"], env=env)
+        runner.invoke(cli, ["set-subproject-code", "FE"], env=env)
+
+        # Backfill
+        result = runner.invoke(cli, ["backfill-ids", "--json"], env=env)
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["ok"] is True
+        assert parsed["data"]["assigned"] == 2
+        assert parsed["data"]["first"] == "AUT-FE-1"
+        assert parsed["data"]["last"] == "AUT-FE-2"
+
+        # Verify tasks have compound short IDs
+        result = runner.invoke(cli, ["list", "--json", "--compact"], env=env)
+        parsed = json.loads(result.output)
+        short_ids = sorted(t["short_id"] for t in parsed["data"])
+        assert short_ids == ["AUT-FE-1", "AUT-FE-2"]
+
+        # Verify resolution works
+        result = runner.invoke(cli, ["show", "AUT-FE-1", "--json"], env=env)
+        assert result.exit_code == 0
+        assert json.loads(result.output)["ok"] is True
