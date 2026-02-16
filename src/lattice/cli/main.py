@@ -189,6 +189,36 @@ def init(
     if instance_name:
         click.echo(f"Instance name: {instance_name}")
 
+    # CLAUDE.md integration
+    _offer_claude_md(root)
+
+
+def _offer_claude_md(root: Path) -> None:
+    """Detect CLAUDE.md and offer to add Lattice integration block."""
+    from lattice.templates.claude_md_block import CLAUDE_MD_BLOCK, CLAUDE_MD_MARKER
+
+    claude_md = root / "CLAUDE.md"
+
+    if claude_md.exists():
+        content = claude_md.read_text()
+        if CLAUDE_MD_MARKER in content:
+            click.echo("CLAUDE.md already has Lattice integration.")
+            return
+        if click.confirm(
+            "Found CLAUDE.md — add Lattice agent integration?",
+            default=True,
+        ):
+            with open(claude_md, "a") as f:
+                f.write(CLAUDE_MD_BLOCK)
+            click.echo("Added Lattice integration to CLAUDE.md.")
+    else:
+        if click.confirm(
+            "Create CLAUDE.md with Lattice agent integration?",
+            default=True,
+        ):
+            claude_md.write_text(f"# {root.name}\n{CLAUDE_MD_BLOCK}")
+            click.echo("Created CLAUDE.md with Lattice integration.")
+
 
 # ---------------------------------------------------------------------------
 # lattice set-project-code
@@ -285,6 +315,58 @@ def set_subproject_code(code: str, force: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
+# lattice setup-claude
+# ---------------------------------------------------------------------------
+
+
+@cli.command("setup-claude")
+@click.option(
+    "--path",
+    "target_path",
+    type=click.Path(exists=True, file_okay=False, resolve_path=True),
+    default=".",
+    help="Project root directory (defaults to current directory).",
+)
+@click.option("--force", is_flag=True, help="Replace existing Lattice block if present.")
+def setup_claude(target_path: str, force: bool) -> None:
+    """Add or update Lattice agent integration in CLAUDE.md."""
+    from lattice.templates.claude_md_block import CLAUDE_MD_BLOCK, CLAUDE_MD_MARKER
+
+    root = Path(target_path)
+    claude_md = root / "CLAUDE.md"
+
+    if claude_md.exists():
+        content = claude_md.read_text()
+        if CLAUDE_MD_MARKER in content:
+            if not force:
+                click.echo("CLAUDE.md already has Lattice integration. Use --force to replace.")
+                return
+            # Remove existing block and re-add
+            lines = content.split("\n")
+            new_lines: list[str] = []
+            skip = False
+            for line in lines:
+                if line.strip() == CLAUDE_MD_MARKER:
+                    skip = True
+                    continue
+                if skip and line.startswith("## ") and line.strip() != CLAUDE_MD_MARKER:
+                    skip = False
+                if not skip:
+                    new_lines.append(line)
+            content = "\n".join(new_lines).rstrip("\n") + "\n"
+            content += CLAUDE_MD_BLOCK
+            claude_md.write_text(content)
+            click.echo("Updated Lattice integration in CLAUDE.md.")
+        else:
+            with open(claude_md, "a") as f:
+                f.write(CLAUDE_MD_BLOCK)
+            click.echo("Added Lattice integration to CLAUDE.md.")
+    else:
+        claude_md.write_text(f"# {root.name}\n{CLAUDE_MD_BLOCK}")
+        click.echo("Created CLAUDE.md with Lattice integration.")
+
+
+# ---------------------------------------------------------------------------
 # Register command modules (must be after cli group is defined)
 # ---------------------------------------------------------------------------
 from lattice.cli import migration_cmds as _migration_cmds  # noqa: E402, F401
@@ -295,6 +377,7 @@ from lattice.cli import query_cmds as _query_cmds  # noqa: E402, F401
 from lattice.cli import integrity_cmds as _integrity_cmds  # noqa: E402, F401
 from lattice.cli import archive_cmds as _archive_cmds  # noqa: E402, F401
 from lattice.cli import dashboard_cmd as _dashboard_cmd  # noqa: E402, F401
+from lattice.cli import stats_cmds as _stats_cmds  # noqa: E402, F401
 
 if __name__ == "__main__":
     cli()

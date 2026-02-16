@@ -334,6 +334,7 @@ class TestInitWithProjectCode:
         result = runner.invoke(
             cli,
             ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "LAT"],
+            input="n\n",
         )
         assert result.exit_code == 0
         assert "Project code: LAT" in result.output
