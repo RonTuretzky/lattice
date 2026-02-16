@@ -23,12 +23,17 @@ This is high-value because the data is already being captured — it just needs 
 
 ## Spatial / Dimensional Task Visualization
 
-The task graph (blocking relationships, dependencies, status) maps naturally to spatial visualization. The mental model: a 3D web flowing left-to-right, where position encodes progress and color encodes status — white (to-do) on the left, yellow (in progress) in the middle, purple (review) further right, green/dimmed (done) on the far right. Nodes are tasks; edges are blocking relationships. Structure becomes visible — root blockers are obvious, orphan clusters stand out, the critical path is literally the longest line through the web.
+The task graph (blocking relationships, dependencies, status) maps naturally to spatial visualization. Nodes are tasks; edges are relationships. Structure becomes visible — root blockers are obvious, orphan clusters stand out, connected components reveal work streams.
 
-This is v2+ territory, but the architecture should keep the door open:
+**v1 (implemented):** 2D force-directed graph in the dashboard ("Cube" view tab). Status maps to X-axis position (left=backlog, right=done), force-directed Y for separation. Node color from lane/status colors, size from priority. Directed edges colored by relationship type. Hover tooltips, click-to-select with side panel, double-click to navigate to detail.
 
-- **v1 foundation:** The relationship graph already exists in the event log (`blocks`, `blocked_by`, `related_to`, `subtask_of`). Stats computations can derive graph properties (longest chain, most-blocking node, clusters) without any new data model.
-- **v2 candidate:** 2D force-directed or DAG layout in the dashboard. Status-as-color, position-as-progress. Interactive — click a node to see the task, hover to see the dependency chain.
-- **v3+ aspiration:** Higher-dimensional mappings. Tasks have many properties beyond status and dependencies — priority, type, assignee, tags, age, cost, complexity. Each of these is a potential axis or visual channel. The upgrade path is from 2D graph → 3D spatial web → n-dimensional projections where the user chooses which dimensions to map to which visual channels. This is genuinely novel territory for project management visualization.
+- **Library:** `force-graph` 2D (~80KB, canvas-based)
+- **Layout:** Status-constrained X via `d3.forceX`, NOT dagMode (which uses topology, not status)
+- **Endpoint:** `GET /api/graph` with ETag support for efficient polling
+- **Fallback:** Graceful CDN failure message, canvas support check, mobile viewport notice
 
-The key architectural constraint: the data model doesn't need to change. The graph is already captured. This is purely a read-path / visualization question, which means it can evolve independently of the core event-sourced engine.
+**v1.5 (planned):** 3D toggle within the Cube view. Lazy-loads `3d-force-graph` (~600KB) only when user activates 3D mode. Same status-constrained layout extended to XZ plane with force-directed Y for depth.
+
+**v2 (future):** Implement as a Display within the Panel/Display system. User-configurable dimension mapping — choose which task properties (status, priority, assignee, type, age) map to which visual channels (position, color, size, shape). This is the path toward n-dimensional projections where structure in high-dimensional task data becomes visible.
+
+The key architectural constraint: the data model doesn't need to change. The graph is already captured in `relationships_out`. This is purely a read-path / visualization question, which means it can evolve independently of the core event-sourced engine.
