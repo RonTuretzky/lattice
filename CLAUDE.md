@@ -270,6 +270,21 @@ lattice status <task> <status> --actor agent:<your-id>
 
 `backlog → in_planning → planned → in_progress → review → done`
 
+### Actor Attribution
+
+Every Lattice operation requires an `--actor`. Attribution follows authorship of the decision, not authorship of the keystroke.
+
+| Situation | Actor | Why |
+|-----------|-------|-----|
+| Agent autonomously creates or modifies a task | `agent:<id>` | Agent was the decision-maker |
+| Human creates via direct interaction (UI, manual CLI) | `human:<id>` | Human typed it |
+| Human meaningfully shaped the outcome in conversation with an agent | `human:<id>` | Human authored the decision; agent was the instrument |
+| Agent creates based on its own analysis, unprompted | `agent:<id>` | Agent authored the decision |
+
+When in doubt, give the human credit. If the human was substantively involved in shaping *what* a task is — not just saying "go create tasks" but actually defining scope, debating structure, giving feedback — the human is the actor.
+
+Users may have their own preferences about attribution. If a user seems frustrated or particular about actor assignments, ask them directly: "How do you want attribution to work? Should I default to crediting you, myself, or ask each time?" Respect whatever norm they set.
+
 ### Leave Breadcrumbs
 
 You are not the last mind that will touch this work. Use `lattice comment` to record what you tried, what you chose, what you left undone. Use `.lattice/notes/<task_id>.md` for longer-form thinking. The agent that picks up where you left off has no hallway to find you in, no Slack channel to ask. The record you leave is the only bridge between your context and theirs.
