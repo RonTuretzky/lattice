@@ -29,6 +29,8 @@ class HooksOnConfig(TypedDict, total=False):
     relationship_added: str
     relationship_removed: str
     artifact_attached: str
+    branch_linked: str
+    branch_unlinked: str
 
 
 class HooksConfig(TypedDict, total=False):

@@ -59,6 +59,7 @@ REQUIRED_SNAPSHOT_FIELDS = {
     "updated_at",
     "relationships_out",
     "artifact_refs",
+    "branch_links",
     "custom_fields",
     "last_event_id",
 }

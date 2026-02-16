@@ -25,6 +25,8 @@ BUILTIN_EVENT_TYPES: frozenset[str] = frozenset(
         "relationship_removed",
         "artifact_attached",
         "git_event",
+        "branch_linked",
+        "branch_unlinked",
     }
 )
 

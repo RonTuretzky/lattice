@@ -35,6 +35,8 @@ class TestBuiltinEventTypes:
             "relationship_removed",
             "artifact_attached",
             "git_event",
+            "branch_linked",
+            "branch_unlinked",
         }
     )
 
@@ -45,7 +47,7 @@ class TestBuiltinEventTypes:
         assert isinstance(BUILTIN_EVENT_TYPES, frozenset)
 
     def test_count(self) -> None:
-        assert len(BUILTIN_EVENT_TYPES) == 12
+        assert len(BUILTIN_EVENT_TYPES) == 14
 
 
 # ---------------------------------------------------------------------------

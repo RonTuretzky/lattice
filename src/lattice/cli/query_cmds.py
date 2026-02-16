@@ -699,6 +699,19 @@ def _print_human_show(
             else:
                 click.echo(f"  {art_id}")
 
+    branch_links = snapshot.get("branch_links", [])
+    if branch_links:
+        click.echo("")
+        click.echo("Branch links:")
+        for bl in branch_links:
+            branch_name = bl.get("branch", "?")
+            repo_name = bl.get("repo")
+            linked_by = bl.get("linked_by", "?")
+            if repo_name:
+                click.echo(f"  {branch_name} (repo: {repo_name}) by {linked_by}")
+            else:
+                click.echo(f"  {branch_name} by {linked_by}")
+
     if has_notes:
         click.echo("")
         click.echo(f"Notes: notes/{task_id}.md")
@@ -757,6 +770,14 @@ def _event_summary(event: dict, full: bool) -> str:
         return f"{data.get('type', '?')} -x- {data.get('target_task_id', '?')}"
     elif etype == "artifact_attached":
         return f"artifact {data.get('artifact_id', '?')}"
+    elif etype == "branch_linked":
+        repo = data.get("repo")
+        branch = data.get("branch", "?")
+        return f"branch '{branch}'" + (f" (repo: {repo})" if repo else "")
+    elif etype == "branch_unlinked":
+        repo = data.get("repo")
+        branch = data.get("branch", "?")
+        return f"branch '{branch}' removed" + (f" (repo: {repo})" if repo else "")
     elif etype.startswith("x_"):
         if data:
             return json.dumps(data, sort_keys=True)
