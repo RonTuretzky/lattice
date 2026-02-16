@@ -194,9 +194,7 @@ class TestSelectNextResume:
     def test_resumes_in_planning_over_backlog(self) -> None:
         snaps = [
             _snap("task_backlog", status="backlog", priority="critical"),
-            _snap(
-                "task_plan", status="in_planning", priority="low", assigned_to="agent:claude"
-            ),
+            _snap("task_plan", status="in_planning", priority="low", assigned_to="agent:claude"),
         ]
         result = select_next(snaps, actor="agent:claude")
         assert result is not None

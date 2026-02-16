@@ -412,7 +412,9 @@ def _print_markdown_weather(data: dict) -> None:
             elif item["type"] == "unassigned_active":
                 click.echo(f"- **UNASSIGNED** `{item['id']}` — {item['status']} — {item['title']}")
             elif item["type"] == "needs_human":
-                click.echo(f"- **NEEDS HUMAN** `{item['id']}` — {item['detail']} — {item['title']}")
+                click.echo(
+                    f"- **NEEDS HUMAN** `{item['id']}` — {item['detail']} — {item['title']}"
+                )
     else:
         click.echo("Nothing needs attention.")
     click.echo("")

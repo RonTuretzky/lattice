@@ -233,7 +233,9 @@ class TestWeatherWithTasks:
         data = json.loads(result.output)["data"]
 
         assert data["vital_signs"]["active_tasks"] == 4
-        assert data["vital_signs"]["in_progress"] == 2  # in_progress (task_002) + in_planning (task_004)
+        assert (
+            data["vital_signs"]["in_progress"] == 2
+        )  # in_progress (task_002) + in_planning (task_004)
 
     def test_up_next_picks_backlog_and_planned(self, tmp_path: Path) -> None:
         lattice_dir = _init_lattice(tmp_path)

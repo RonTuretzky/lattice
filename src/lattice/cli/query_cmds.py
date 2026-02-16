@@ -251,9 +251,7 @@ def list_cmd(
             title = snap.get("title", "?")
             assigned_to = snap.get("assigned_to") or "unassigned"
             prefix = ">>> " if s == "needs_human" else ""
-            click.echo(
-                f'{prefix}{display_id}  {s}  {p}  {t}  "{title}"  {assigned_to}'
-            )
+            click.echo(f'{prefix}{display_id}  {s}  {p}  {t}  "{title}"  {assigned_to}')
 
 
 # ---------------------------------------------------------------------------
@@ -262,7 +260,9 @@ def list_cmd(
 
 
 @cli.command("next")
-@click.option("--actor", default=None, help="Who is asking (filters by assignment, required for --claim).")
+@click.option(
+    "--actor", default=None, help="Who is asking (filters by assignment, required for --claim)."
+)
 @click.option(
     "--status",
     "status_csv",
@@ -368,7 +368,7 @@ def next_cmd(
     output_result(
         data=selected,
         human_message=(
-            f'{display_id}  {selected.get("status", "?")}  '
+            f"{display_id}  {selected.get('status', '?')}  "
             f'{selected.get("priority", "?")}  "{selected.get("title", "?")}"'
         ),
         quiet_value=display_id,
