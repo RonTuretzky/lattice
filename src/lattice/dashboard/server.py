@@ -141,6 +141,8 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 self._handle_activity(ld)
             elif path == "/api/archived":
                 self._handle_archived(ld)
+            elif path == "/api/graph":
+                self._handle_graph(ld)
             elif path.startswith("/api/tasks/"):
                 remainder = path[len("/api/tasks/") :]
                 if "/" in remainder:
@@ -327,6 +329,76 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                     snapshots.append(compact)
             snapshots.sort(key=lambda s: s.get("id", ""))
             self._send_json(200, _ok(snapshots))
+
+        def _handle_graph(self, ld: Path) -> None:
+            """Handle GET /api/graph — return nodes + directed edges for graph visualization."""
+            tasks_dir = ld / "tasks"
+            snapshots: list[dict] = []
+            if tasks_dir.is_dir():
+                for task_file in sorted(tasks_dir.glob("*.json")):
+                    try:
+                        snap = json.loads(task_file.read_text())
+                    except (json.JSONDecodeError, OSError):
+                        continue
+                    snapshots.append(snap)
+
+            # Build set of active task IDs for filtering link targets
+            active_ids: set[str] = {s["id"] for s in snapshots if "id" in s}
+
+            # Build nodes — extract only the fields needed for graph rendering
+            nodes: list[dict] = []
+            max_updated_at = ""
+            for snap in snapshots:
+                node = {
+                    "id": snap.get("id"),
+                    "short_id": snap.get("short_id"),
+                    "title": snap.get("title"),
+                    "status": snap.get("status"),
+                    "priority": snap.get("priority"),
+                    "type": snap.get("type"),
+                    "assigned_to": snap.get("assigned_to"),
+                }
+                nodes.append(node)
+
+                updated = snap.get("updated_at", "")
+                if updated > max_updated_at:
+                    max_updated_at = updated
+
+            # Build directed edges from relationships_out.
+            # Edges are directed: source is the task containing the relationship,
+            # target is the referenced task. Edge direction meaning varies by type
+            # (e.g., for "blocks", source blocks target).
+            links: list[dict] = []
+            for snap in snapshots:
+                task_id = snap.get("id")
+                for rel in snap.get("relationships_out", []):
+                    target_id = rel.get("target_task_id")
+                    # Only emit link if target exists in the active task set
+                    if target_id and target_id in active_ids:
+                        links.append({
+                            "source": task_id,
+                            "target": target_id,
+                            "type": rel.get("type"),
+                        })
+
+            # Revision string for cheap change detection
+            revision = f"{len(nodes)}:{max_updated_at}"
+
+            # ETag / 304 support — return early if client has current data
+            if_none_match = self.headers.get("If-None-Match")
+            if if_none_match and if_none_match == revision:
+                self.send_response(304)
+                self.end_headers()
+                return
+
+            body = _ok({"nodes": nodes, "links": links, "revision": revision})
+            data = body.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("ETag", revision)
+            self.end_headers()
+            self.wfile.write(data)
 
         # ---------------------------------------------------------------
         # POST endpoint handlers
