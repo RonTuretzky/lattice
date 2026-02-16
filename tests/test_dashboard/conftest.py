@@ -71,7 +71,7 @@ def populated_lattice_dir(tmp_path: Path) -> tuple[Path, dict[str, str]]:
     ]
     _write_task(ld, t1_events)
 
-    # --- Task 2: in_implementation with relationship to task 1, comment, and artifact ---
+    # --- Task 2: in_progress with relationship to task 1, comment, and artifact ---
     t2_id = generate_task_id()
     art_id = generate_artifact_id()
     t2_events = [
@@ -96,7 +96,7 @@ def populated_lattice_dir(tmp_path: Path) -> tuple[Path, dict[str, str]]:
             type="status_changed",
             task_id=t2_id,
             actor="human:atin",
-            data={"from": "backlog", "to": "in_implementation"},
+            data={"from": "backlog", "to": "in_progress"},
             ts="2025-01-10T12:00:00Z",
         ),
         create_event(
@@ -212,7 +212,7 @@ def populated_lattice_dir(tmp_path: Path) -> tuple[Path, dict[str, str]]:
 
     task_ids = {
         "backlog": t1_id,
-        "in_implementation": t2_id,
+        "in_progress": t2_id,
         "done": t3_id,
         "archived": t4_id,
         "artifact": art_id,

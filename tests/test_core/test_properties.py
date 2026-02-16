@@ -19,10 +19,10 @@ valid_statuses = st.sampled_from(
         "backlog",
         "in_planning",
         "planned",
-        "in_implementation",
-        "implemented",
-        "in_review",
+        "in_progress",
+        "review",
         "done",
+        "blocked",
         "cancelled",
     ]
 )

@@ -109,7 +109,7 @@ class TestGraphBasic:
 
         node_ids = {n["id"] for n in nodes}
         assert ids["backlog"] in node_ids
-        assert ids["in_implementation"] in node_ids
+        assert ids["in_progress"] in node_ids
         assert ids["done"] in node_ids
 
         # Each node must have the expected fields
@@ -124,7 +124,7 @@ class TestGraphBasic:
         links = data["links"]
         assert len(links) == 1
         link = links[0]
-        assert link["source"] == ids["in_implementation"]
+        assert link["source"] == ids["in_progress"]
         assert link["target"] == ids["backlog"]
         assert link["type"] == "blocks"
 

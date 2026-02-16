@@ -232,7 +232,7 @@ class TestRebuildDeterminism:
         # Move through several statuses
         invoke("status", task_id, "in_planning", "--actor", "human:test")
         invoke("status", task_id, "planned", "--actor", "human:test")
-        invoke("status", task_id, "in_implementation", "--actor", "human:test")
+        invoke("status", task_id, "in_progress", "--actor", "human:test")
 
         lattice_dir = initialized_root / ".lattice"
         snap_path = lattice_dir / "tasks" / f"{task_id}.json"
@@ -247,7 +247,7 @@ class TestRebuildDeterminism:
 
         # Verify final status is correct
         rebuilt = json.loads(after)
-        assert rebuilt["status"] == "in_implementation"
+        assert rebuilt["status"] == "in_progress"
 
     def test_rebuild_json_output_consistent(self, invoke, create_task, invoke_json):
         """Rebuild --json envelope is consistent across runs."""

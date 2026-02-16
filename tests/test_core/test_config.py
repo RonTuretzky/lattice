@@ -42,10 +42,10 @@ class TestDefaultConfig:
             "backlog",
             "in_planning",
             "planned",
-            "in_implementation",
-            "implemented",
-            "in_review",
+            "in_progress",
+            "review",
             "done",
+            "blocked",
             "cancelled",
         ]
         assert config["workflow"]["statuses"] == expected
@@ -57,10 +57,10 @@ class TestDefaultConfig:
             "backlog",
             "in_planning",
             "planned",
-            "in_implementation",
-            "implemented",
-            "in_review",
+            "in_progress",
+            "review",
             "done",
+            "blocked",
             "cancelled",
         }
         assert set(transitions.keys()) == expected_keys
@@ -74,7 +74,7 @@ class TestDefaultConfig:
     def test_wip_limits(self) -> None:
         config = default_config()
         wip = config["workflow"]["wip_limits"]
-        assert wip == {"in_implementation": 10, "in_review": 5}
+        assert wip == {"in_progress": 10, "review": 5}
 
 
 class TestSerializeConfig:
@@ -261,13 +261,13 @@ class TestValidateTaskType:
 class TestGetWipLimit:
     """get_wip_limit() returns the WIP limit for a status or None."""
 
-    def test_in_implementation_limit(self) -> None:
+    def test_in_progress_limit(self) -> None:
         config = default_config()
-        assert get_wip_limit(config, "in_implementation") == 10
+        assert get_wip_limit(config, "in_progress") == 10
 
-    def test_in_review_limit(self) -> None:
+    def test_review_limit(self) -> None:
         config = default_config()
-        assert get_wip_limit(config, "in_review") == 5
+        assert get_wip_limit(config, "review") == 5
 
     def test_status_without_limit(self) -> None:
         config = default_config()
@@ -279,11 +279,11 @@ class TestGetWipLimit:
 
     def test_missing_wip_limits_key(self) -> None:
         config: dict = {"workflow": {}}
-        assert get_wip_limit(config, "in_implementation") is None
+        assert get_wip_limit(config, "in_progress") is None
 
     def test_missing_workflow_key(self) -> None:
         config: dict = {"schema_version": 1}
-        assert get_wip_limit(config, "in_implementation") is None
+        assert get_wip_limit(config, "in_progress") is None
 
 
 # ---------------------------------------------------------------------------

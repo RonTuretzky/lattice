@@ -221,7 +221,7 @@ class TestWeatherWithTasks:
             lattice_dir,
             "task_002",
             title="In progress",
-            status="in_implementation",
+            status="in_progress",
             assigned_to="human:atin",
         )
         _write_task_snapshot(lattice_dir, "task_003", title="Done task", status="done")
@@ -233,7 +233,7 @@ class TestWeatherWithTasks:
         data = json.loads(result.output)["data"]
 
         assert data["vital_signs"]["active_tasks"] == 4
-        assert data["vital_signs"]["in_progress"] == 2  # in_implementation + in_planning
+        assert data["vital_signs"]["in_progress"] == 2  # in_progress (task_002) + in_planning (task_004)
 
     def test_up_next_picks_backlog_and_planned(self, tmp_path: Path) -> None:
         lattice_dir = _init_lattice(tmp_path)
@@ -258,7 +258,7 @@ class TestWeatherWithTasks:
             lattice_dir,
             "task_003",
             title="In progress",
-            status="in_implementation",
+            status="in_progress",
         )
 
         runner = CliRunner()
@@ -388,7 +388,7 @@ class TestStaleDetection:
             lattice_dir,
             "task_001",
             title="Stale task",
-            status="in_implementation",
+            status="in_progress",
             short_id="TST-1",
             updated_at=_ts_ago(days=10),
         )
@@ -396,7 +396,7 @@ class TestStaleDetection:
             lattice_dir,
             "task_002",
             title="Fresh task",
-            status="in_implementation",
+            status="in_progress",
             updated_at=_ts_ago(hours=1),
         )
 
@@ -442,7 +442,7 @@ class TestUnassignedActive:
             lattice_dir,
             "task_001",
             title="No owner",
-            status="in_implementation",
+            status="in_progress",
             short_id="TST-1",
         )
 
@@ -461,7 +461,7 @@ class TestUnassignedActive:
             lattice_dir,
             "task_001",
             title="Has owner",
-            status="in_implementation",
+            status="in_progress",
             assigned_to="human:atin",
         )
 
@@ -603,7 +603,7 @@ class TestTextOutput:
             lattice_dir,
             "task_001",
             title="Old task",
-            status="in_implementation",
+            status="in_progress",
             short_id="TST-1",
             updated_at=_ts_ago(days=10),
         )
@@ -626,13 +626,13 @@ class TestWipBreaches:
     def test_wip_breach_in_attention(self, tmp_path: Path) -> None:
         lattice_dir = _init_lattice(tmp_path)
 
-        # Default WIP limit for in_review is 5 — create 6 tasks in review
+        # Default WIP limit for review is 5 — create 6 tasks in review
         for i in range(6):
             _write_task_snapshot(
                 lattice_dir,
                 f"task_{i:03d}",
                 title=f"Review {i}",
-                status="in_review",
+                status="review",
                 assigned_to="human:atin",
             )
 
@@ -642,4 +642,4 @@ class TestWipBreaches:
 
         wip_items = [a for a in data["attention"] if a["type"] == "wip_breach"]
         assert len(wip_items) >= 1
-        assert any(w["status"] == "in_review" for w in wip_items)
+        assert any(w["status"] == "review" for w in wip_items)

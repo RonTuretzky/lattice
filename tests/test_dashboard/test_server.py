@@ -140,7 +140,7 @@ class TestTasksEndpoint:
 class TestTaskDetailEndpoint:
     def test_get_task_detail(self, dashboard_server):
         base_url, _ld, ids = dashboard_server
-        task_id = ids["in_implementation"]
+        task_id = ids["in_progress"]
         status, body = _get(base_url, f"/api/tasks/{task_id}")
         assert status == 200
         assert body["ok"] is True
@@ -163,7 +163,7 @@ class TestTaskDetailEndpoint:
 
     def test_task_detail_with_artifacts(self, dashboard_server):
         base_url, _ld, ids = dashboard_server
-        task_id = ids["in_implementation"]
+        task_id = ids["in_progress"]
         status, body = _get(base_url, f"/api/tasks/{task_id}")
         arts = body["data"]["artifacts"]
         assert len(arts) == 1
@@ -198,7 +198,7 @@ class TestTaskDetailEndpoint:
 class TestTaskEventsEndpoint:
     def test_get_events(self, dashboard_server):
         base_url, _ld, ids = dashboard_server
-        task_id = ids["in_implementation"]
+        task_id = ids["in_progress"]
         status, body = _get(base_url, f"/api/tasks/{task_id}/events")
         assert status == 200
         assert body["ok"] is True
@@ -261,7 +261,7 @@ class TestStatsEndpoint:
         assert total_from_status == data["summary"]["active_tasks"]
         # Verify specific counts
         assert status_dict.get("backlog") == 1
-        assert status_dict.get("in_implementation") == 1
+        assert status_dict.get("in_progress") == 1
         assert status_dict.get("done") == 1
 
 
@@ -649,40 +649,29 @@ class TestPostTaskStatus:
         assert status == 200
         assert body["data"]["status"] == "planned"
 
-        # planned -> in_implementation
+        # planned -> in_progress
         status, body = _post(
             base_url,
             f"/api/tasks/{task_id}/status",
             {
-                "status": "in_implementation",
+                "status": "in_progress",
             },
         )
         assert status == 200
-        assert body["data"]["status"] == "in_implementation"
+        assert body["data"]["status"] == "in_progress"
 
-        # in_implementation -> implemented
+        # in_progress -> review
         status, body = _post(
             base_url,
             f"/api/tasks/{task_id}/status",
             {
-                "status": "implemented",
+                "status": "review",
             },
         )
         assert status == 200
-        assert body["data"]["status"] == "implemented"
+        assert body["data"]["status"] == "review"
 
-        # implemented -> in_review
-        status, body = _post(
-            base_url,
-            f"/api/tasks/{task_id}/status",
-            {
-                "status": "in_review",
-            },
-        )
-        assert status == 200
-        assert body["data"]["status"] == "in_review"
-
-        # in_review -> done
+        # review -> done
         status, body = _post(
             base_url,
             f"/api/tasks/{task_id}/status",

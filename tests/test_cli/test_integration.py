@@ -35,7 +35,7 @@ class TestFullLifecycleWorkflow:
     """Test a complete task lifecycle from creation through archival."""
 
     def test_full_lifecycle_workflow(self, invoke, create_task, initialized_root):
-        """Create -> in_planning -> planned -> in_implementation -> assign -> comment -> link -> attach -> implemented -> in_review -> done -> archive.
+        """Create -> in_planning -> planned -> in_progress -> assign -> comment -> link -> attach -> review -> done -> archive.
 
         Verify that the full event log captures every operation in order.
         """
@@ -53,8 +53,8 @@ class TestFullLifecycleWorkflow:
         r = invoke("status", task_id, "planned", "--actor", "human:test")
         assert r.exit_code == 0
 
-        # 4. Status: planned -> in_implementation
-        r = invoke("status", task_id, "in_implementation", "--actor", "human:test")
+        # 4. Status: planned -> in_progress
+        r = invoke("status", task_id, "in_progress", "--actor", "human:test")
         assert r.exit_code == 0
 
         # 5. Assign
@@ -82,15 +82,11 @@ class TestFullLifecycleWorkflow:
         )
         assert r.exit_code == 0
 
-        # 9. Status: in_implementation -> implemented
-        r = invoke("status", task_id, "implemented", "--actor", "human:test")
+        # 9. Status: in_progress -> review
+        r = invoke("status", task_id, "review", "--actor", "human:test")
         assert r.exit_code == 0
 
-        # 10. Status: implemented -> in_review
-        r = invoke("status", task_id, "in_review", "--actor", "human:test")
-        assert r.exit_code == 0
-
-        # 11. Status: in_review -> done
+        # 10. Status: review -> done
         r = invoke("status", task_id, "done", "--actor", "human:test")
         assert r.exit_code == 0
 
@@ -113,7 +109,6 @@ class TestFullLifecycleWorkflow:
             "comment_added",
             "relationship_added",
             "artifact_attached",
-            "status_changed",
             "status_changed",
             "status_changed",
             "task_archived",
@@ -192,9 +187,8 @@ class TestDoctorAfterLifecycle:
         # Transition through states
         invoke("status", task_id, "in_planning", "--actor", "human:test")
         invoke("status", task_id, "planned", "--actor", "human:test")
-        invoke("status", task_id, "in_implementation", "--actor", "human:test")
-        invoke("status", task_id, "implemented", "--actor", "human:test")
-        invoke("status", task_id, "in_review", "--actor", "human:test")
+        invoke("status", task_id, "in_progress", "--actor", "human:test")
+        invoke("status", task_id, "review", "--actor", "human:test")
         invoke("status", task_id, "done", "--actor", "human:test")
         invoke("archive", task_id, "--actor", "human:test")
 
