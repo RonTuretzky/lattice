@@ -4725,7 +4725,6 @@ document.getElementById("theme-select").addEventListener("change", async functio
     var result = await apiPost("/api/config/dashboard", {theme: newTheme});
     if (config) config.dashboard = result;
     populateLaneColorSettings();
-    showToast(t("toast.theme_updated"), "success");
     if (currentView === "board") renderBoard();
   } catch(e) {
     showToast(e.message, "error");
