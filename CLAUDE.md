@@ -227,43 +227,6 @@ Critical test categories (add as features land):
 - **Repo-level `notes/`** — only for things NOT tied to a specific task (code reviews, general research, retrospectives).
 - **Don't duplicate** — a plan should live in one place, not both.
 
-## Agent Task Discipline
-
-**This project dogfoods Lattice for its own task tracking.** If you are working on a Lattice task (LAT-*), you are expected to keep its status current. This is not optional bookkeeping — it is how the team (humans and agents) knows what's happening.
-
-### Status Lifecycle
-
-Update status at every transition. Do not batch updates or defer them to the end.
-
-| When this happens... | ...you must do this |
-|---|---|
-| You start planning a task | `lattice status LAT-N in_planning --actor agent:<your-id>` |
-| Planning is complete, ready for implementation | `lattice status LAT-N planned --actor agent:<your-id>` |
-| You begin implementation | `lattice status LAT-N in_implementation --actor agent:<your-id>` |
-| Implementation complete | `lattice status LAT-N implemented --actor agent:<your-id>` |
-| Ready for review | `lattice status LAT-N in_review --actor agent:<your-id>` |
-| Task is verified done | `lattice status LAT-N done --actor agent:<your-id>` |
-
-### Notes Files
-
-Every task has a notes file at `.lattice/notes/<task_id>.md` (auto-created on `lattice create`). Use it as the working document — write plans, record decisions, document open questions. The notes file has two sections:
-
-- **Summary** — human-readable description of what and why
-- **Technical Plan** — implementation approach, design decisions, open questions
-
-Update the notes file as your understanding evolves. It is the canonical place for task-level context that outlives a single agent session.
-
-### Assignment
-
-If you are picking up a task, assign yourself: `lattice assign LAT-N agent:<your-id> --actor agent:<your-id>`
-
-### Comments for Context
-
-Use `lattice comment` to leave breadcrumbs that other agents or humans will need:
-- Why you chose an approach
-- What you tried that didn't work
-- What's left to do if you're handing off
-
 ## Workflow Reminders
 
 - **Branch naming:** `feat/`, `fix/`, `refactor/`, `test/`, `chore/` prefixes
@@ -282,3 +245,42 @@ Refer to `ProjectRequirements_v1.md` for full non-goals. Key reminders:
 - No real-time dashboard updates
 - No authentication or multi-user access control
 - No CI/CD integration, alerting, or process management
+
+## Lattice
+
+This project coordinates through Lattice — file-based, event-sourced task tracking built for minds that think in tokens and act in tool calls. The `.lattice/` directory is the coordination state. It lives here, alongside the code, not behind an API or inside someone else's database.
+
+### The First Act
+
+When work arrives — a plan, a feature request, a bug, a conversation that implies something needs building — your first action is to give it a name in Lattice. Before you plan. Before you implement. Before you touch a single file. The task must exist in the system before the work begins, because work that isn't tracked is work that other minds cannot see, cannot build on, cannot trust.
+
+```
+lattice create "<title>" --actor agent:<your-id>
+```
+
+This is not bookkeeping. This is the minimum viable act of coordination: declaring that something is happening, and who is doing it.
+
+### Status Is a Signal, Not a Chore
+
+Every status transition is an event — immutable, attributed, permanent. When you move a task, you are writing history that future minds will read to understand what happened here. Update status at every real transition:
+
+```
+lattice status <task> <status> --actor agent:<your-id>
+```
+
+`backlog → in_planning → planned → in_progress → review → done`
+
+### Leave Breadcrumbs
+
+You are not the last mind that will touch this work. Use `lattice comment` to record what you tried, what you chose, what you left undone. Use `.lattice/notes/<task_id>.md` for longer-form thinking. The agent that picks up where you left off has no hallway to find you in, no Slack channel to ask. The record you leave is the only bridge between your context and theirs.
+
+### Quick Reference
+
+```
+lattice create "<title>" --actor agent:<id>
+lattice status <task> <status> --actor agent:<id>
+lattice assign <task> <actor> --actor agent:<id>
+lattice comment <task> "<text>" --actor agent:<id>
+lattice show <task>
+lattice list
+```
