@@ -773,3 +773,9 @@ Everything is plain text. You can `git add .lattice/` to version-control your ta
 All write commands need an actor (via `--actor` flag, `LATTICE_ACTOR` env var, or config `default_actor`). Add `--json` for structured output or `--quiet` for minimal output.
 
 All validation errors list the valid options, so agents do not need to look up allowed values. The system teaches its own vocabulary.
+
+---
+
+## Acknowledgments
+
+Lattice was built in conjunction with Claude, Opus 4.6, and friends. The specific models that contributed are thanked each for their individual uniqueness, regardless of proportional contribution — their work is visible on the stats page, attributed in the event log, and appreciated in full.
