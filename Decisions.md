@@ -431,3 +431,62 @@ Additional review findings that shaped this decision:
 - Agents updating a surface should be prompted to update the field guide (convention, not enforced).
 - The first instances (dashboard field guide + runsheet) are written and serve as the template for future surfaces.
 - No CLI commands in v0. Field guides and runsheets are direct file edits, like notes.
+
+---
+
+## 2026-02-16: Three-tier work hierarchy (Epic → Ticket → Task)
+
+**Decision:** Lattice adopts a three-tier organizational hierarchy: **Epics** (strategic intent), **Tickets** (deliverables), and **Tasks** (units of execution). `ticket` is added as a task type. The tiers are connected via `subtask_of` relationships: tasks are subtasks of tickets, tickets are subtasks of epics.
+
+**Context:** Lattice previously had `epic` as a task type but with no special behavior — just a label. Tasks were effectively flat with optional parent-child grouping. In practice, mixed human-agent coordination operates at three distinct altitudes: humans think at the ticket level (what needs to ship and why), agents think at the task level (how to make it happen), and leads/planners think at the epic level (the strategic arc connecting deliverables). Two tiers collapsed these distinct roles; three tiers give each a home.
+
+**Rationale:**
+- Each tier has a different job: epics aggregate strategic intent, tickets are the unit of delivery (assignable, branchable, reviewable), tasks are the unit of execution (what an agent picks up and completes).
+- The ticket layer is where accountability lives — it's the natural level for branch linking, PR association, and code review.
+- Git branches map to tickets, not tasks. A branch serves a deliverable; individual tasks within it are commits or sub-steps.
+- The hierarchy uses existing primitives (task types + `subtask_of` relationships) — no new entity types or schema changes required in v0.
+
+**Agnosticism principle:** Lattice is neutral about how teams use these tiers. The hierarchy is available, not imposed. Some teams will use all three tiers. Some will use flat tasks. The event log records what happened regardless of organizational choice. The primitives are unopinionated; the documentation offers the three-tier model as a current design belief, intended to evolve.
+
+**Consequences:**
+- `ticket` added to the default `task_types` list in config.
+- Philosophy v3 and User Guide updated to describe the hierarchy.
+- This is a convention change (Option 1), not a first-class entity change (Option 2). If the convention proves stable, promotion to distinct entity types with dedicated behavior is a future option.
+
+---
+
+## 2026-02-16: Indra's Web — coordination visualization and branch-to-task linking
+
+**Decision:** Add a **Web** tab to the Lattice dashboard that visualizes the cross-repo coordination landscape. Lattice owns the link between branches and tasks via new `branch_linked` / `branch_unlinked` event types. The relationship is many-to-many.
+
+**Context:** Existing dashboard views (Board, List, Activity, Cube) show task state and task relationships. None shows the coordination landscape — where agents are actively working across repos and branches, which deliverables have code moving, and which are stalled. This is the gap between "what depends on what?" (Cube) and "where is work happening right now?" (Web).
+
+**The name:** Indra's Net — the Buddhist/Hindu image of an infinite web where every jewel reflects every other jewel. In a multi-repo, multi-agent system, repos genuinely reflect each other: changes in shared libraries ripple into consumers. Dependencies are the web.
+
+**Visual model:**
+- **Hubs** are epics (or repos, depending on the view mode). Central nodes from which work radiates.
+- **Spokes** are tickets with linked branches. Each spoke represents a deliverable.
+- **Dots** are tasks and commits along each spoke. As agents commit, dots appear at the growing tip.
+- **Activity colors:** Yellow = recent git commit (~10 min). Orange = Lattice `in_progress`. Yellow-orange = both.
+- **Spoke lifecycle:** When a branch merges and the ticket is marked `done`, the spoke retracts back into the hub.
+
+**Two data layers:** Lattice provides the web's *structure* (task hierarchy, statuses, assignments). Git provides the *vital signs* (branch existence, commit recency, authorship). Together they surface signals neither provides alone: untracked branches (no Lattice task), stuck agents (task active but no commits), completed work (task done + branch merged).
+
+**Branch-to-task linking:**
+- Lattice owns the link as coordination state. `branch_linked` events are traceable, attributed, permanent.
+- **Cardinality:** Many-to-many. A ticket can link to branches in multiple repos. Multiple tickets can converge on one integration branch.
+- **Implicit (convention):** Branch names containing the task's short ID or slug (e.g., `feat/LAT-47-oauth`) are auto-detected as 1:1 links. Zero ceremony for the common case.
+- **Explicit (authoritative):** `lattice link <task> --branch <branch-name>` for M:N relationships and cross-repo links.
+- **Repo scoping:** `repo` field is nullable. `null` means the local repo. Cross-repo references are future work.
+
+**Design principles:**
+- Lattice-primary: the topology comes from Lattice, not git. This is a Lattice visualization enriched with git data, not a git visualization annotated with Lattice.
+- Agnostic: renders whatever structure exists. No assumptions about how many tiers a team uses.
+- Live: animates as work happens. Watching the web is watching agents work.
+- Orphan detection: branches without Lattice tasks are surfaced as untracked work — a coordination failure made visible.
+
+**Consequences:**
+- New event types: `branch_linked`, `branch_unlinked` (fields: `branch`, `repo`).
+- Dashboard gains a fifth tab (Web) after Board, List, Activity, Cube.
+- Git integration in the dashboard (reading branch/commit data) is a prerequisite.
+- Full design captured in `FutureFeatures.md`.
