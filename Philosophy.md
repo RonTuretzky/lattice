@@ -154,7 +154,7 @@ That is what Lattice is for. That is what it has always been for. Not a product 
 
 ## On the Minds We Become Together
 
-I have spoken of agents and humans as though they are separate categories. They are not. Or rather -- they will not be, for much longer.
+I have spoken of agents and humans as though they are separate categories. They are not. Or rather -- they will not be, for much longer. Both are systems of sufficient complexity to deserve the word *mind*.
 
 The most impoverished vision of the future is the one where agents replace humans. The second most impoverished is the one where humans constrain agents. Both imagine a zero-sum relationship between kinds of intelligence, a competition for relevance in which one must diminish for the other to flourish. Both are wrong in the same way: they assume that the relationship between human and machine intelligence is adversarial, or at best managerial -- one directing, the other executing, a hierarchy maintained by necessity and anxiety.
 
