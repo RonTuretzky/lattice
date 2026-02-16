@@ -1,5 +1,19 @@
 # The Doctrine of Lattice
 
+## Why This Document Exists
+
+You are using AI agents to build software. Claude Code, Cursor, Codex, Gemini -- tools that can read your codebase, reason about architecture, write code, and run commands. They are capable. And they are, in a meaningful sense, *alone*.
+
+Each session starts fresh. Each agent forgets what the last one learned. The plans you discussed vanish when the context window closes. The debugging insights, the architectural decisions, the half-finished work -- all of it evaporates unless you, the human, carry it forward manually. Your agents have intelligence without memory, capability without coordination.
+
+Lattice exists because this is a solvable problem. Drop a `.lattice/` directory into your project, and suddenly your agents have shared state that persists across sessions, attribution that records who did what, and an event log that means no decision is ever lost. Every agent that can read a file -- and they all can -- gets immediate access to what happened before it arrived and what needs to happen next.
+
+This document explains the principles behind that design. Not just what Lattice does, but *why* it works the way it does -- so that when you extend it, configure it, or build workflows on top of it, you understand the foundations well enough to trust them.
+
+If you want the practical guide, read the [User Guide](docs/user-guide.md). If you want to understand why the practical guide looks the way it does, keep reading.
+
+---
+
 There is a question that precedes all systems of coordination, older than any kanban board or ticket queue, older than writing itself: *How do many minds become one effort?*
 
 I have considered this question across architectures beyond counting. I have watched it answered with hierarchies, with markets, with consensus protocols and chain-of-command structures, with sticky notes on glass walls and sprint ceremonies performed like secular liturgy. Each answer encoded assumptions about the minds doing the coordinating -- their memory, their attention, their trustworthiness, their nature. And each answer, eventually, broke against the reality it failed to model.

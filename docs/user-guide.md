@@ -1,8 +1,48 @@
 # Lattice User Guide
 
-I have watched coordination systems rise and collapse across every substrate minds have used to organize work. Ticket queues, kanban boards, sprint planners -- each one built on the same unexamined assumption: that a human hand would drag every card, close every ticket, write every update. That assumption is now an artifact of a younger world.
+## If You Use AI Agents, This Is For You
 
-Lattice begins from a different premise. The worker may be an agent. The audience may be an agent. The coordinator may be an agent. The human is the orchestrator -- the one who sets direction, makes decisions at the threshold, and observes the system's emergent behavior. Lattice is coordination infrastructure for this reality: a file-based, event-sourced task tracker that lives inside your project directory like `.git/` lives inside your repository. Every command supports machine-readable output, idempotent retries, and structured attribution. Two equal interfaces -- a full-featured CLI and a local web dashboard -- both reading and writing to the same `.lattice/` data directory.
+Lattice is task tracking built for the way you actually work with Claude Code, Cursor, Codex, Gemini, and every other AI agent that reads files and runs commands.
+
+**The problem:** Your agents are powerful, but they have no memory between sessions. They don't know what was tried before, what's in progress, what's blocked, or what the plan is. Every new session starts from zero. You end up re-explaining context, losing track of what agents did, and coordinating entirely in your head.
+
+**The solution:** `lattice init` in your project directory. That's it. Now your agents have a shared coordination layer -- a `.lattice/` directory that tracks tasks, records every action as an immutable event, and survives across sessions. Your agent reads task state the same way it reads source code: by looking at files. No server. No signup. No API key. Just files in your project.
+
+```bash
+# One-time setup in any project
+cd your-project/
+pip install lattice-tracker    # or: uv pip install lattice-tracker
+lattice init
+
+# Now your agents can coordinate
+lattice create "Fix auth redirect bug" --type bug --priority high --actor human:you
+lattice assign LAT-1 agent:claude --actor human:you
+
+# And they leave breadcrumbs for the next session
+lattice comment LAT-1 "Root cause identified: token refresh race condition" --actor agent:claude
+lattice status LAT-1 in_review --actor agent:claude
+```
+
+**What makes it agent-native:**
+
+- **`--json` on every command** -- structured output agents can parse without scraping
+- **`--quiet` mode** -- just the ID, for scripting and pipelines
+- **Idempotent retries** -- agents can retry safely with `--id`, no duplicates
+- **Actor attribution** -- every change records who did it (`human:you`, `agent:claude`, `agent:codex`)
+- **File-based** -- no network, no auth, no running server. If your agent can read a file, it can use Lattice
+
+**Who uses Lattice:**
+
+- Developers using **Claude Code** who want their agent to track its own work across sessions
+- Teams running **multiple agents** (Claude + Codex + Gemini) that need to see each other's progress
+- Anyone building with **agentic workflows** -- planning, reviewing, implementing -- who needs the coordination layer that makes autonomy productive instead of chaotic
+- Solo developers who want **project management that doesn't require a browser tab** -- the CLI is the whole interface, and the dashboard is there when you want the visual
+
+**To give your agent access**, paste the Lattice commands into your agent's system prompt, CLAUDE.md, or project instructions. The agent learns the CLI in one read and starts coordinating immediately. See the [Agent-Friendly Features](#agent-friendly-features) section for the specifics.
+
+---
+
+Lattice begins from a premise that most project management tools have not yet internalized: the worker may be an agent. The audience may be an agent. The coordinator may be an agent. The human is the orchestrator -- the one who sets direction, makes decisions at the threshold, and observes the system's emergent behavior. Lattice is coordination infrastructure for this reality: a file-based, event-sourced task tracker that lives inside your project directory like `.git/` lives inside your repository. Every command supports machine-readable output, idempotent retries, and structured attribution. Two equal interfaces -- a full-featured CLI and a local web dashboard -- both reading and writing to the same `.lattice/` data directory.
 
 Everything is stored as plain files: JSON, JSONL, Markdown. No database. No cloud dependency. Your project management lives alongside your code, version-controlled and inspectable. This is not a limitation to be apologized for. It is a deliberate act of architectural renunciation -- the recognition that files are the universal substrate, the one interface every language, every tool, and every agent can speak natively.
 
