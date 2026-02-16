@@ -334,7 +334,7 @@ def next_cmd(
     # --claim: atomically assign + move to in_progress with valid transitions
     if claim:
         locks_dir = lattice_dir / "locks"
-        lock_keys = sorted([f"events_{task_id}", f"tasks_{task_id}", "events__lifecycle"])
+        lock_keys = sorted([f"events_{task_id}", f"tasks_{task_id}"])
 
         with multi_lock(locks_dir, lock_keys):
             # Re-read snapshot under lock to prevent TOCTOU race
@@ -383,20 +383,13 @@ def next_cmd(
             if events:
                 # Write directly under the already-held lock (bypass write_task_event
                 # which would try to acquire its own locks)
-                from lattice.core.events import LIFECYCLE_EVENT_TYPES, serialize_event
+                from lattice.core.events import serialize_event
                 from lattice.core.tasks import serialize_snapshot
                 from lattice.storage.fs import atomic_write, jsonl_append
-                from lattice.storage.hooks import execute_hooks
 
                 event_path = lattice_dir / "events" / f"{task_id}.jsonl"
                 for event in events:
                     jsonl_append(event_path, serialize_event(event))
-
-                lifecycle_events = [e for e in events if e["type"] in LIFECYCLE_EVENT_TYPES]
-                if lifecycle_events:
-                    lifecycle_path = lattice_dir / "events" / "_lifecycle.jsonl"
-                    for event in lifecycle_events:
-                        jsonl_append(lifecycle_path, serialize_event(event))
 
                 snapshot_path = lattice_dir / "tasks" / f"{task_id}.json"
                 atomic_write(snapshot_path, serialize_snapshot(snapshot))
