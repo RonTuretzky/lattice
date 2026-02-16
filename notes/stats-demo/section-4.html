@@ -1,0 +1,1593 @@
+<!-- ============================================================
+     Section 4: Cycle Time, Status Duration Heatmap, Risk Stack,
+                WIP Alert, Bottleneck Detection, Dependency Chains
+     ============================================================ -->
+
+<style>
+/* ── Section 4 Scoped Styles ───────────────────────────────── */
+
+/* Demo item structure (scoped to group-4) */
+#group-4 .demo-item {
+  margin-bottom: 2.5rem;
+}
+
+#group-4 .demo-item-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+#group-4 .demo-item-number {
+  font-size: 1.1rem;
+  color: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+#group-4 .demo-item-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: var(--font);
+  flex: 1;
+}
+
+#group-4 .demo-item-tag {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.2em 0.6em;
+  border-radius: 5px;
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--accent);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  flex-shrink: 0;
+}
+
+#group-4 .demo-item-body {
+  /* wrapper for the actual UI mockup */
+}
+
+/* ── ⑥ Cycle Time + Lead Time ─────────────────────────────── */
+.cycle-lead-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+  font-family: var(--font);
+}
+
+.metric-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem 2rem;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.metric-card:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(99, 102, 241, 0.3);
+  transform: translateY(-2px);
+}
+
+.metric-card-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.metric-card-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 0.15rem;
+}
+
+.metric-card-hero-value {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-card-hero-unit {
+  font-size: 1.1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.metric-card-hero-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
+
+.metric-card-p90 {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(99, 102, 241, 0.06);
+  border: 1px solid rgba(99, 102, 241, 0.12);
+  border-radius: 6px;
+  padding: 0.25em 0.6em;
+  margin-bottom: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-card-p90-value {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+.metric-card-histogram {
+  margin-top: 0.5rem;
+}
+
+.metric-card-histogram-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.4rem;
+}
+
+.metric-card.cycle-time {
+  border-top: 3px solid var(--accent);
+}
+
+.metric-card.lead-time {
+  border-top: 3px solid #38bdf8;
+}
+
+/* ── ⑦ Status Duration Heatmap ────────────────────────────── */
+.status-heatmap {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem 2rem;
+  font-family: var(--font);
+}
+
+.status-heatmap-title {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 1.25rem;
+}
+
+.heatmap-row {
+  display: grid;
+  grid-template-columns: 110px 60px 1fr;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+  position: relative;
+}
+
+.heatmap-row:last-child {
+  margin-bottom: 0;
+}
+
+.heatmap-status-name {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+.heatmap-days {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.heatmap-days.terminal {
+  color: var(--text-muted);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.heatmap-bar-container {
+  height: 26px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.heatmap-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+
+.heatmap-bar.heat-green {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.25), rgba(34, 197, 94, 0.6));
+}
+
+.heatmap-bar.heat-yellow {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.2), rgba(245, 158, 11, 0.6));
+}
+
+.heatmap-bar.heat-orange {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.15), rgba(249, 115, 22, 0.6));
+}
+
+.heatmap-bar.heat-red {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.1), rgba(239, 68, 68, 0.6));
+}
+
+.heatmap-bottleneck-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 4px;
+  padding: 0.15em 0.5em;
+  margin-left: 0.75rem;
+  animation: bottleneckPulse 2s ease-in-out infinite;
+}
+
+@keyframes bottleneckPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ── ⑮ Risk Stack Panel ───────────────────────────────────── */
+.risk-stack {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  font-family: var(--font);
+}
+
+.risk-stack-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 1.75rem;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--bg-card) 0%, rgba(239, 68, 68, 0.03) 100%);
+}
+
+.risk-stack-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.risk-stack-title-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--danger);
+}
+
+.risk-stack-count {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.2em 0.7em;
+}
+
+.risk-item {
+  display: flex;
+  gap: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s ease;
+}
+
+.risk-item:last-child {
+  border-bottom: none;
+}
+
+.risk-item:hover {
+  background: var(--bg-card-hover);
+}
+
+.risk-severity-bar {
+  width: 4px;
+  flex-shrink: 0;
+}
+
+.risk-severity-bar.critical { background: var(--danger); }
+.risk-severity-bar.high { background: #f97316; }
+.risk-severity-bar.moderate { background: var(--warning); }
+.risk-severity-bar.low { background: var(--text-muted); }
+
+.risk-item-content {
+  flex: 1;
+  padding: 1rem 1.5rem;
+  min-width: 0;
+}
+
+.risk-item-top {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.3rem;
+}
+
+.risk-severity-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15em 0.5em;
+  border-radius: 3px;
+}
+
+.risk-severity-label.critical {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.risk-severity-label.high {
+  color: #f97316;
+  background: rgba(249, 115, 22, 0.12);
+}
+
+.risk-severity-label.moderate {
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.12);
+}
+
+.risk-severity-label.low {
+  color: var(--text-muted);
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.risk-task-id {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: none;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+.risk-task-id:hover {
+  text-decoration: underline;
+}
+
+.risk-task-title {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.risk-reason {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+/* ── ㉒ WIP Alert ─────────────────────────────────────────── */
+.wip-alert {
+  background: var(--bg-card);
+  border: 2px solid rgba(245, 158, 11, 0.4);
+  border-radius: var(--radius);
+  padding: 1.75rem 2rem;
+  font-family: var(--font);
+  position: relative;
+  overflow: hidden;
+}
+
+.wip-alert::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--warning), #f97316);
+}
+
+.wip-alert-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.wip-alert-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.wip-alert-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--warning);
+}
+
+.wip-alert-title-text {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.wip-alert-severity {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.25em 0.7em;
+  border-radius: 6px;
+  color: var(--warning);
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.wip-alert-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.wip-metric {
+  text-align: center;
+}
+
+.wip-metric-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.25rem;
+}
+
+.wip-metric-value {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.wip-metric-value.over {
+  color: var(--warning);
+}
+
+.wip-metric-value .wip-limit {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.wip-progress-container {
+  margin-bottom: 1.25rem;
+}
+
+.wip-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.wip-progress-track {
+  height: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 5px;
+  position: relative;
+  overflow: visible;
+}
+
+.wip-progress-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+
+.wip-progress-fill.warning {
+  background: linear-gradient(90deg, var(--accent), var(--warning));
+}
+
+.wip-progress-limit-marker {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--text-muted);
+  border-radius: 1px;
+}
+
+.wip-progress-limit-label {
+  position: absolute;
+  top: -20px;
+  font-size: 0.6rem;
+  color: var(--text-muted);
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.wip-timeline {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+  padding: 0.75rem 1rem;
+  background: rgba(245, 158, 11, 0.04);
+  border: 1px solid rgba(245, 158, 11, 0.12);
+  border-radius: 8px;
+}
+
+.wip-timeline-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warning);
+  flex-shrink: 0;
+}
+
+.wip-timeline-line {
+  flex: 1;
+  height: 2px;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(245, 158, 11, 0.3),
+    rgba(245, 158, 11, 0.3) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.wip-timeline-dot-now {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--warning);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
+  animation: wipNowPulse 2s ease-in-out infinite;
+}
+
+@keyframes wipNowPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2); }
+  50% { box-shadow: 0 0 0 6px rgba(245, 158, 11, 0.1); }
+}
+
+.wip-timeline-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-top: -0.25rem;
+}
+
+.wip-timeline-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.wip-timeline-label.now {
+  font-weight: 600;
+  color: var(--warning);
+}
+
+.wip-recommendation {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  padding: 0.75rem 1rem;
+  background: rgba(99, 102, 241, 0.04);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0;
+}
+
+.wip-recommendation strong {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.wip-recommendation .task-ref {
+  color: var(--accent);
+  font-weight: 600;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-size: 0.75rem;
+}
+
+/* ── ㉓ Bottleneck Detection ──────────────────────────────── */
+.bottleneck-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem 2rem;
+  font-family: var(--font);
+}
+
+.bottleneck-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.bottleneck-header-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--danger);
+}
+
+.bottleneck-header-text {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.bottleneck-header-status {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--danger);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+}
+
+.bottleneck-flow-visual {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 1.75rem;
+  position: relative;
+}
+
+.bottleneck-flow-arrow {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  flex: 1;
+}
+
+.bottleneck-flow-arrow-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bottleneck-flow-arrow-label.inflow { color: #38bdf8; }
+.bottleneck-flow-arrow-label.outflow { color: var(--success); }
+
+.bottleneck-flow-arrow-rate {
+  font-size: 1.1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.bottleneck-flow-arrow-rate.inflow { color: #38bdf8; }
+.bottleneck-flow-arrow-rate.outflow { color: var(--success); }
+
+.bottleneck-flow-arrow-unit {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+}
+
+.bottleneck-funnel {
+  flex-shrink: 0;
+  position: relative;
+}
+
+.bottleneck-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.bottleneck-stat {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.bottleneck-stat-label {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+}
+
+.bottleneck-stat-value {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.bottleneck-stat-value.danger { color: var(--danger); }
+.bottleneck-stat-value.warning { color: var(--warning); }
+
+.bottleneck-projection {
+  padding: 1rem 1.25rem;
+  background: rgba(239, 68, 68, 0.04);
+  border: 1px solid rgba(239, 68, 68, 0.12);
+  border-radius: 8px;
+}
+
+.bottleneck-projection-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.75rem;
+}
+
+/* ── ㉔ Dependency Chain Risk ─────────────────────────────── */
+.dep-chain-panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 1.75rem 2rem;
+  font-family: var(--font);
+}
+
+.dep-chain-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+}
+
+.dep-chain-header-icon {
+  width: 20px;
+  height: 20px;
+  color: var(--accent);
+}
+
+.dep-chain-header-text {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.dep-chain {
+  margin-bottom: 1.5rem;
+  padding: 1.25rem 1.5rem;
+  background: rgba(255, 255, 255, 0.015);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.dep-chain:last-child {
+  margin-bottom: 0;
+}
+
+.dep-chain-title {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.dep-chain-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.dep-chain-severity-badge {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15em 0.5em;
+  border-radius: 3px;
+}
+
+.dep-chain-severity-badge.critical {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.dep-chain-severity-badge.high {
+  color: #f97316;
+  background: rgba(249, 115, 22, 0.12);
+}
+
+.dep-chain-depth {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.dep-chain-graph {
+  margin-bottom: 0.75rem;
+}
+
+.dep-chain-impact {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.dep-chain-impact strong {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+/* ── Shared animation classes ─────────────────────────────── */
+#group-4 .animate-on-scroll {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+#group-4 .animate-on-scroll.in-view {
+  animation: s4FadeSlideUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes s4FadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes s4BarGrow {
+  from { width: 0; }
+}
+</style>
+
+<div class="demo-group" id="group-4">
+
+  <!-- ⑥ Cycle Time + Lead Time -->
+  <div class="demo-item" id="item-6">
+    <div class="demo-item-header">
+      <span class="demo-item-number">&#9317;</span>
+      <h3>Cycle Time + Lead Time</h3>
+      <span class="demo-item-tag">Metrics</span>
+    </div>
+    <div class="demo-item-body">
+      <div class="cycle-lead-grid">
+
+        <!-- Cycle Time Card -->
+        <div class="metric-card cycle-time animate-on-scroll">
+          <div class="metric-card-label">Cycle Time <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(in_progress &rarr; done)</span></div>
+          <div class="metric-card-hero">
+            <span class="metric-card-hero-value" data-s4-countup="4.2" data-decimals="1">0.0</span>
+            <span class="metric-card-hero-unit">days</span>
+          </div>
+          <div class="metric-card-hero-label">Median</div>
+          <div class="metric-card-p90">
+            P90 <span class="metric-card-p90-value">8.1d</span>
+          </div>
+          <div class="metric-card-histogram">
+            <div class="metric-card-histogram-label">Distribution</div>
+            <svg width="100%" height="60" viewBox="0 0 260 60" preserveAspectRatio="none" aria-label="Cycle time distribution histogram">
+              <defs>
+                <linearGradient id="s4-cycle-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="rgba(99,102,241,0.7)" />
+                  <stop offset="100%" stop-color="rgba(99,102,241,0.15)" />
+                </linearGradient>
+              </defs>
+              <!-- 8 buckets, max value = 8, bar height = (val/8)*48 -->
+              <!-- 0-1d: 2 -->
+              <rect x="4" y="48" width="26" height="0" rx="2" fill="url(#s4-cycle-grad)" class="s4-hist-bar" data-target-h="12" data-target-y="36"/>
+              <text x="17" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">0-1d</text>
+              <!-- 1-2d: 4 -->
+              <rect x="36" y="48" width="26" height="0" rx="2" fill="url(#s4-cycle-grad)" class="s4-hist-bar" data-target-h="24" data-target-y="24"/>
+              <text x="49" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">1-2d</text>
+              <!-- 2-3d: 5 -->
+              <rect x="68" y="48" width="26" height="0" rx="2" fill="url(#s4-cycle-grad)" class="s4-hist-bar" data-target-h="30" data-target-y="18"/>
+              <text x="81" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">2-3d</text>
+              <!-- 3-5d: 8 (peak) -->
+              <rect x="100" y="48" width="26" height="0" rx="2" fill="var(--accent)" class="s4-hist-bar" data-target-h="48" data-target-y="0"/>
+              <text x="113" y="58" text-anchor="middle" font-size="7" fill="var(--text-secondary)" font-weight="600" font-family="var(--font)">3-5d</text>
+              <!-- 5-7d: 3 -->
+              <rect x="132" y="48" width="26" height="0" rx="2" fill="url(#s4-cycle-grad)" class="s4-hist-bar" data-target-h="18" data-target-y="30"/>
+              <text x="145" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">5-7d</text>
+              <!-- 7-10d: 2 -->
+              <rect x="164" y="48" width="26" height="0" rx="2" fill="url(#s4-cycle-grad)" class="s4-hist-bar" data-target-h="12" data-target-y="36"/>
+              <text x="177" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">7-10d</text>
+              <!-- 10-14d: 1 -->
+              <rect x="196" y="48" width="26" height="0" rx="2" fill="url(#s4-cycle-grad)" class="s4-hist-bar" data-target-h="6" data-target-y="42"/>
+              <text x="209" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">10-14</text>
+              <!-- 14d+: 1 -->
+              <rect x="228" y="48" width="26" height="0" rx="2" fill="url(#s4-cycle-grad)" class="s4-hist-bar" data-target-h="6" data-target-y="42"/>
+              <text x="241" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">14d+</text>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Lead Time Card -->
+        <div class="metric-card lead-time animate-on-scroll">
+          <div class="metric-card-label">Lead Time <span style="color:var(--text-muted);font-weight:400;text-transform:none;letter-spacing:0;">(created &rarr; done)</span></div>
+          <div class="metric-card-hero">
+            <span class="metric-card-hero-value" data-s4-countup="11.3" data-decimals="1">0.0</span>
+            <span class="metric-card-hero-unit">days</span>
+          </div>
+          <div class="metric-card-hero-label">Median</div>
+          <div class="metric-card-p90">
+            P90 <span class="metric-card-p90-value">22.5d</span>
+          </div>
+          <div class="metric-card-histogram">
+            <div class="metric-card-histogram-label">Distribution</div>
+            <svg width="100%" height="60" viewBox="0 0 260 60" preserveAspectRatio="none" aria-label="Lead time distribution histogram">
+              <defs>
+                <linearGradient id="s4-lead-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="rgba(56,189,248,0.7)" />
+                  <stop offset="100%" stop-color="rgba(56,189,248,0.15)" />
+                </linearGradient>
+              </defs>
+              <!-- 8 buckets, max value = 7, bar height = (val/7)*48 -->
+              <!-- 0-3d: 1 -->
+              <rect x="4" y="48" width="26" height="0" rx="2" fill="url(#s4-lead-grad)" class="s4-hist-bar" data-target-h="6.86" data-target-y="41.14"/>
+              <text x="17" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">0-3d</text>
+              <!-- 3-5d: 2 -->
+              <rect x="36" y="48" width="26" height="0" rx="2" fill="url(#s4-lead-grad)" class="s4-hist-bar" data-target-h="13.71" data-target-y="34.29"/>
+              <text x="49" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">3-5d</text>
+              <!-- 5-7d: 3 -->
+              <rect x="68" y="48" width="26" height="0" rx="2" fill="url(#s4-lead-grad)" class="s4-hist-bar" data-target-h="20.57" data-target-y="27.43"/>
+              <text x="81" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">5-7d</text>
+              <!-- 7-10d: 5 -->
+              <rect x="100" y="48" width="26" height="0" rx="2" fill="url(#s4-lead-grad)" class="s4-hist-bar" data-target-h="34.29" data-target-y="13.71"/>
+              <text x="113" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">7-10d</text>
+              <!-- 10-14d: 7 (peak) -->
+              <rect x="132" y="48" width="26" height="0" rx="2" fill="#38bdf8" class="s4-hist-bar" data-target-h="48" data-target-y="0"/>
+              <text x="145" y="58" text-anchor="middle" font-size="7" fill="var(--text-secondary)" font-weight="600" font-family="var(--font)">10-14</text>
+              <!-- 14-21d: 4 -->
+              <rect x="164" y="48" width="26" height="0" rx="2" fill="url(#s4-lead-grad)" class="s4-hist-bar" data-target-h="27.43" data-target-y="20.57"/>
+              <text x="177" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">14-21</text>
+              <!-- 21-30d: 2 -->
+              <rect x="196" y="48" width="26" height="0" rx="2" fill="url(#s4-lead-grad)" class="s4-hist-bar" data-target-h="13.71" data-target-y="34.29"/>
+              <text x="209" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">21-30</text>
+              <!-- 30d+: 1 -->
+              <rect x="228" y="48" width="26" height="0" rx="2" fill="url(#s4-lead-grad)" class="s4-hist-bar" data-target-h="6.86" data-target-y="41.14"/>
+              <text x="241" y="58" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">30d+</text>
+            </svg>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑦ Status Duration Heatmap -->
+  <div class="demo-item" id="item-7">
+    <div class="demo-item-header">
+      <span class="demo-item-number">&#9318;</span>
+      <h3>Status Duration Heatmap</h3>
+      <span class="demo-item-tag">Analysis</span>
+    </div>
+    <div class="demo-item-body">
+      <div class="status-heatmap animate-on-scroll">
+        <div class="status-heatmap-title">Average Days in Status</div>
+
+        <!-- backlog: 8.2d — orange (7-14d) -->
+        <div class="heatmap-row">
+          <span class="heatmap-status-name">backlog</span>
+          <span class="heatmap-days">8.2d</span>
+          <div class="heatmap-bar-container">
+            <div class="heatmap-bar heat-orange s4-heatmap-bar" style="width:0%" data-target-width="64.6%"></div>
+          </div>
+        </div>
+
+        <!-- in_planning: 3.1d — yellow (3-7d) -->
+        <div class="heatmap-row">
+          <span class="heatmap-status-name">in_planning</span>
+          <span class="heatmap-days">3.1d</span>
+          <div class="heatmap-bar-container">
+            <div class="heatmap-bar heat-yellow s4-heatmap-bar" style="width:0%" data-target-width="24.4%"></div>
+          </div>
+        </div>
+
+        <!-- planned: 5.4d — yellow (3-7d) -->
+        <div class="heatmap-row">
+          <span class="heatmap-status-name">planned</span>
+          <span class="heatmap-days">5.4d</span>
+          <div class="heatmap-bar-container">
+            <div class="heatmap-bar heat-yellow s4-heatmap-bar" style="width:0%" data-target-width="42.5%"></div>
+          </div>
+        </div>
+
+        <!-- in_progress: 4.2d — yellow (3-7d) -->
+        <div class="heatmap-row">
+          <span class="heatmap-status-name">in_progress</span>
+          <span class="heatmap-days">4.2d</span>
+          <div class="heatmap-bar-container">
+            <div class="heatmap-bar heat-yellow s4-heatmap-bar" style="width:0%" data-target-width="33.1%"></div>
+          </div>
+        </div>
+
+        <!-- review: 12.7d — red (>14d threshold treated as near) — BOTTLENECK -->
+        <div class="heatmap-row">
+          <span class="heatmap-status-name">review</span>
+          <span class="heatmap-days">12.7d</span>
+          <div class="heatmap-bar-container">
+            <div class="heatmap-bar heat-red s4-heatmap-bar" style="width:0%" data-target-width="100%"></div>
+          </div>
+          <span class="heatmap-bottleneck-badge">&#9888; Bottleneck</span>
+        </div>
+
+        <!-- done: terminal -->
+        <div class="heatmap-row">
+          <span class="heatmap-status-name">done</span>
+          <span class="heatmap-days terminal">&mdash;</span>
+          <div class="heatmap-bar-container">
+            <!-- no bar for terminal state -->
+          </div>
+        </div>
+
+        <!-- blocked: 9.5d — orange (7-14d) -->
+        <div class="heatmap-row">
+          <span class="heatmap-status-name">blocked</span>
+          <span class="heatmap-days">9.5d</span>
+          <div class="heatmap-bar-container">
+            <div class="heatmap-bar heat-orange s4-heatmap-bar" style="width:0%" data-target-width="74.8%"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑮ Risk Stack Panel -->
+  <div class="demo-item" id="item-15">
+    <div class="demo-item-header">
+      <span class="demo-item-number">&#9326;</span>
+      <h3>Risk Stack Panel</h3>
+      <span class="demo-item-tag">Risk</span>
+    </div>
+    <div class="demo-item-body">
+      <div class="risk-stack animate-on-scroll">
+
+        <div class="risk-stack-header">
+          <div class="risk-stack-title">
+            <svg class="risk-stack-title-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M10 2L18 17H2L10 2Z" stroke-linejoin="round"/>
+              <line x1="10" y1="8" x2="10" y2="12" stroke-linecap="round"/>
+              <circle cx="10" cy="14.5" r="0.75" fill="currentColor" stroke="none"/>
+            </svg>
+            Risk Stack
+          </div>
+          <span class="risk-stack-count">5 items needing attention</span>
+        </div>
+
+        <!-- CRITICAL: LAT-18 -->
+        <div class="risk-item">
+          <div class="risk-severity-bar critical"></div>
+          <div class="risk-item-content">
+            <div class="risk-item-top">
+              <span class="risk-severity-label critical">Critical</span>
+              <a href="#" class="risk-task-id">LAT-18</a>
+              <span class="risk-task-title">&ldquo;Add relationship validation&rdquo;</span>
+            </div>
+            <div class="risk-reason">Stale 12 days, in_progress, blocking 2 tasks</div>
+          </div>
+        </div>
+
+        <!-- HIGH: LAT-29 -->
+        <div class="risk-item">
+          <div class="risk-severity-bar high"></div>
+          <div class="risk-item-content">
+            <div class="risk-item-top">
+              <span class="risk-severity-label high">High</span>
+              <a href="#" class="risk-task-id">LAT-29</a>
+              <span class="risk-task-title">&ldquo;Archive cascade for relationships&rdquo;</span>
+            </div>
+            <div class="risk-reason">Blocked, chain depth 2 (via LAT-31 &rarr; LAT-18)</div>
+          </div>
+        </div>
+
+        <!-- HIGH: LAT-31 -->
+        <div class="risk-item">
+          <div class="risk-severity-bar high"></div>
+          <div class="risk-item-content">
+            <div class="risk-item-top">
+              <span class="risk-severity-label high">High</span>
+              <a href="#" class="risk-task-id">LAT-31</a>
+              <span class="risk-task-title">&ldquo;Implement blocked-by enforcement&rdquo;</span>
+            </div>
+            <div class="risk-reason">Blocked by stale task LAT-18</div>
+          </div>
+        </div>
+
+        <!-- MODERATE: LAT-22 -->
+        <div class="risk-item">
+          <div class="risk-severity-bar moderate"></div>
+          <div class="risk-item-content">
+            <div class="risk-item-top">
+              <span class="risk-severity-label moderate">Moderate</span>
+              <a href="#" class="risk-task-id">LAT-22</a>
+              <span class="risk-task-title">&ldquo;Design artifact linking UX&rdquo;</span>
+            </div>
+            <div class="risk-reason">Stale 14 days, planned (not blocking others)</div>
+          </div>
+        </div>
+
+        <!-- LOW: WIP breach -->
+        <div class="risk-item">
+          <div class="risk-severity-bar low"></div>
+          <div class="risk-item-content">
+            <div class="risk-item-top">
+              <span class="risk-severity-label low">Low</span>
+              <span class="risk-task-title" style="color:var(--text-secondary);">in_progress WIP exceeded (5/4) for 3 days</span>
+            </div>
+            <div class="risk-reason">Capacity constraint, not directly blocking deliverables</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ㉒ WIP Alert Severity + Time-over-limit -->
+  <div class="demo-item" id="item-22">
+    <div class="demo-item-header">
+      <span class="demo-item-number">&#12883;</span>
+      <h3>WIP Alert Severity + Time-over-limit</h3>
+      <span class="demo-item-tag">Alert</span>
+    </div>
+    <div class="demo-item-body">
+      <div class="wip-alert animate-on-scroll">
+
+        <div class="wip-alert-header">
+          <div class="wip-alert-title">
+            <svg class="wip-alert-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M10 2L18 17H2L10 2Z" stroke-linejoin="round"/>
+              <line x1="10" y1="8" x2="10" y2="12" stroke-linecap="round"/>
+              <circle cx="10" cy="14.5" r="0.75" fill="currentColor" stroke="none"/>
+            </svg>
+            <span class="wip-alert-title-text">WIP Limit Breach &mdash; in_progress</span>
+          </div>
+          <span class="wip-alert-severity">Warning</span>
+        </div>
+
+        <div class="wip-alert-metrics">
+          <div class="wip-metric">
+            <div class="wip-metric-label">Current</div>
+            <div class="wip-metric-value over">5</div>
+          </div>
+          <div class="wip-metric">
+            <div class="wip-metric-label">Limit</div>
+            <div class="wip-metric-value">4</div>
+          </div>
+          <div class="wip-metric">
+            <div class="wip-metric-label">Over By</div>
+            <div class="wip-metric-value over">+1</div>
+          </div>
+        </div>
+
+        <!-- Progress bar overflowing past limit -->
+        <div class="wip-progress-container">
+          <div class="wip-progress-labels">
+            <span>0</span>
+            <span>Capacity</span>
+          </div>
+          <div class="wip-progress-track">
+            <div class="wip-progress-fill warning s4-wip-bar" style="width:0%" data-target-width="125%"></div>
+            <div class="wip-progress-limit-marker" style="left:80%;">
+              <span class="wip-progress-limit-label">Limit: 4</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timeline -->
+        <div style="margin-bottom: 1.25rem;">
+          <div class="wip-timeline">
+            <div class="wip-timeline-dot"></div>
+            <div class="wip-timeline-line"></div>
+            <div class="wip-timeline-dot-now"></div>
+          </div>
+          <div class="wip-timeline-labels">
+            <span class="wip-timeline-label">Feb 12 &mdash; breached</span>
+            <span class="wip-timeline-label now">Now (3d over)</span>
+          </div>
+        </div>
+
+        <div class="wip-recommendation">
+          <strong>Recommendation:</strong> Consider moving <span class="task-ref">LAT-38</span> to review or reassigning to reduce in_progress count below the WIP limit.
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ㉓ Bottleneck Detection -->
+  <div class="demo-item" id="item-23">
+    <div class="demo-item-header">
+      <span class="demo-item-number">&#12884;</span>
+      <h3>Bottleneck Detection</h3>
+      <span class="demo-item-tag">Insight</span>
+    </div>
+    <div class="demo-item-body">
+      <div class="bottleneck-panel animate-on-scroll">
+
+        <div class="bottleneck-header">
+          <svg class="bottleneck-header-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="10" cy="10" r="8"/>
+            <path d="M10 6v4l2.5 2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="bottleneck-header-text">Bottleneck Detected:</span>
+          <span class="bottleneck-header-status">review</span>
+        </div>
+
+        <!-- Flow visualization -->
+        <div class="bottleneck-flow-visual">
+          <svg width="100%" height="120" viewBox="0 0 500 120" preserveAspectRatio="xMidYMid meet">
+            <!-- Inflow side -->
+            <text x="60" y="18" text-anchor="middle" font-size="10" font-weight="600" fill="#38bdf8" font-family="var(--font)" letter-spacing="0.5">ENTERING</text>
+            <text x="60" y="36" text-anchor="middle" font-size="22" font-weight="800" fill="#38bdf8" font-family="var(--font)">2.1</text>
+            <text x="60" y="50" text-anchor="middle" font-size="9" fill="var(--text-muted)" font-family="var(--font)">/week avg</text>
+
+            <!-- Inflow arrow (thick) -->
+            <defs>
+              <marker id="s4-arrow-in" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L8,3 L0,6" fill="#38bdf8"/>
+              </marker>
+              <marker id="s4-arrow-out" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+                <path d="M0,0 L8,3 L0,6" fill="var(--success)"/>
+              </marker>
+            </defs>
+            <line x1="120" y1="72" x2="188" y2="72" stroke="#38bdf8" stroke-width="6" stroke-linecap="round" marker-end="url(#s4-arrow-in)" opacity="0.8"/>
+            <text x="154" y="64" text-anchor="middle" font-size="8" fill="#38bdf8" font-family="var(--font)" font-weight="600">IN</text>
+
+            <!-- Funnel / pipe (the review stage) -->
+            <rect x="196" y="50" width="108" height="44" rx="8" fill="rgba(239,68,68,0.08)" stroke="var(--danger)" stroke-width="1.5" stroke-dasharray="4 2"/>
+            <text x="250" y="68" text-anchor="middle" font-size="11" font-weight="700" fill="var(--text-primary)" font-family="var(--font)">review</text>
+            <text x="250" y="84" text-anchor="middle" font-size="9" fill="var(--danger)" font-family="var(--font)" font-weight="600">accumulating</text>
+
+            <!-- Outflow arrow (thinner) -->
+            <line x1="312" y1="72" x2="380" y2="72" stroke="var(--success)" stroke-width="3" stroke-linecap="round" marker-end="url(#s4-arrow-out)" opacity="0.8"/>
+            <text x="346" y="64" text-anchor="middle" font-size="8" fill="var(--success)" font-family="var(--font)" font-weight="600">OUT</text>
+
+            <!-- Outflow side -->
+            <text x="440" y="18" text-anchor="middle" font-size="10" font-weight="600" fill="var(--success)" font-family="var(--font)" letter-spacing="0.5">LEAVING</text>
+            <text x="440" y="36" text-anchor="middle" font-size="22" font-weight="800" fill="var(--success)" font-family="var(--font)">1.3</text>
+            <text x="440" y="50" text-anchor="middle" font-size="9" fill="var(--text-muted)" font-family="var(--font)">/week avg</text>
+
+            <!-- Net accumulation indicator -->
+            <text x="250" y="112" text-anchor="middle" font-size="10" fill="var(--warning)" font-family="var(--font)" font-weight="700">+0.8/week net accumulation</text>
+          </svg>
+        </div>
+
+        <!-- Stats -->
+        <div class="bottleneck-stats">
+          <div class="bottleneck-stat">
+            <div class="bottleneck-stat-label">Flow Ratio</div>
+            <div class="bottleneck-stat-value danger">0.62</div>
+            <div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.2rem;">&lt; 0.8 threshold &rarr; bottleneck</div>
+          </div>
+          <div class="bottleneck-stat">
+            <div class="bottleneck-stat-label">Time to Critical</div>
+            <div class="bottleneck-stat-value warning">~3 weeks</div>
+            <div style="font-size:0.68rem;color:var(--text-muted);margin-top:0.2rem;">at current rate</div>
+          </div>
+        </div>
+
+        <!-- Projection chart -->
+        <div class="bottleneck-projection">
+          <div class="bottleneck-projection-title">Accumulation Projection (next 4 weeks)</div>
+          <svg width="100%" height="80" viewBox="0 0 400 80" preserveAspectRatio="xMidYMid meet">
+            <!-- Grid lines -->
+            <line x1="40" y1="10" x2="40" y2="65" stroke="var(--border)" stroke-width="0.5"/>
+            <line x1="130" y1="10" x2="130" y2="65" stroke="var(--border)" stroke-width="0.5"/>
+            <line x1="220" y1="10" x2="220" y2="65" stroke="var(--border)" stroke-width="0.5"/>
+            <line x1="310" y1="10" x2="310" y2="65" stroke="var(--border)" stroke-width="0.5"/>
+            <line x1="390" y1="10" x2="390" y2="65" stroke="var(--border)" stroke-width="0.5"/>
+            <!-- Horizontal base -->
+            <line x1="40" y1="65" x2="390" y2="65" stroke="var(--border)" stroke-width="0.5"/>
+
+            <!-- Danger zone background -->
+            <rect x="40" y="10" width="350" height="18" rx="2" fill="rgba(239,68,68,0.05)"/>
+            <text x="45" y="22" font-size="7" fill="var(--danger)" font-family="var(--font)" opacity="0.6">danger zone</text>
+
+            <!-- Projection line (tasks in review over time) -->
+            <!-- Now: ~5 tasks, +0.8/week -->
+            <!-- Week 0: 5, Week 1: 5.8, Week 2: 6.6, Week 3: 7.4, Week 4: 8.2 -->
+            <!-- Y scale: 0 tasks = y:65, 10 tasks = y:10 -->
+            <polyline points="40,37.5 130,33.1 220,28.7 310,24.3 390,19.9"
+                      fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                      stroke-dasharray="5 3" opacity="0.8"/>
+
+            <!-- Current point -->
+            <circle cx="40" cy="37.5" r="4" fill="var(--warning)" stroke="var(--bg-card)" stroke-width="2"/>
+
+            <!-- Projected points -->
+            <circle cx="130" cy="33.1" r="3" fill="var(--danger)" opacity="0.4"/>
+            <circle cx="220" cy="28.7" r="3" fill="var(--danger)" opacity="0.5"/>
+            <circle cx="310" cy="24.3" r="3" fill="var(--danger)" opacity="0.7"/>
+            <circle cx="390" cy="19.9" r="3.5" fill="var(--danger)" opacity="0.9"/>
+
+            <!-- Labels -->
+            <text x="40" y="76" text-anchor="middle" font-size="8" fill="var(--text-muted)" font-family="var(--font)">Now</text>
+            <text x="130" y="76" text-anchor="middle" font-size="8" fill="var(--text-muted)" font-family="var(--font)">Wk 1</text>
+            <text x="220" y="76" text-anchor="middle" font-size="8" fill="var(--text-muted)" font-family="var(--font)">Wk 2</text>
+            <text x="310" y="76" text-anchor="middle" font-size="8" fill="var(--text-muted)" font-family="var(--font)">Wk 3</text>
+            <text x="390" y="76" text-anchor="middle" font-size="8" fill="var(--text-muted)" font-family="var(--font)">Wk 4</text>
+
+            <!-- Value labels -->
+            <text x="40" y="33" text-anchor="middle" font-size="8" fill="var(--warning)" font-weight="700" font-family="var(--font)">5</text>
+            <text x="390" y="15" text-anchor="middle" font-size="8" fill="var(--danger)" font-weight="700" font-family="var(--font)">~8</text>
+          </svg>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ㉔ Dependency Chain Risk -->
+  <div class="demo-item" id="item-24">
+    <div class="demo-item-header">
+      <span class="demo-item-number">&#12885;</span>
+      <h3>Dependency Chain Risk</h3>
+      <span class="demo-item-tag">Graph</span>
+    </div>
+    <div class="demo-item-body">
+      <div class="dep-chain-panel animate-on-scroll">
+
+        <div class="dep-chain-header">
+          <svg class="dep-chain-header-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="4" cy="10" r="2.5"/>
+            <circle cx="16" cy="5" r="2.5"/>
+            <circle cx="16" cy="15" r="2.5"/>
+            <line x1="6.5" y1="9" x2="13.5" y2="6" stroke-linecap="round"/>
+            <line x1="6.5" y1="11" x2="13.5" y2="14" stroke-linecap="round"/>
+          </svg>
+          <span class="dep-chain-header-text">Dependency Chains</span>
+        </div>
+
+        <!-- Chain 1 (depth 2, CRITICAL) -->
+        <div class="dep-chain">
+          <div class="dep-chain-title">
+            <span class="dep-chain-label">Chain 1</span>
+            <span class="dep-chain-severity-badge critical">Critical</span>
+            <span class="dep-chain-depth">Depth 2</span>
+          </div>
+          <div class="dep-chain-graph">
+            <svg width="100%" height="90" viewBox="0 0 560 90" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <marker id="s4-dep-arrow" markerWidth="7" markerHeight="5" refX="7" refY="2.5" orient="auto">
+                  <path d="M0,0 L7,2.5 L0,5" fill="var(--text-muted)"/>
+                </marker>
+                <filter id="s4-glow-red">
+                  <feGaussianBlur stdDeviation="3" result="blur"/>
+                  <feFlood flood-color="var(--danger)" flood-opacity="0.3"/>
+                  <feComposite in2="blur" operator="in"/>
+                  <feMerge>
+                    <feMergeNode/>
+                    <feMergeNode in="SourceGraphic"/>
+                  </feMerge>
+                </filter>
+              </defs>
+
+              <!-- LAT-29 (leaf, gray) -->
+              <rect x="10" y="25" width="140" height="40" rx="8" fill="rgba(148,163,184,0.08)" stroke="var(--text-muted)" stroke-width="1.2"/>
+              <text x="25" y="42" font-size="10" font-weight="700" fill="var(--accent)" font-family="'SF Mono','Fira Code',monospace">LAT-29</text>
+              <text x="25" y="56" font-size="8" fill="var(--text-muted)" font-family="var(--font)">Archive cascade</text>
+
+              <!-- Arrow LAT-29 -> LAT-31 -->
+              <line x1="150" y1="45" x2="192" y2="45" stroke="var(--text-muted)" stroke-width="1.2" marker-end="url(#s4-dep-arrow)" stroke-dasharray="3 2"/>
+              <text x="171" y="39" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">blocked by</text>
+
+              <!-- LAT-31 (intermediate, orange) -->
+              <rect x="200" y="25" width="155" height="40" rx="8" fill="rgba(249,115,22,0.06)" stroke="#f97316" stroke-width="1.2"/>
+              <text x="215" y="42" font-size="10" font-weight="700" fill="var(--accent)" font-family="'SF Mono','Fira Code',monospace">LAT-31</text>
+              <text x="215" y="56" font-size="8" fill="var(--text-muted)" font-family="var(--font)">Blocked-by enforcement</text>
+
+              <!-- Arrow LAT-31 -> LAT-18 -->
+              <line x1="355" y1="45" x2="397" y2="45" stroke="var(--text-muted)" stroke-width="1.2" marker-end="url(#s4-dep-arrow)" stroke-dasharray="3 2"/>
+              <text x="376" y="39" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">blocked by</text>
+
+              <!-- LAT-18 (root blocker, red, prominent) -->
+              <rect x="405" y="20" width="145" height="50" rx="8" fill="rgba(239,68,68,0.08)" stroke="var(--danger)" stroke-width="2" filter="url(#s4-glow-red)"/>
+              <text x="420" y="40" font-size="11" font-weight="800" fill="var(--danger)" font-family="'SF Mono','Fira Code',monospace">LAT-18</text>
+              <text x="420" y="54" font-size="8" fill="var(--text-secondary)" font-family="var(--font)">Relationship validation</text>
+              <text x="420" y="65" font-size="7" fill="var(--danger)" font-family="var(--font)" font-weight="600">stale 12d &bull; ROOT CAUSE</text>
+            </svg>
+          </div>
+          <div class="dep-chain-impact">
+            <strong>Impact:</strong> 3 tasks affected, deepest block is stale for 12 days
+          </div>
+        </div>
+
+        <!-- Chain 2 (depth 1, HIGH) -->
+        <div class="dep-chain">
+          <div class="dep-chain-title">
+            <span class="dep-chain-label">Chain 2</span>
+            <span class="dep-chain-severity-badge high">High</span>
+            <span class="dep-chain-depth">Depth 1</span>
+          </div>
+          <div class="dep-chain-graph">
+            <svg width="100%" height="90" viewBox="0 0 560 90" preserveAspectRatio="xMidYMid meet">
+              <!-- LAT-33 (leaf, gray) -->
+              <rect x="60" y="25" width="160" height="40" rx="8" fill="rgba(148,163,184,0.08)" stroke="var(--text-muted)" stroke-width="1.2"/>
+              <text x="75" y="42" font-size="10" font-weight="700" fill="var(--accent)" font-family="'SF Mono','Fira Code',monospace">LAT-33</text>
+              <text x="75" y="56" font-size="8" fill="var(--text-muted)" font-family="var(--font)">Depends on validation</text>
+
+              <!-- Arrow LAT-33 -> LAT-18 -->
+              <line x1="220" y1="45" x2="337" y2="45" stroke="var(--text-muted)" stroke-width="1.2" marker-end="url(#s4-dep-arrow)" stroke-dasharray="3 2"/>
+              <text x="278" y="39" text-anchor="middle" font-size="7" fill="var(--text-muted)" font-family="var(--font)">blocked by</text>
+
+              <!-- LAT-18 (root blocker, red, prominent) — shared root cause -->
+              <rect x="345" y="20" width="155" height="50" rx="8" fill="rgba(239,68,68,0.08)" stroke="var(--danger)" stroke-width="2" filter="url(#s4-glow-red)"/>
+              <text x="360" y="40" font-size="11" font-weight="800" fill="var(--danger)" font-family="'SF Mono','Fira Code',monospace">LAT-18</text>
+              <text x="360" y="54" font-size="8" fill="var(--text-secondary)" font-family="var(--font)">Relationship validation</text>
+              <text x="360" y="65" font-size="7" fill="var(--danger)" font-family="var(--font)" font-weight="600">SHARED ROOT CAUSE</text>
+            </svg>
+          </div>
+          <div class="dep-chain-impact">
+            <strong>Impact:</strong> Shares root cause with Chain 1 &mdash; resolving LAT-18 unblocks both chains
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  /* ── Counter Animation (supports decimals) ────────────── */
+  function animateCountUpDecimal(el, target, decimals, duration) {
+    if (el.dataset.counted === 'true') return;
+    el.dataset.counted = 'true';
+    var start = performance.now();
+
+    function easeOutExpo(t) {
+      return t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
+    }
+
+    function tick(now) {
+      var elapsed = now - start;
+      var progress = Math.min(elapsed / duration, 1);
+      var value = target * easeOutExpo(progress);
+      el.textContent = value.toFixed(decimals);
+      if (progress < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        el.textContent = target.toFixed(decimals);
+      }
+    }
+    requestAnimationFrame(tick);
+  }
+
+  /* ── Histogram Bar Animation ──────────────────────────── */
+  function animateHistogramBars(container) {
+    var bars = container.querySelectorAll('.s4-hist-bar');
+    bars.forEach(function(bar, i) {
+      var targetH = parseFloat(bar.getAttribute('data-target-h'));
+      var targetY = parseFloat(bar.getAttribute('data-target-y'));
+      setTimeout(function() {
+        bar.setAttribute('height', targetH);
+        bar.setAttribute('y', targetY);
+        bar.style.transition = 'all 0.6s cubic-bezier(0.22, 1, 0.36, 1)';
+      }, i * 60);
+    });
+  }
+
+  /* ── Heatmap Bar Animation ────────────────────────────── */
+  function animateHeatmapBars(container) {
+    var bars = container.querySelectorAll('.s4-heatmap-bar');
+    bars.forEach(function(bar, i) {
+      var targetWidth = bar.getAttribute('data-target-width');
+      setTimeout(function() {
+        bar.style.width = targetWidth;
+      }, i * 100);
+    });
+  }
+
+  /* ── WIP Progress Bar Animation ───────────────────────── */
+  function animateWipBar(container) {
+    var bar = container.querySelector('.s4-wip-bar');
+    if (bar) {
+      var targetWidth = bar.getAttribute('data-target-width');
+      setTimeout(function() {
+        bar.style.width = targetWidth;
+      }, 300);
+    }
+  }
+
+  /* ── IntersectionObserver ─────────────────────────────── */
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (!entry.isIntersecting) return;
+
+      var el = entry.target;
+      el.classList.add('in-view');
+
+      /* Countup for decimal metrics */
+      var counters = el.querySelectorAll('[data-s4-countup]');
+      counters.forEach(function(counter) {
+        var target = parseFloat(counter.getAttribute('data-s4-countup'));
+        var decimals = parseInt(counter.getAttribute('data-decimals') || '0', 10);
+        setTimeout(function() {
+          animateCountUpDecimal(counter, target, decimals, 1400);
+        }, 300);
+      });
+
+      /* Histogram bars */
+      var histBars = el.querySelectorAll('.s4-hist-bar');
+      if (histBars.length > 0) {
+        setTimeout(function() {
+          animateHistogramBars(el);
+        }, 400);
+      }
+
+      /* Heatmap bars */
+      var heatBars = el.querySelectorAll('.s4-heatmap-bar');
+      if (heatBars.length > 0) {
+        setTimeout(function() {
+          animateHeatmapBars(el);
+        }, 300);
+      }
+
+      /* WIP progress bar */
+      var wipBar = el.querySelector('.s4-wip-bar');
+      if (wipBar) {
+        setTimeout(function() {
+          animateWipBar(el);
+        }, 400);
+      }
+
+      observer.unobserve(el);
+    });
+  }, {
+    threshold: 0.15,
+    rootMargin: '0px 0px -40px 0px'
+  });
+
+  /* ── Observe all animate-on-scroll elements in group-4 ── */
+  var group = document.getElementById('group-4');
+  if (group) {
+    var targets = group.querySelectorAll('.animate-on-scroll');
+    targets.forEach(function(el) {
+      observer.observe(el);
+    });
+  }
+})();
+</script>
