@@ -287,9 +287,12 @@ Critical test categories (add as features land):
 
 ## Where Things Live
 
-- **Task plans, research, working docs** → `.lattice/notes/<task_id>.md` — tied to the task, lives where Lattice expects it. This is the default home for any document associated with a specific task (implementation plans, spike findings, etc.).
-- **Repo-level `notes/`** — only for things NOT tied to a specific task (code reviews, general research, retrospectives).
-- **Don't duplicate** — a plan should live in one place, not both.
+- **Task plans, working docs** → `.lattice/notes/<task_id>.md` — tied to the task, lives where Lattice expects it. This is the default home for any document associated with a specific task (implementation plans, spike findings, etc.).
+- **Repo-level `notes/`** — code reviews, retrospectives, and working documents NOT tied to a specific task.
+- **Repo-level `docs/`** — user-facing documentation: guides, integration docs, getting-started material. Things an end user or adopter would read.
+- **Repo-level `prompts/`** — prompt templates and outstanding implementation checklists. Reusable inputs for agent workflows.
+- **Repo-level `research/`** — external research, competitive analysis, pattern studies, and reference material gathered from outside the project. Things we've learned from others that inform our design.
+- **Don't duplicate** — a document should live in one place, not across multiple folders.
 
 ## Workflow Reminders
 
