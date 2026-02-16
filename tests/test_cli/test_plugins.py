@@ -35,26 +35,26 @@ class TestPluginsCommand:
     @patch("lattice.plugins.entry_points")
     def test_shows_cli_plugins(self, mock_ep: MagicMock) -> None:
         fake_ep = MagicMock()
-        fake_ep.name = "fractal"
-        fake_ep.value = "lattice_fractal:register_cli"
+        fake_ep.name = "stage11"
+        fake_ep.value = "lattice_stage11:register_cli"
         fake_ep.load.return_value = lambda group: None  # no-op register
         mock_ep.return_value = [fake_ep]
 
         runner = CliRunner()
         result = runner.invoke(cli, ["plugins"])
         assert result.exit_code == 0
-        assert "fractal" in result.output
+        assert "stage11" in result.output
 
     @patch("lattice.plugins.entry_points")
     def test_shows_template_blocks(self, mock_ep: MagicMock) -> None:
         def side_effect(group=None):
             if group == "lattice.template_blocks":
                 ep = MagicMock()
-                ep.name = "fractal"
+                ep.name = "stage11"
                 ep.load.return_value = lambda: [
                     {
-                        "marker": "## Lattice -- Fractal",
-                        "content": "Fractal content",
+                        "marker": "## Lattice -- Stage 11",
+                        "content": "Stage 11 content",
                         "position": "after_base",
                     }
                 ]
@@ -66,7 +66,7 @@ class TestPluginsCommand:
         runner = CliRunner()
         result = runner.invoke(cli, ["plugins"])
         assert result.exit_code == 0
-        assert "Lattice -- Fractal" in result.output
+        assert "Lattice -- Stage 11" in result.output
 
 
 class TestPluginRegisteredCommand:
@@ -127,8 +127,8 @@ class TestSetupClaudeWithPlugins:
         """setup-claude should include plugin template blocks in the output."""
         mock_discover.return_value = [
             {
-                "marker": "## Lattice -- Fractal Workflow",
-                "content": "## Lattice -- Fractal Workflow\n\nFractal-specific content.\n",
+                "marker": "## Lattice -- Stage 11 Workflow",
+                "content": "## Lattice -- Stage 11 Workflow\n\nStage 11 specific content.\n",
                 "position": "after_base",
             }
         ]
@@ -140,7 +140,7 @@ class TestSetupClaudeWithPlugins:
         content = (tmp_path / "CLAUDE.md").read_text()
         assert "## Lattice" in content
         assert "The First Act" in content
-        assert "Fractal-specific content" in content
+        assert "Stage 11 specific content" in content
 
     @patch("lattice.plugins.discover_template_blocks")
     def test_setup_claude_force_strips_plugin_blocks(
@@ -149,8 +149,8 @@ class TestSetupClaudeWithPlugins:
         """setup-claude --force should strip plugin sections too."""
         mock_discover.return_value = [
             {
-                "marker": "## Lattice -- Fractal Workflow",
-                "content": "## Lattice -- Fractal Workflow\n\nFractal-specific content.\n",
+                "marker": "## Lattice -- Stage 11 Workflow",
+                "content": "## Lattice -- Stage 11 Workflow\n\nStage 11 specific content.\n",
                 "position": "after_base",
             }
         ]
@@ -160,7 +160,7 @@ class TestSetupClaudeWithPlugins:
         claude_md.write_text(
             "# My Project\n\n## Setup\n\nSetup info.\n\n"
             "## Lattice\n\nOld lattice info.\n\n"
-            "## Lattice -- Fractal Workflow\n\nOld fractal info.\n\n"
+            "## Lattice -- Stage 11 Workflow\n\nOld stage 11 info.\n\n"
             "## Other Section\n\nOther content.\n"
         )
 
@@ -176,10 +176,10 @@ class TestSetupClaudeWithPlugins:
         assert "Other content" in content
         # Old content removed
         assert "Old lattice info" not in content
-        assert "Old fractal info" not in content
+        assert "Old stage 11 info" not in content
         # New content present
         assert "The First Act" in content
-        assert "Fractal-specific content" in content
+        assert "Stage 11 specific content" in content
 
     @patch("lattice.plugins.discover_template_blocks", return_value=[])
     def test_setup_claude_no_plugins_produces_base_only(

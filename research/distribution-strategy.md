@@ -14,7 +14,7 @@ Lattice already has the two hardest pieces built:
 | CLI | Built | `lattice` (Click-based) |
 | MCP Server | Built | `lattice-mcp` (FastMCP, stdio transport) |
 | Package config | Ready | `lattice-tracker` in pyproject.toml |
-| GitHub repo | Private | BenevolentFutures/lattice |
+| GitHub repo | Private | Stage-11-Agentics/lattice |
 | README | Missing | --- |
 | LICENSE | Missing | --- |
 | PyPI | Not published | --- |
@@ -79,9 +79,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Stage11Agentics/lattice"
-Repository = "https://github.com/Stage11Agentics/lattice"
-Documentation = "https://github.com/Stage11Agentics/lattice#readme"
+Homepage = "https://github.com/Stage-11-Agentics/lattice"
+Repository = "https://github.com/Stage-11-Agentics/lattice"
+Documentation = "https://github.com/Stage-11-Agentics/lattice#readme"
 ```
 
 ### 2. GitHub Public Repo --- Visibility and Trust
@@ -90,13 +90,13 @@ Documentation = "https://github.com/Stage11Agentics/lattice#readme"
 **Effort:** Low-medium
 
 **What's needed:**
-- [ ] Decide on GitHub org (Stage11Agentics? LatticeTracker? InferenceConsulting?)
+- [ ] Decide on GitHub org (Stage-11-Agentics? LatticeTracker? InferenceConsulting?)
 - [ ] Add MIT LICENSE file
 - [ ] Write README.md (see template below)
 - [ ] Add CONTRIBUTING.md (lightweight)
 - [ ] Set up GitHub Actions CI (pytest + ruff on push)
 - [ ] Add GitHub topics: `task-tracking`, `agent-native`, `event-sourcing`, `mcp`, `cli`, `ai-agents`, `openclaw`
-- [ ] Transfer or mirror from BenevolentFutures/lattice
+- [ ] Transfer or mirror from Stage-11-Agentics/lattice
 
 ### 3. MCP Server Registry --- The Multiplier
 
@@ -331,7 +331,7 @@ A `/lattice` skill in `~/.claude/commands/lattice.md` that gives Claude Code age
 **Effort:** Medium
 
 ```bash
-brew tap Stage11Agentics/tap
+brew tap Stage-11-Agentics/tap
 brew install lattice-tracker
 ```
 
@@ -560,11 +560,11 @@ Standard for developer tools. Same as OpenClaw. Maximizes adoption.
 ### GitHub Org
 
 Options:
-- `Stage11Agentics/lattice` — company-branded, signals this is a real product
+- `Stage-11-Agentics/lattice` — company-branded, signals this is a real product
 - `lattice-tracker/lattice` — project-branded, feels more community-owned
-- Keep `BenevolentFutures/lattice` and redirect later
+- Keep `Stage-11-Agentics/lattice` and redirect later
 
-**Recommendation:** Start with `Stage11Agentics/lattice` for authenticity, and the name Stage 11 Agentics literally describes what this does (agent coordination at fractal scale).
+**Recommendation:** Start with `Stage-11-Agentics/lattice` for authenticity, and the name Stage 11 Agentics literally describes what this does (agent coordination at fractal scale).
 
 ### MCP vs CLI for Agent Integration
 

@@ -2,8 +2,6 @@
 
 Stage 11 Agentics' file-based, agent-native task tracker with an event-sourced core.
 
-**Company name transition:** The company is renaming from "Fractal Agentics" to "Stage 11 Agentics." Both names are valid and will coexist in the codebase until the rename is complete. Do not treat references to "Fractal Agentics" as errors — they'll be tidied up in a dedicated pass later. New work should use "Stage 11 Agentics" where practical, but don't block on updating old references.
-
 ## Work Intake — Mandatory for All New Work in This Project
 
 This project coordinates through Lattice. The `.lattice/` directory is the coordination state.
@@ -388,7 +386,7 @@ lattice show <task>
 lattice list
 ```
 
-## Lattice -- Fractal Workflow
+## Lattice -- Stage 11 Workflow
 
 This instance follows the Stage 11 Agentics workflow conventions.
 
