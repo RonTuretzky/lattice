@@ -385,9 +385,11 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
             revision = f"{len(nodes)}:{max_updated_at}"
 
             # ETag / 304 support — return early if client has current data
+            etag = f'"{revision}"'  # ETags must be quoted per RFC 7232
             if_none_match = self.headers.get("If-None-Match")
-            if if_none_match and if_none_match == revision:
+            if if_none_match and if_none_match == etag:
                 self.send_response(304)
+                self.send_header("ETag", etag)
                 self.end_headers()
                 return
 
@@ -396,7 +398,7 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.send_header("Content-Length", str(len(data)))
-            self.send_header("ETag", revision)
+            self.send_header("ETag", etag)
             self.end_headers()
             self.wfile.write(data)
 

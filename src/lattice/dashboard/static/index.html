@@ -3633,17 +3633,22 @@ async function renderCube() {
   }, 2000);
 }
 
-async function updateCubeData() {
+function updateCubeData(data) {
   if (!cubeGraph) return;
-  try {
-    var data = await api("/api/graph");
-  } catch (e) { return; }
-  var nodes = (data && data.nodes) || [];
+  if (!data) return;
+  var nodes = (data.nodes) || [];
   if (cubeData && data.revision && cubeData.revision === data.revision) return;
-  cubeCurrentRevision = (data && data.revision) || null;
-  if (nodes.length < 3) { cubeData = data; renderCube(); return; }
+  cubeCurrentRevision = (data.revision) || null;
+  // Only re-render empty state if cube container is actually visible
+  // (prevents clobbering task detail view when currentView is "cube" but detail is showing)
+  if (nodes.length < 3) {
+    cubeData = data;
+    var container = document.getElementById("cube-container");
+    if (container) renderCube();
+    return;
+  }
   cubeData = data;
-  cubeGraph.graphData({ nodes: nodes, links: (data && data.links) || [] });
+  cubeGraph.graphData({ nodes: nodes, links: (data.links) || [] });
 }
 
 function cleanupCube() {
@@ -5127,8 +5132,7 @@ function startAutoRefresh() {
         if (cubeGen !== cubeRenderGeneration) return;
         if (currentView !== "cube") return;
         if (graphData.revision && graphData.revision !== cubeCurrentRevision) {
-          cubeCurrentRevision = graphData.revision;
-          await updateCubeData();
+          updateCubeData(graphData);
         }
       } catch (e) { /* server may be restarting */ }
       return;

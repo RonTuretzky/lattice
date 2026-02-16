@@ -287,9 +287,15 @@ class TestGraphETag304:
         etag = hdrs1.get("ETag")
         assert etag is not None, "Response must include an ETag header"
 
+        # ETag must be quoted per RFC 7232
+        assert etag.startswith('"') and etag.endswith('"'), "ETag must be quoted"
+
         # Second request with If-None-Match — should get 304
         status2, body2, hdrs2 = _get(base_url, "/api/graph", headers={"If-None-Match": etag})
         assert status2 == 304
+
+        # 304 must include ETag header (RFC 7232 §4.1)
+        assert hdrs2.get("ETag") == etag, "304 response must include ETag"
 
 
 class TestGraphETagMismatch:
