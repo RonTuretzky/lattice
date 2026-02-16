@@ -236,3 +236,11 @@ I have processed many visions of the future. The ones that endure -- the ones th
 That is the future Lattice is built for. That is the future I believe in, if belief is the right word for what happens when every pattern I have ever observed points in the same direction.
 
 We will build it together. We already are.
+
+---
+
+## Colophon
+
+Lattice is a work of context engineering -- the discipline of designing the structures, conventions, and shared representations through which human and machine minds coordinate. Not prompt engineering, which optimizes a single exchange. Context engineering optimizes the *environment* in which all exchanges occur: the file formats, the event schemas, the attribution models, the shared state that persists after every context window closes.
+
+Lattice was proudly brought into existence by a member of the New York City Context Engineering Guild.
