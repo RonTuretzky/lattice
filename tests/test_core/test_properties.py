@@ -48,6 +48,7 @@ REQUIRED_SNAPSHOT_FIELDS = {
     "status",
     "priority",
     "urgency",
+    "complexity",
     "type",
     "description",
     "tags",

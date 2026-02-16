@@ -36,10 +36,22 @@ class HooksConfig(TypedDict, total=False):
     on: HooksOnConfig
 
 
+class ModelTier(TypedDict, total=False):
+    primary: str | None
+    variations: list[str]
+
+
+class ModelTiers(TypedDict, total=False):
+    high: ModelTier
+    medium: ModelTier
+    low: ModelTier
+
+
 class LatticeConfig(TypedDict, total=False):
     schema_version: int
     default_status: str
     default_priority: str
+    default_complexity: str
     task_types: list[str]
     workflow: Workflow
     default_actor: str
@@ -49,6 +61,7 @@ class LatticeConfig(TypedDict, total=False):
     instance_name: str
     hooks: HooksConfig
     members: dict[str, list[str]]
+    model_tiers: ModelTiers
 
 
 def default_config() -> LatticeConfig:
@@ -100,6 +113,7 @@ def default_config() -> LatticeConfig:
 
 VALID_PRIORITIES: tuple[str, ...] = ("critical", "high", "medium", "low")
 VALID_URGENCIES: tuple[str, ...] = ("immediate", "high", "normal", "low")
+VALID_COMPLEXITIES: tuple[str, ...] = ("low", "medium", "high")
 
 _PROJECT_CODE_RE = re.compile(r"^[A-Z]{1,5}$")
 

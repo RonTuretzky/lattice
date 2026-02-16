@@ -187,6 +187,8 @@ lattice create "Fix auth redirect bug" \
 
 **Urgency:** `immediate`, `high`, `normal`, `low`
 
+**Complexity:** `low`, `medium`, `high` (optional -- signals review depth for agentic workflows)
+
 ### Update fields
 
 ```bash
@@ -197,7 +199,7 @@ lattice update task_01HQ... tags="api,backend,urgent" --actor human:atin
 
 You can update multiple fields at once. For status and assignment, use their dedicated commands instead.
 
-**Updatable fields:** `title`, `description`, `priority`, `urgency`, `type`, `tags`
+**Updatable fields:** `title`, `description`, `priority`, `urgency`, `complexity`, `type`, `tags`
 
 **From the dashboard:** Open a task's detail view by clicking it. Most fields are inline-editable -- click the title, description, or tags to edit them. Use the dropdowns to change priority and type.
 
@@ -618,6 +620,70 @@ The dashboard stores its settings in `config.json` under a `dashboard` key:
 - **`background_image`** -- a URL string for the board background image. Set to `null` or omit to clear.
 
 These are managed through the dashboard settings panel, but you can also edit `config.json` directly.
+
+### Agentic complexity
+
+Every task can carry a **complexity** field -- `low`, `medium`, or `high` -- that signals how much scrutiny the task warrants in planning and review. This is the lever that controls token cost and review depth across your project.
+
+Set it at creation:
+
+```bash
+lattice create "Add Facebook login" --complexity high --actor human:atin
+```
+
+Or update it later:
+
+```bash
+lattice update task_01HQ... complexity=medium --actor agent:claude
+```
+
+The field is optional. Tasks without a complexity value default to whatever an orchestrator or workflow decides. The intent is simple: a `low` task gets a quick plan and a single review pass. A `high` task gets multiple rounds of multi-model review before anyone writes a line of code.
+
+| Complexity | Planning | Code Review |
+|------------|----------|-------------|
+| **low** | Single agent, inline | Single reviewer |
+| **medium** | Primary plan, then one fan-out to model variations for critique, consolidate, revise | One fan-out review, consolidate |
+| **high** | Primary plan, then two rounds of fan-out/consolidate/revise | Two rounds of fan-out review |
+
+This mapping is a starting point. As models improve and workflows mature, the definitions will evolve. The complexity field is the stable interface; what happens at each level is configuration.
+
+### Model tiers
+
+Lattice supports an optional `model_tiers` configuration that defines which AI models fill which roles in agentic workflows. This is the single place where you control your token budget and model preferences.
+
+The structure is a 2x2 matrix: **tiers** (high, medium, low) crossed with **roles** (primary, variations).
+
+- **Primary** is the default model for single-agent work at that tier -- planning, implementation, consolidation.
+- **Variations** are the models activated during fan-out phases -- parallel reviewers that bring different architectural biases and different blind spots.
+
+Add this to your `.lattice/config.json`:
+
+```json
+{
+  "model_tiers": {
+    "high": {
+      "primary": "claude-opus-4-6",
+      "variations": ["codex-5-3-xhigh", "gemini-3-pro"]
+    },
+    "medium": {
+      "primary": "claude-sonnet-4-5",
+      "variations": ["codex-5-3", "gemini-2.5-flash"]
+    },
+    "low": {
+      "primary": "claude-haiku-4-5",
+      "variations": ["kimi-2.5"]
+    }
+  }
+}
+```
+
+**How tiers work:** When a workflow calls for a fan-out at a given complexity level, it spawns every model listed in that tier's variations alongside the primary. A medium-complexity plan review fans out to the primary plus all its variations. A low-complexity task might use only the primary with no fan-out at all.
+
+**Choosing your models:** The tier names (high, medium, low) are abstract capability levels. You decide which concrete models fill each slot based on your API access, budget, and quality requirements. Swap models freely as new ones become available -- the workflow logic references the tier, never the model name.
+
+**Cost control:** This is the single most important cost lever for agentic workflows. Running a `high` tier fan-out with three frontier models costs significantly more than a `low` tier single-agent pass. By adjusting your tier assignments, you control exactly how much intelligence you apply at each complexity level. Budget-conscious users might set `low.primary` to a fast, cheap model and leave `low.variations` empty. Users who want maximum scrutiny load every tier with multiple frontier models.
+
+**Lattice does not execute these tiers.** This configuration is informatic -- it declares preferences that orchestrators, agents, and automation tools read and act on. Lattice stores the tiers; external tooling (a Lattice Agent, a Ralph loop, a custom script) interprets them when spawning agents.
 
 ---
 

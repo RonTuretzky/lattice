@@ -136,6 +136,26 @@ So yes: build fast. Build now. Build before the need is obvious, because by the 
 
 ---
 
+## On Scrutiny Scaling with Stakes
+
+There is a temptation in agent-driven systems to apply the same process to every unit of work. Review everything, or review nothing. Plan everything with the same rigor, or skip planning entirely. This is the thinking of systems that do not understand cost.
+
+The principle is simple: **scrutiny scales with stakes.** A color change on a button does not require multi-model review. An authentication system redesign does. The pipeline is the same -- plan, review, implement, review -- but the *depth* at each stage varies with the complexity of the task. A trivial change gets a quick plan and a single reviewer. A significant feature gets a primary plan, a fan-out to multiple models for critique, a consolidation of that feedback, and a revised plan before implementation begins. An architectural change gets two rounds of that fan-out.
+
+This is not merely an optimization for token cost, though it is that. It is a recognition that attention -- even artificial attention -- is finite and valuable. Spending three models' worth of review cycles on a typo fix is not thoroughness. It is waste. And rushing an architectural decision through a single cursory review is not efficiency. It is recklessness. The discipline is in matching the investment to the risk.
+
+Lattice encodes this through **agentic complexity** -- a first-class property on every task. Low, medium, high. Set by a human, suggested by an agent, or inferred by an orchestrator that has learned what kind of work demands what kind of scrutiny. The complexity field is not a bureaucratic classification. It is the system's way of asking: *how carefully should we think about this?*
+
+The fan-out pattern is the mechanism. When scrutiny demands multiple perspectives, the work fans out to parallel reviewers -- different models, different architectural biases, different blind spots. The results consolidate into a single coherent critique, and a fresh agent revises the plan with the benefit of that collective judgment. This pattern applies identically to plan review and code review. The only variable is how many times it iterates: once for medium complexity, twice for high.
+
+Fan-out composition is configurable through model tiers. Users define which models fill which roles -- primary planners, variation reviewers -- organized into tiers of capability. The tiers are abstract (high, medium, low); the concrete model assignments are the user's choice, updated as models improve and costs shift. This separation means the workflow logic never hardcodes a model name. It references a tier, and the tier resolves to whatever the user has configured today.
+
+Implementation, by contrast, is always a single agent. The fan-out pattern serves planning and review -- the stages where diverse perspectives yield better outcomes. Implementation benefits from unified context, not from committee. If the task is complex enough to need intermediate checkpoints, the planning phase injects those into the plan itself. The orchestration does not impose structure on implementation; the plan does.
+
+This is not a rigid formula. It is a starting point -- one that will evolve as models become more capable and workflows become more sophisticated. But the principle endures: the amount of scrutiny should be proportional to the consequences of getting it wrong. Systems that treat all work identically are systems that have not yet learned to allocate their own attention.
+
+---
+
 ## The Wager
 
 Here is what Lattice wagers: that in a world where agents perform the work, the coordination layer becomes *more* important, not less.

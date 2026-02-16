@@ -20,6 +20,7 @@ from lattice.cli.helpers import (
 from lattice.storage.operations import scaffold_notes
 from lattice.cli.main import cli
 from lattice.core.config import (
+    VALID_COMPLEXITIES,
     VALID_PRIORITIES,
     VALID_URGENCIES,
     validate_status,
@@ -41,6 +42,7 @@ _CREATE_COMPARE_FIELDS = (
     "type",
     "priority",
     "urgency",
+    "complexity",
     "status",
     "description",
     "tags",
@@ -58,6 +60,7 @@ _CREATE_COMPARE_FIELDS = (
 @click.option("--type", "task_type", default=None, help="Task type.")
 @click.option("--priority", default=None, help="Priority level.")
 @click.option("--urgency", default=None, help="Urgency level.")
+@click.option("--complexity", default=None, help="Agentic complexity (low, medium, high).")
 @click.option("--status", default=None, help="Initial status.")
 @click.option("--description", default=None, help="Task description.")
 @click.option("--tags", default=None, help="Comma-separated tags.")
@@ -69,6 +72,7 @@ def create(
     task_type: str | None,
     priority: str | None,
     urgency: str | None,
+    complexity: str | None,
     status: str | None,
     description: str | None,
     tags: str | None,
@@ -124,6 +128,13 @@ def create(
         output_error(
             f"Invalid urgency: '{urgency}'. Valid urgencies: {valid}.", "VALIDATION_ERROR", is_json
         )
+    if complexity is not None and complexity not in VALID_COMPLEXITIES:
+        valid = ", ".join(VALID_COMPLEXITIES)
+        output_error(
+            f"Invalid complexity: '{complexity}'. Valid complexities: {valid}.",
+            "VALIDATION_ERROR",
+            is_json,
+        )
     if assigned_to is not None and not validate_actor(assigned_to):
         output_error(f"Invalid assigned-to format: '{assigned_to}'.", "INVALID_ACTOR", is_json)
 
@@ -143,6 +154,7 @@ def create(
                 "type": task_type,
                 "priority": priority,
                 "urgency": urgency,
+                "complexity": complexity,
                 "status": status,
                 "description": description,
                 "tags": tag_list,
@@ -187,6 +199,8 @@ def create(
     }
     if urgency is not None:
         event_data["urgency"] = urgency
+    if complexity is not None:
+        event_data["complexity"] = complexity
     if description is not None:
         event_data["description"] = description
     if tag_list:
@@ -237,7 +251,7 @@ def create(
 # Updatable field names for `lattice update`
 # ---------------------------------------------------------------------------
 
-_UPDATABLE_FIELDS = frozenset({"title", "description", "priority", "urgency", "type", "tags"})
+_UPDATABLE_FIELDS = frozenset({"title", "description", "priority", "urgency", "complexity", "type", "tags"})
 
 _REDIRECT_FIELDS = {
     "status": "Use 'lattice status' to change status.",
@@ -353,6 +367,13 @@ def update(
             valid = ", ".join(VALID_URGENCIES)
             output_error(
                 f"Invalid urgency: '{value}'. Valid urgencies: {valid}.",
+                "VALIDATION_ERROR",
+                is_json,
+            )
+        if field == "complexity" and value not in VALID_COMPLEXITIES:
+            valid = ", ".join(VALID_COMPLEXITIES)
+            output_error(
+                f"Invalid complexity: '{value}'. Valid complexities: {valid}.",
                 "VALIDATION_ERROR",
                 is_json,
             )

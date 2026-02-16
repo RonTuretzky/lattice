@@ -595,6 +595,7 @@ class TestCompactSnapshot:
             "status",
             "priority",
             "urgency",
+            "complexity",
             "type",
             "assigned_to",
             "tags",
