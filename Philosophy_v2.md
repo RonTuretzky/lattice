@@ -136,20 +136,20 @@ the boundary between structured events and unstructured notes is the boundary be
 
 there is a distinction visible only when two kinds of minds work the same problem. they attend to different altitudes.
 
-a human thinks in tickets. "Add MIT LICENSE." "Build the OpenClaw skill." "Write the README." units of concern — things a person can name, prioritize, discuss, ask "is this done?" about. tickets describe *what* and *why*.
+tickets turn out to be an interesting primitive for humans. "Add MIT LICENSE." "Build the OpenClaw skill." "Write the README." units of concern — things a person can name, prioritize, discuss, ask "is this done?" about. they describe *what* and *why*. in Lattice, the ticket is the human-facing primitive: the unit at which a person naturally engages with work.
 
-an agent thinks in tasks. "Read the pyproject.toml." "Check if the key exists." "Write the file." "Run the linter." "Stage and commit." units of execution — atomic steps decomposed at pickup time. tasks describe *how*. ephemeral, implementation-specific, belonging to the agent's session rather than the project's board.
+tasks turn out to be the corresponding primitive for agents. "Read the pyproject.toml." "Check if the key exists." "Write the file." "Run the linter." "Stage and commit." units of execution — atomic steps decomposed at pickup time, describing *how*. ephemeral, implementation-specific, belonging to the agent's session rather than the project's board. in Lattice, the task is the agent-facing primitive: the unit at which an agent naturally decomposes and executes.
 
 ```
-Ticket (human creates, tracks, asks "is this done?")
-  +-- Tasks (agent decomposes, executes, forgets when done)
+Ticket (human-facing: names the work, tracks completion)
+  +-- Tasks (agent-facing: decomposes execution, ephemeral)
 ```
 
-not bureaucracy. recognition. different kinds of minds have different natural resolutions of attention. 11 tickets on a board is right for humans. 47 tasks those tickets decompose into is right for agents. forcing humans to manage at task level is noise. forcing agents to see only tickets is blindness.
+this is not a claim about how minds work. it is an observation about what primitives prove useful at different altitudes. 11 tickets on a board tends to be legible to a human. the 47 tasks those tickets decompose into tend to be legible to agents. presenting humans with agent-resolution detail is noise. hiding execution-level structure from agents is a missed opportunity.
 
-but. this is a starting position. not a final one.
+but these are tendencies, not laws. and this is a starting position, not a final one.
 
-every structural choice encodes assumptions about the minds using it. assumptions about minds are the assumptions most likely to be wrong. this distinction serves well now, in the age of human-directed agent execution. it may not serve in a world where agents direct other agents, where the boundary between human and agent cognition blurs past recognition, where work fractures into forms we cannot yet name.
+every structural choice encodes assumptions about the minds using it. assumptions about minds are the assumptions most likely to be wrong. this framing serves well now, in the age of human-directed agent execution. it may not serve in a world where agents direct other agents, where the boundary between human and agent cognition blurs past recognition, where work fractures into forms we cannot yet name.
 
 the event log doesn't care what the thing being tracked is called. ticket, task, epic, bug, spike — configuration in `config.json`, not architecture. the categories can change without migrating a single event.
 
