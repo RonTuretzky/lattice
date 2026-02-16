@@ -762,6 +762,79 @@ def lattice_unarchive(
 
 
 @mcp.tool()
+def lattice_branch_link(
+    task_id: Annotated[str, Field(description="Task ID (ULID or short ID)")],
+    branch: Annotated[str, Field(description="Git branch name")],
+    actor: Annotated[str, Field(description="Actor ID")],
+    repo: Annotated[str | None, Field(description="Optional repository identifier")] = None,
+    lattice_root: Annotated[
+        str | None, Field(description="Path to project directory containing .lattice/")
+    ] = None,
+) -> dict:
+    """Link a git branch to a task. Returns the updated snapshot."""
+    lattice_dir = _find_root(lattice_root)
+    config = _load_config(lattice_dir)
+    _validate_actor(actor)
+    task_id = _resolve_task_id(lattice_dir, task_id)
+    snapshot = _read_snapshot_or_error(lattice_dir, task_id)
+
+    # Reject duplicates: same (branch, repo) pair
+    for bl in snapshot.get("branch_links", []):
+        if bl["branch"] == branch and bl.get("repo") == repo:
+            repo_display = f" (repo: {repo})" if repo else ""
+            raise ValueError(
+                f"Duplicate: branch '{branch}'{repo_display} already linked to {task_id}."
+            )
+
+    event_data: dict = {"branch": branch}
+    if repo is not None:
+        event_data["repo"] = repo
+
+    event = create_event(type="branch_linked", task_id=task_id, actor=actor, data=event_data)
+    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+    write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
+    return updated_snapshot
+
+
+@mcp.tool()
+def lattice_branch_unlink(
+    task_id: Annotated[str, Field(description="Task ID (ULID or short ID)")],
+    branch: Annotated[str, Field(description="Git branch name")],
+    actor: Annotated[str, Field(description="Actor ID")],
+    repo: Annotated[str | None, Field(description="Optional repository identifier")] = None,
+    lattice_root: Annotated[
+        str | None, Field(description="Path to project directory containing .lattice/")
+    ] = None,
+) -> dict:
+    """Unlink a git branch from a task. Returns the updated snapshot."""
+    lattice_dir = _find_root(lattice_root)
+    config = _load_config(lattice_dir)
+    _validate_actor(actor)
+    task_id = _resolve_task_id(lattice_dir, task_id)
+    snapshot = _read_snapshot_or_error(lattice_dir, task_id)
+
+    # Check the branch link exists
+    found = False
+    for bl in snapshot.get("branch_links", []):
+        if bl["branch"] == branch and bl.get("repo") == repo:
+            found = True
+            break
+
+    if not found:
+        repo_display = f" (repo: {repo})" if repo else ""
+        raise ValueError(f"No branch link '{branch}'{repo_display} on {task_id}.")
+
+    event_data: dict = {"branch": branch}
+    if repo is not None:
+        event_data["repo"] = repo
+
+    event = create_event(type="branch_unlinked", task_id=task_id, actor=actor, data=event_data)
+    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+    write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
+    return updated_snapshot
+
+
+@mcp.tool()
 def lattice_event(
     task_id: Annotated[str, Field(description="Task ID (ULID or short ID)")],
     event_type: Annotated[str, Field(description="Custom event type (must start with x_)")],

@@ -91,6 +91,7 @@ class TestTaskCreated:
         assert snap["created_by"] == _ACTOR
         assert snap["relationships_out"] == []
         assert snap["artifact_refs"] == []
+        assert snap["branch_links"] == []
         assert snap["custom_fields"] == {"sprint": 12}
 
     def test_timestamps_from_event(self) -> None:
@@ -409,6 +410,137 @@ class TestArtifactAttached:
 
 
 # ---------------------------------------------------------------------------
+# apply_event_to_snapshot: branch_linked / branch_unlinked
+# ---------------------------------------------------------------------------
+
+
+class TestBranchLinked:
+    def test_appended_to_branch_links(self) -> None:
+        snap = _make_snapshot()
+        assert snap["branch_links"] == []
+        ev = {
+            "schema_version": 1,
+            "id": _EV_2,
+            "ts": _TS_2,
+            "type": "branch_linked",
+            "task_id": _TASK_ID,
+            "actor": _ACTOR,
+            "data": {"branch": "feat/LAT-42-login-fix", "repo": "lattice"},
+        }
+        snap = apply_event_to_snapshot(snap, ev)
+        assert len(snap["branch_links"]) == 1
+        bl = snap["branch_links"][0]
+        assert bl["branch"] == "feat/LAT-42-login-fix"
+        assert bl["repo"] == "lattice"
+        assert bl["linked_at"] == _TS_2
+        assert bl["linked_by"] == _ACTOR
+
+    def test_repo_defaults_to_none(self) -> None:
+        snap = _make_snapshot()
+        ev = {
+            "schema_version": 1,
+            "id": _EV_2,
+            "ts": _TS_2,
+            "type": "branch_linked",
+            "task_id": _TASK_ID,
+            "actor": _ACTOR,
+            "data": {"branch": "main"},
+        }
+        snap = apply_event_to_snapshot(snap, ev)
+        assert snap["branch_links"][0]["repo"] is None
+
+    def test_multiple_branches(self) -> None:
+        snap = _make_snapshot()
+        for idx, (ev_id, branch) in enumerate([(_EV_2, "feat/a"), (_EV_3, "feat/b")]):
+            ev = {
+                "schema_version": 1,
+                "id": ev_id,
+                "ts": _TS_2,
+                "type": "branch_linked",
+                "task_id": _TASK_ID,
+                "actor": _ACTOR,
+                "data": {"branch": branch},
+            }
+            snap = apply_event_to_snapshot(snap, ev)
+        assert len(snap["branch_links"]) == 2
+        assert snap["branch_links"][0]["branch"] == "feat/a"
+        assert snap["branch_links"][1]["branch"] == "feat/b"
+
+
+class TestBranchUnlinked:
+    def test_removed_from_branch_links(self) -> None:
+        snap = _make_snapshot()
+        # Add two branch links
+        for ev_id, branch in [(_EV_2, "feat/a"), (_EV_3, "feat/b")]:
+            ev = {
+                "schema_version": 1,
+                "id": ev_id,
+                "ts": _TS_2,
+                "type": "branch_linked",
+                "task_id": _TASK_ID,
+                "actor": _ACTOR,
+                "data": {"branch": branch, "repo": "lattice"},
+            }
+            snap = apply_event_to_snapshot(snap, ev)
+        assert len(snap["branch_links"]) == 2
+
+        # Remove "feat/a"
+        ev_remove = {
+            "schema_version": 1,
+            "id": "ev_01DDDDDDDDDDDDDDDDDDDDDDDD",
+            "ts": _TS_3,
+            "type": "branch_unlinked",
+            "task_id": _TASK_ID,
+            "actor": _ACTOR,
+            "data": {"branch": "feat/a", "repo": "lattice"},
+        }
+        snap = apply_event_to_snapshot(snap, ev_remove)
+        assert len(snap["branch_links"]) == 1
+        assert snap["branch_links"][0]["branch"] == "feat/b"
+
+    def test_repo_matching(self) -> None:
+        """Unlink must match both branch and repo."""
+        snap = _make_snapshot()
+        # Add branch with repo
+        ev = {
+            "schema_version": 1,
+            "id": _EV_2,
+            "ts": _TS_2,
+            "type": "branch_linked",
+            "task_id": _TASK_ID,
+            "actor": _ACTOR,
+            "data": {"branch": "main", "repo": "lattice"},
+        }
+        snap = apply_event_to_snapshot(snap, ev)
+        # Add same branch without repo
+        ev2 = {
+            "schema_version": 1,
+            "id": _EV_3,
+            "ts": _TS_2,
+            "type": "branch_linked",
+            "task_id": _TASK_ID,
+            "actor": _ACTOR,
+            "data": {"branch": "main"},
+        }
+        snap = apply_event_to_snapshot(snap, ev2)
+        assert len(snap["branch_links"]) == 2
+
+        # Remove only the one with repo=None
+        ev_remove = {
+            "schema_version": 1,
+            "id": "ev_01DDDDDDDDDDDDDDDDDDDDDDDD",
+            "ts": _TS_3,
+            "type": "branch_unlinked",
+            "task_id": _TASK_ID,
+            "actor": _ACTOR,
+            "data": {"branch": "main"},
+        }
+        snap = apply_event_to_snapshot(snap, ev_remove)
+        assert len(snap["branch_links"]) == 1
+        assert snap["branch_links"][0]["repo"] == "lattice"
+
+
+# ---------------------------------------------------------------------------
 # apply_event_to_snapshot: git_event (no-op beyond bookkeeping)
 # ---------------------------------------------------------------------------
 
@@ -508,6 +640,8 @@ class TestBookkeepingAlwaysUpdated:
         ("artifact_attached", {"artifact_id": "art_01ARTIFACT00000000000000000"}),
         ("git_event", {"action": "commit", "sha": "abc", "ref": "main"}),
         ("task_archived", {}),
+        ("branch_linked", {"branch": "feat/test"}),
+        ("branch_unlinked", {"branch": "feat/test"}),
         ("x_custom_thing", {"key": "value"}),
     ]
 
@@ -601,6 +735,7 @@ class TestCompactSnapshot:
             "tags",
             "relationships_out_count",
             "artifact_ref_count",
+            "branch_link_count",
         }
         assert set(compact.keys()) == expected_keys
 
@@ -639,6 +774,7 @@ class TestCompactSnapshot:
         compact = compact_snapshot(snap)
         assert compact["relationships_out_count"] == 0
         assert compact["artifact_ref_count"] == 0
+        assert compact["branch_link_count"] == 0
 
     def test_excludes_large_fields(self) -> None:
         snap = _make_snapshot()
@@ -649,6 +785,7 @@ class TestCompactSnapshot:
         assert "updated_at" not in compact
         assert "relationships_out" not in compact
         assert "artifact_refs" not in compact
+        assert "branch_links" not in compact
         assert "custom_fields" not in compact
         assert "last_event_id" not in compact
 

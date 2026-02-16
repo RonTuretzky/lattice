@@ -1,4 +1,4 @@
-"""Relationship commands: link, unlink."""
+"""Relationship and branch-link commands: link, unlink, branch-link, branch-unlink."""
 
 from __future__ import annotations
 
@@ -216,6 +216,169 @@ def unlink(
     output_result(
         data=updated_snapshot,
         human_message=(f"Unlinked {task_id} --[{rel_type}]--> {target_task_id}"),
+        quiet_value=task_id,
+        is_json=is_json,
+        is_quiet=quiet,
+    )
+
+
+# ---------------------------------------------------------------------------
+# lattice branch-link
+# ---------------------------------------------------------------------------
+
+
+@cli.command("branch-link")
+@click.argument("task_id")
+@click.argument("branch")
+@click.option("--repo", default=None, help="Optional repository identifier.")
+@common_options
+def branch_link(
+    task_id: str,
+    branch: str,
+    repo: str | None,
+    actor: str,
+    model: str | None,
+    session: str | None,
+    output_json: bool,
+    quiet: bool,
+    triggered_by: str | None,
+    on_behalf_of: str | None,
+    provenance_reason: str | None,
+) -> None:
+    """Link a git branch to a task."""
+    is_json = output_json
+
+    lattice_dir = require_root(is_json)
+    config = load_project_config(lattice_dir)
+    validate_actor_or_exit(actor, is_json)
+    if on_behalf_of is not None:
+        validate_actor_or_exit(on_behalf_of, is_json)
+
+    task_id = resolve_task_id(lattice_dir, task_id, is_json)
+
+    # Validate task exists
+    snapshot = read_snapshot_or_exit(lattice_dir, task_id, is_json)
+
+    # Reject duplicates: same (branch, repo) pair
+    for bl in snapshot.get("branch_links", []):
+        if bl["branch"] == branch and bl.get("repo") == repo:
+            repo_display = f" (repo: {repo})" if repo else ""
+            output_error(
+                f"Duplicate: branch '{branch}'{repo_display} already linked to {task_id}.",
+                "CONFLICT",
+                is_json,
+            )
+
+    # Build event
+    event_data: dict = {"branch": branch}
+    if repo is not None:
+        event_data["repo"] = repo
+
+    event = create_event(
+        type="branch_linked",
+        task_id=task_id,
+        actor=actor,
+        data=event_data,
+        model=model,
+        session=session,
+        triggered_by=triggered_by,
+        on_behalf_of=on_behalf_of,
+        reason=provenance_reason,
+    )
+    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+
+    # Write (event-first, then snapshot, under lock)
+    write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
+
+    # Output
+    repo_display = f" (repo: {repo})" if repo else ""
+    output_result(
+        data=updated_snapshot,
+        human_message=f"Linked branch '{branch}'{repo_display} to {task_id}",
+        quiet_value=task_id,
+        is_json=is_json,
+        is_quiet=quiet,
+    )
+
+
+# ---------------------------------------------------------------------------
+# lattice branch-unlink
+# ---------------------------------------------------------------------------
+
+
+@cli.command("branch-unlink")
+@click.argument("task_id")
+@click.argument("branch")
+@click.option("--repo", default=None, help="Optional repository identifier.")
+@common_options
+def branch_unlink(
+    task_id: str,
+    branch: str,
+    repo: str | None,
+    actor: str,
+    model: str | None,
+    session: str | None,
+    output_json: bool,
+    quiet: bool,
+    triggered_by: str | None,
+    on_behalf_of: str | None,
+    provenance_reason: str | None,
+) -> None:
+    """Unlink a git branch from a task."""
+    is_json = output_json
+
+    lattice_dir = require_root(is_json)
+    config = load_project_config(lattice_dir)
+    validate_actor_or_exit(actor, is_json)
+    if on_behalf_of is not None:
+        validate_actor_or_exit(on_behalf_of, is_json)
+
+    task_id = resolve_task_id(lattice_dir, task_id, is_json)
+
+    # Validate task exists
+    snapshot = read_snapshot_or_exit(lattice_dir, task_id, is_json)
+
+    # Validate the branch link exists
+    found = False
+    for bl in snapshot.get("branch_links", []):
+        if bl["branch"] == branch and bl.get("repo") == repo:
+            found = True
+            break
+
+    if not found:
+        repo_display = f" (repo: {repo})" if repo else ""
+        output_error(
+            f"No branch link '{branch}'{repo_display} on {task_id}.",
+            "NOT_FOUND",
+            is_json,
+        )
+
+    # Build event
+    event_data: dict = {"branch": branch}
+    if repo is not None:
+        event_data["repo"] = repo
+
+    event = create_event(
+        type="branch_unlinked",
+        task_id=task_id,
+        actor=actor,
+        data=event_data,
+        model=model,
+        session=session,
+        triggered_by=triggered_by,
+        on_behalf_of=on_behalf_of,
+        reason=provenance_reason,
+    )
+    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+
+    # Write (event-first, then snapshot, under lock)
+    write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
+
+    # Output
+    repo_display = f" (repo: {repo})" if repo else ""
+    output_result(
+        data=updated_snapshot,
+        human_message=f"Unlinked branch '{branch}'{repo_display} from {task_id}",
         quiet_value=task_id,
         is_json=is_json,
         is_quiet=quiet,

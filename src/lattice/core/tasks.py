@@ -21,6 +21,7 @@ PROTECTED_FIELDS: frozenset[str] = frozenset(
         "assigned_to",
         "relationships_out",
         "artifact_refs",
+        "branch_links",
         "custom_fields",
     }
 )
@@ -89,6 +90,7 @@ def compact_snapshot(snapshot: dict) -> dict:
         "tags": snapshot.get("tags"),
         "relationships_out_count": len(snapshot.get("relationships_out", [])),
         "artifact_ref_count": len(snapshot.get("artifact_refs", [])),
+        "branch_link_count": len(snapshot.get("branch_links", [])),
     }
     short_id = snapshot.get("short_id")
     if short_id is not None:
@@ -121,6 +123,7 @@ def _init_snapshot(event: dict) -> dict:
         "updated_at": event["ts"],
         "relationships_out": [],
         "artifact_refs": [],
+        "branch_links": [],
         "custom_fields": data.get("custom_fields") or {},
         "last_event_id": event["id"],
     }
@@ -224,6 +227,31 @@ def _mut_artifact_attached(snap: dict, event: dict) -> None:
 @_register_mutation("task_short_id_assigned")
 def _mut_task_short_id_assigned(snap: dict, event: dict) -> None:
     snap["short_id"] = event["data"]["short_id"]
+
+
+@_register_mutation("branch_linked")
+def _mut_branch_linked(snap: dict, event: dict) -> None:
+    data = event["data"]
+    record = {
+        "branch": data["branch"],
+        "repo": data.get("repo"),
+        "linked_at": event["ts"],
+        "linked_by": event["actor"],
+    }
+    snap.setdefault("branch_links", []).append(record)
+
+
+@_register_mutation("branch_unlinked")
+def _mut_branch_unlinked(snap: dict, event: dict) -> None:
+    data = event["data"]
+    rm_branch = data["branch"]
+    rm_repo = data.get("repo")
+    links = [
+        bl
+        for bl in snap.get("branch_links", [])
+        if not (bl["branch"] == rm_branch and bl.get("repo") == rm_repo)
+    ]
+    snap["branch_links"] = links
 
 
 def _apply_mutation(snap: dict, etype: str, event: dict) -> None:
