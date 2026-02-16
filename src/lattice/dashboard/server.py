@@ -74,6 +74,8 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
 
             if path == "/":
                 self._serve_static("index.html", "text/html")
+            elif path == "/stats-demo":
+                self._serve_notes_file("stats-demo/demo.html", "text/html")
             elif path.startswith("/api/"):
                 self._route_api(path)
             else:
@@ -100,6 +102,20 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
             filepath = STATIC_DIR / filename
             if not filepath.is_file():
                 self._send_json(404, _err("NOT_FOUND", f"Static file not found: {filename}"))
+                return
+            data = filepath.read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", f"{content_type}; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def _serve_notes_file(self, relpath: str, content_type: str) -> None:
+            """Serve a file from the repo's notes/ directory."""
+            repo_root = Path(self._lattice_dir).resolve().parent
+            filepath = repo_root / "notes" / relpath
+            if not filepath.is_file():
+                self._send_json(404, _err("NOT_FOUND", f"File not found: {relpath}"))
                 return
             data = filepath.read_bytes()
             self.send_response(200)

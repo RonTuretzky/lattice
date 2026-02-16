@@ -4573,6 +4573,10 @@ async function renderStats() {
       html += '</tbody></table></div>';
     }
 
+    html += '<div style="margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);font-size:.8rem;opacity:.6">';
+    html += '<a href="/stats-demo" target="_blank" style="color:var(--accent)">Stats Demo Page</a> — 27 prototype improvements for review';
+    html += '</div>';
+
     html += '</div>';
     app.innerHTML = html;
   } catch(e) {
