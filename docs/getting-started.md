@@ -96,7 +96,7 @@ lattice create "Fix login redirect bug" \
   --assigned-to human:alice
 ```
 
-**Types:** `task`, `epic`, `bug`, `spike`, `chore`
+**Types:** `task`, `epic`, `bug`, `spike`, `chore`, `ticket`
 **Priorities:** `critical`, `high`, `medium`, `low`
 
 ## Move through the workflow

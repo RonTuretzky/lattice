@@ -180,7 +180,7 @@ Recommended (nullable/optional):
 - `description` (string)
 - `priority` (enum: `critical`, `high`, `medium`, `low`)
 - `urgency` (enum: `immediate`, `high`, `normal`, `low`)
-- `type` (enum: `task`, `epic`, `bug`, `spike`, `chore`)
+- `type` (enum: `task`, `epic`, `bug`, `spike`, `chore`, `ticket`)
 - `tags` (array of strings)
 - `assigned_to` (prefixed string: `agent:{id}` / `human:{id}` / `team:{id}`)
 - `created_by` (same format)
