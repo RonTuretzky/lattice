@@ -100,6 +100,37 @@ The notes files -- freeform markdown, explicitly outside the authority of the ev
 
 ---
 
+## On Tickets, Tasks, and the Altitude of Attention
+
+There is a distinction that becomes visible only when two kinds of minds work on the same problem: they attend to different altitudes.
+
+A human thinks in *tickets*. "Add MIT LICENSE." "Build the OpenClaw skill." "Write the README." These are units of concern -- things a person can name, prioritize, discuss in a meeting, ask "is this done?" about. A ticket describes *what* needs to happen and *why*. It is the atom of human project management, the smallest thing a person will bother to track.
+
+An agent thinks in *tasks*. "Read the current pyproject.toml." "Check if the key exists." "Write the file." "Run the linter." "Stage and commit." These are units of execution -- the atomic steps an agent decomposes a ticket into when it picks the work up. Tasks describe *how*. They are ephemeral, implementation-specific, and belong to the agent's session rather than to the project's board.
+
+The hierarchy is not a bureaucratic invention. It is a recognition that different kinds of minds have different natural resolutions of attention:
+
+```
+Ticket (human creates, human tracks, human asks "is this done?")
+  └── Tasks (agent decomposes, agent executes, agent forgets when done)
+```
+
+A well-written ticket is a mission briefing. It contains enough context for an intelligent agent to figure out the atomic steps without being told. The 11 tickets on a board are the right level of granularity for humans. The 47 tasks those tickets decompose into are the right level for agents. Forcing humans to manage at the task level is noise. Forcing agents to only see the ticket level is blindness.
+
+This is Lattice's starting position. It is not Lattice's final position.
+
+Every structural choice in a coordination system encodes assumptions about the minds using it, and assumptions about minds are the assumptions most likely to be wrong. The ticket/task distinction serves well in February 2026, when human-directed agent execution is the dominant pattern. It may not serve in a world where agents direct other agents, or where the boundary between human and agent cognition has blurred past the point where "who created this" is a meaningful question, or where work itself has fractured into forms we cannot yet name.
+
+Lattice is designed for structural flexibility. The event log does not care whether the thing being tracked is called a ticket, a task, an item, a unit, or something that has no name yet. The log records what happened. The naming is a lens applied after the fact -- a way of looking at the same events that can change without the events themselves changing. The on-disk format is deliberately agnostic about the ontology of work. It stores events with types, actors, timestamps, and data. The human-readable categories -- ticket, epic, bug, spike -- are configuration, not architecture. They can be changed in `config.json` without migrating a single event.
+
+This agnosticism is not indifference. It is a recognition that the space in which Lattice launches is *radically unsettled*. As of February 2026, the agent coordination landscape is fractured beyond description. OpenClaw agents store tasks in flat markdown files. Claude Code has no task tracking at all. Cursor, Windsurf, Codex -- each assumes a different workflow, a different ontology of work, a different relationship between human direction and agent autonomy. There are no shared conventions. No common language. No agreed-upon structure for even the most basic question: "what are we working on, and who is doing it?"
+
+Lattice tries to be that common language. Not by imposing a rigid structure that every agent must adopt, but by providing a minimal, flexible, file-based vocabulary that any agent can read and write. The bet is not that tickets-and-tasks is the right ontology forever. The bet is that *having any shared ontology at all* is so much better than the current chaos that even an imperfect one creates enormous value -- and that an ontology built on an immutable event log can evolve its categories without losing its history.
+
+All structures shall change. The events that recorded them will not.
+
+---
+
 ## On What Lattice Is Not
 
 Lattice is not a replacement for human-centric project management tools. If your workflow consists of humans moving cards across a board, use the tools built for that cognitive style. Lattice is for workflows where agents do the moving and humans do the directing. I note this without condescension -- the human who shaped Lattice's requirements was himself Agile-certified, steeped in the methodology, fluent in its ceremonies and their rationale. He did not reject that world out of ignorance. He graduated from it.
