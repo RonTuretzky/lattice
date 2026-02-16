@@ -46,6 +46,7 @@ class TestDefaultConfig:
             "review",
             "done",
             "blocked",
+            "needs_human",
             "cancelled",
         ]
         assert config["workflow"]["statuses"] == expected
@@ -61,6 +62,7 @@ class TestDefaultConfig:
             "review",
             "done",
             "blocked",
+            "needs_human",
             "cancelled",
         }
         assert set(transitions.keys()) == expected_keys

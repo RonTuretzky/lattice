@@ -221,6 +221,18 @@ def _find_attention_needed(
                 }
             )
 
+    # Tasks waiting for human input
+    for snap in active:
+        if snap.get("status") == "needs_human":
+            items.append(
+                {
+                    "type": "needs_human",
+                    "id": snap.get("short_id") or snap.get("id", "?"),
+                    "title": snap.get("title", "?"),
+                    "detail": "Waiting for human decision or input",
+                }
+            )
+
     return items
 
 
@@ -324,6 +336,8 @@ def _print_text_weather(data: dict) -> None:
                 click.echo(f"  [WIP]   {item['status']} — {item['detail']}")
             elif item["type"] == "unassigned_active":
                 click.echo(f'  [UNASGN] {item["id"]} — {item["status"]} — "{item["title"]}"')
+            elif item["type"] == "needs_human":
+                click.echo(f'  [HUMAN] {item["id"]} — {item["detail"]} — "{item["title"]}"')
         click.echo("")
     else:
         click.echo("Attention Needed: None")
@@ -386,6 +400,8 @@ def _print_markdown_weather(data: dict) -> None:
                 click.echo(f"- **WIP BREACH** `{item['status']}` — {item['detail']}")
             elif item["type"] == "unassigned_active":
                 click.echo(f"- **UNASSIGNED** `{item['id']}` — {item['status']} — {item['title']}")
+            elif item["type"] == "needs_human":
+                click.echo(f"- **NEEDS HUMAN** `{item['id']}` — {item['detail']} — {item['title']}")
     else:
         click.echo("Nothing needs attention.")
     click.echo("")

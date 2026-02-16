@@ -23,6 +23,7 @@ valid_statuses = st.sampled_from(
         "review",
         "done",
         "blocked",
+        "needs_human",
         "cancelled",
     ]
 )

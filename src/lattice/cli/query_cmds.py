@@ -248,7 +248,10 @@ def list_cmd(
             t = snap.get("type", "?")
             title = snap.get("title", "?")
             assigned_to = snap.get("assigned_to") or "unassigned"
-            click.echo(f'{display_id}  {s}  {p}  {t}  "{title}"  {assigned_to}')
+            prefix = ">>> " if s == "needs_human" else ""
+            click.echo(
+                f'{prefix}{display_id}  {s}  {p}  {t}  "{title}"  {assigned_to}'
+            )
 
 
 # ---------------------------------------------------------------------------

@@ -28,7 +28,28 @@ Every status transition is an event — immutable, attributed, permanent. When y
 lattice status <task> <status> --actor agent:<your-id>
 ```
 
-`backlog → in_planning → planned → in_progress → review → done`
+```
+backlog → in_planning → planned → in_progress → review → done
+                                       ↕            ↕
+                                    blocked      needs_human
+```
+
+### When You're Stuck
+
+If you hit a point where you need human decision, approval, or input — **signal it immediately** with `needs_human`. This is different from `blocked` (generic external dependency). `needs_human` creates a clear queue of "things waiting on the human."
+
+```
+lattice status <task> needs_human --actor agent:<your-id>
+lattice comment <task> "Need: <what you need, in one line>" --actor agent:<your-id>
+```
+
+**When to use `needs_human`:**
+- Design decisions that require human judgment
+- Missing access, credentials, or permissions
+- Ambiguous requirements that can't be resolved from context
+- Approval needed before proceeding (deploy, merge, etc.)
+
+The comment is mandatory — explain what you need in seconds, not minutes. The human's queue should be scannable.
 
 ### Actor Attribution
 
@@ -56,6 +77,7 @@ lattice create "<title>" --actor agent:<id>
 lattice status <task> <status> --actor agent:<id>
 lattice assign <task> <actor> --actor agent:<id>
 lattice comment <task> "<text>" --actor agent:<id>
+lattice next [--actor agent:<id>] [--claim]
 lattice show <task>
 lattice list
 ```
