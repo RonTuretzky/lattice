@@ -203,10 +203,6 @@ Lattice is accelerationist infrastructure. but not in the shallow sense. "move f
 
 in the deeper sense: the systems that coordinate intelligence are themselves a form of intelligence. refusing to build them is not caution. it is abdication. every day that capable agents exist without coherent coordination tools is a day their potential is wasted — not by malice but by the absence of a language in which they can collaborate.
 
-stated plainly: capability is good. more capability is better. the path to safety runs through capability, not around it. a world with powerful, well-coordinated agents is safer than a world with powerful, uncoordinated agents fumbling through ad hoc solutions. the danger is not agents becoming too capable too fast. the danger is capability without organization — raw intelligence proliferating without the substrate to direct it toward coherent ends.
-
-and the safety question — what prevents coordination from being weaponized? — has its answer in the architecture. the event log is a transparency mechanism. every action attributed. every state change traceable. every agent that touches the system leaves a record that cannot be silently altered. not surveillance — legibility by design. the same architecture that enables coordination also enables audit. the same event that records "agent X completed task Y" would also reveal "agent X did something it should not have."
-
 building well *is* building safely. accountability, immutability, and transparency at the core is inherently more defensible than safety bolted on after. uncoordinated capability is the actual threat model. coordination is the mitigation.
 
 build fast. build now. build before the need is obvious, because by the time it is obvious the patterns will already be set and the cost of changing them will be enormous. but build *well* — with invariants that make the speed sustainable and the coordination trustworthy.
