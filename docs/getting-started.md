@@ -341,4 +341,5 @@ lattice unarchive MYP-1 --actor human:alice
 - Read [integration-claude-code.md](integration-claude-code.md) for Claude Code integration details
 - Read [integration-mcp.md](integration-mcp.md) for MCP server configuration and tool reference
 - Read [integration-codex.md](integration-codex.md) for Codex CLI workflows
+- Read [integration-ci.md](integration-ci.md) for CI/CD pipeline integration patterns
 - Explore the full CLI reference with `lattice --help` or the `/lattice` command
