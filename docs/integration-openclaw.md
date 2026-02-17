@@ -236,6 +236,39 @@ The Lattice skill teaches your agent this protocol. You don't need to spell it o
 
 ---
 
+## Heartbeat mode: autonomous advancing
+
+During `lattice init`, you were asked whether to enable **heartbeat mode**. If you said yes, your agent doesn't stop after one task — it keeps sweeping the backlog automatically.
+
+With heartbeat enabled, the agent loops:
+
+1. Claims the highest-priority task and works it
+2. Transitions the task (`review`, `done`, `needs_human`, `blocked`)
+3. If the task needs you (`needs_human` or `blocked`), **stops and reports**
+4. Otherwise, claims the next task and keeps going
+5. Stops after 5 tasks (configurable) or when the backlog is empty
+
+This is the heartbeat — the steady pulse of forward progress. You fill the backlog, walk away, come back to a sorted inbox with work completed, decisions queued, and blockers identified.
+
+The Lattice skill reads the heartbeat config automatically. Just tell your OpenClaw agent "advance the project" and it will keep going until it needs you or runs out of work.
+
+To enable heartbeat on an existing project, add this to `.lattice/config.json`:
+
+```json
+"heartbeat": {
+  "enabled": true,
+  "max_advances": 5
+}
+```
+
+Then reinstall the skill to get the latest instructions:
+
+```bash
+lattice setup-openclaw --force
+```
+
+---
+
 ## Troubleshooting
 
 **Agent doesn't know about Lattice.**

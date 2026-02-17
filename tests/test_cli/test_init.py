@@ -384,7 +384,7 @@ class TestInitClaudeMd:
         runner = CliRunner()
         result = runner.invoke(
             cli,
-            ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST"],
+            ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST", "--no-heartbeat"],
             input="y\n",  # yes to CLAUDE.md integration
         )
         assert result.exit_code == 0
@@ -400,7 +400,7 @@ class TestInitClaudeMd:
         runner = CliRunner()
         result = runner.invoke(
             cli,
-            ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST"],
+            ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST", "--no-heartbeat"],
             input="y\n",  # yes to create CLAUDE.md
         )
         assert result.exit_code == 0
@@ -418,7 +418,7 @@ class TestInitClaudeMd:
         runner = CliRunner()
         result = runner.invoke(
             cli,
-            ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST"],
+            ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST", "--no-heartbeat"],
             input="n\n",  # no to CLAUDE.md
         )
         assert result.exit_code == 0
@@ -435,7 +435,7 @@ class TestInitClaudeMd:
         runner = CliRunner()
         result = runner.invoke(
             cli,
-            ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST"],
+            ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST", "--no-heartbeat"],
             input="n\n",  # no to CLAUDE.md
         )
         assert result.exit_code == 0
@@ -447,10 +447,10 @@ class TestInitClaudeMd:
         claude_md.write_text("# My Project\n\n## Lattice\n\nAlready integrated.\n")
 
         runner = CliRunner()
-        # No input needed — should detect existing block and skip prompt
+        # No input needed for CLAUDE.md — should detect existing block and skip prompt
         result = runner.invoke(
             cli,
-            ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST"],
+            ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST", "--no-heartbeat"],
         )
         assert result.exit_code == 0
         assert "already has Lattice integration" in result.output
@@ -458,6 +458,39 @@ class TestInitClaudeMd:
         # Content unchanged (no duplicate block)
         content = claude_md.read_text()
         assert content.count("## Lattice") == 1
+
+    def test_init_heartbeat_stores_config(self, tmp_path: Path) -> None:
+        """Init with heartbeat enabled -> config.json has heartbeat section."""
+        import json
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST", "--heartbeat"],
+            input="n\n",  # no to CLAUDE.md
+        )
+        assert result.exit_code == 0
+        assert "Heartbeat: enabled" in result.output
+
+        config = json.loads((tmp_path / ".lattice" / "config.json").read_text())
+        assert config["heartbeat"]["enabled"] is True
+        assert config["heartbeat"]["max_advances"] == 5
+
+    def test_init_no_heartbeat_no_config(self, tmp_path: Path) -> None:
+        """Init with --no-heartbeat -> config.json has no heartbeat section."""
+        import json
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST", "--no-heartbeat"],
+            input="n\n",  # no to CLAUDE.md
+        )
+        assert result.exit_code == 0
+        assert "Heartbeat" not in result.output
+
+        config = json.loads((tmp_path / ".lattice" / "config.json").read_text())
+        assert "heartbeat" not in config
 
 
 class TestSetupClaude:

@@ -82,12 +82,18 @@ def cli() -> None:
     default=None,
     help="Human-readable instance name (e.g., 'Frontend').",
 )
+@click.option(
+    "--heartbeat/--no-heartbeat",
+    default=None,
+    help="Enable heartbeat mode (agents auto-advance through the backlog).",
+)
 def init(
     target_path: str,
     actor: str | None,
     project_code: str | None,
     subproject_code: str | None,
     instance_name: str | None,
+    heartbeat: bool | None,
 ) -> None:
     """Initialize a new Lattice project."""
     root = Path(target_path)
@@ -147,6 +153,16 @@ def init(
                 "Must be 1-5 uppercase ASCII letters."
             )
 
+    # Prompt for heartbeat if not provided via flag
+    if heartbeat is None:
+        try:
+            heartbeat = click.confirm(
+                "Enable heartbeat? (agents auto-advance through backlog after each task)",
+                default=True,
+            )
+        except (click.Abort, EOFError):
+            heartbeat = False
+
     try:
         # Create directory structure
         ensure_lattice_dirs(root)
@@ -163,6 +179,8 @@ def init(
             config["subproject_code"] = subproject_code
         if instance_name:
             config["instance_name"] = instance_name
+        if heartbeat:
+            config["heartbeat"] = {"enabled": True, "max_advances": 5}
         config_content = serialize_config(config)
         atomic_write(lattice_dir / "config.json", config_content)
 
@@ -188,6 +206,8 @@ def init(
         click.echo(f"Subproject code: {subproject_code}")
     if instance_name:
         click.echo(f"Instance name: {instance_name}")
+    if heartbeat:
+        click.echo("Heartbeat: enabled (agents auto-advance, max 5 per session)")
 
     # CLAUDE.md integration
     _offer_claude_md(root)
@@ -369,9 +389,8 @@ def set_subproject_code(code: str, force: bool) -> None:
 @click.option("--force", is_flag=True, help="Replace existing Lattice block if present.")
 def setup_claude(target_path: str, force: bool) -> None:
     """Add or update Lattice agent integration in CLAUDE.md."""
-    marker, composed_block = _compose_claude_md_blocks()
-
     root = Path(target_path)
+    marker, composed_block = _compose_claude_md_blocks()
     claude_md = root / "CLAUDE.md"
 
     if claude_md.exists():

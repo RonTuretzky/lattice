@@ -67,6 +67,11 @@ class ModelTiers(TypedDict, total=False):
     low: ModelTier
 
 
+class HeartbeatConfig(TypedDict, total=False):
+    enabled: bool
+    max_advances: int
+
+
 class LatticeConfig(TypedDict, total=False):
     schema_version: int
     default_status: str
@@ -83,6 +88,7 @@ class LatticeConfig(TypedDict, total=False):
     members: dict[str, list[str]]
     model_tiers: ModelTiers
     resources: dict[str, ResourceDef]
+    heartbeat: HeartbeatConfig
 
 
 def default_config() -> LatticeConfig:

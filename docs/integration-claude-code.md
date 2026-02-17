@@ -165,12 +165,14 @@ You don't have to advance one at a time:
 
 ```
 # In Claude Code:
-"Advance the project 3 times"
-"Keep advancing until you're blocked"
-"Advance all high-priority tasks"
+/lattice-advance                    # one task
+"Advance the project 3 times"      # explicit count
+"Keep advancing until blocked"      # manual loop
 ```
 
-The agent works through the backlog in priority order, transitioning each task before moving to the next.
+The agent works through the backlog in priority order, transitioning each task before moving to the next. With Claude Code, you control the pace — the agent advances when you tell it to.
+
+For **fully autonomous advancing**, see the [OpenClaw integration](integration-openclaw.md#heartbeat-mode-autonomous-advancing) — OpenClaw supports heartbeat mode where the agent sweeps the backlog continuously without manual triggers.
 
 ## Advanced: the `/lattice` skill
 

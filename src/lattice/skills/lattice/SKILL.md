@@ -181,6 +181,27 @@ Lattice handles concurrent writes safely with file locks. Multiple agents can wo
 
 For detailed multi-agent patterns, read `{baseDir}/references/multi-agent-guide.md`.
 
+## Heartbeat: Auto-Advancing
+
+Check if heartbeat mode is enabled:
+
+```bash
+cat .lattice/config.json | grep heartbeat
+```
+
+If `"heartbeat": {"enabled": true, ...}` is present, **keep advancing after each task**:
+
+1. Complete the current task (transition to `review`, `done`, `needs_human`, or `blocked`).
+2. If the task moved to `needs_human` or `blocked`, **stop and report**.
+3. Otherwise, run `lattice next --actor agent:openclaw --claim --json`.
+4. If a task is returned, work it. Full commitment — implement, test, commit, comment, transition.
+5. Repeat from step 1.
+6. Stop after the number of advances specified in `max_advances` (default 5), or when the backlog is empty.
+
+The human fills the backlog and makes decisions. You sweep it. This is the heartbeat.
+
+If heartbeat is not enabled, work one task and report back.
+
 ## Tips
 
 - **Update status before starting work**, not after. If you're about to implement something, move it to `in_progress` first.
