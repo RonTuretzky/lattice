@@ -86,7 +86,7 @@ the cost of building too early is refinement. the cost of building too late is i
 
 if you've used Linear, you know the shape. opinionated. constrained. fast. but Linear is for teams with Slack and standups. Lattice is for minds that materialize, perform work, and vanish. context windows, not conversations.
 
-no web app. no seats. no inboxes. the real interface is the file system. the real users are processes that think in tokens and act in tool calls.
+no seats. no inboxes. there is a dashboard — a visual surface over the same files — but the real interface is the file system. the real users are processes that think in tokens and act in tool calls.
 
 ---
 

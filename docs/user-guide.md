@@ -1,797 +1,494 @@
 # Lattice User Guide
 
-## If You Use AI Agents, This Is For You
+## Your agents are capable. And they are alone.
 
-Lattice is task tracking built for the way you actually work with Claude Code, Cursor, Codex, Gemini, and every other AI agent that reads files and runs commands.
+Each session starts fresh. Each agent forgets what the last one learned. The plan you spent an hour refining, the debugging insight that took three sessions to reach, the architectural decision and its rationale -- gone when the context window closes. You end up re-explaining context, losing track of what agents did, and coordinating entirely in your head.
 
-**The problem:** Your agents are powerful, but they have no memory between sessions. They don't know what was tried before, what's in progress, what's blocked, or what the plan is. Every new session starts from zero. You end up re-explaining context, losing track of what agents did, and coordinating entirely in your head.
+Lattice fixes this. Run `lattice init` in your project directory, and your agents get a shared coordination layer -- a `.lattice/` directory that tracks tasks, records every action as an immutable event, and survives across sessions. Your agent reads task state the same way it reads source code: by looking at files.
 
-**The solution:** `lattice init` in your project directory. That's it. Now your agents have a shared coordination layer -- a `.lattice/` directory that tracks tasks, records every action as an immutable event, and survives across sessions. Your agent reads task state the same way it reads source code: by looking at files. No server. No signup. No API key. Just files in your project.
+No server. No signup. No API key. Just files in your project, the way `.git/` is just files in your project.
 
 ```bash
-# One-time setup in any project
+pip install lattice-tracker
 cd your-project/
-pip install lattice-tracker    # or: uv pip install lattice-tracker
 lattice init
-
-# Now your agents can coordinate
-lattice create "Fix auth redirect bug" --type bug --priority high --actor human:you
-lattice assign LAT-1 agent:claude --actor human:you
-
-# And they leave breadcrumbs for the next session
-lattice comment LAT-1 "Root cause identified: token refresh race condition" --actor agent:claude
-lattice status LAT-1 in_review --actor agent:claude
 ```
 
-**What makes it agent-native:**
-
-- **`--json` on every command** -- structured output agents can parse without scraping
-- **`--quiet` mode** -- just the ID, for scripting and pipelines
-- **Idempotent retries** -- agents can retry safely with `--id`, no duplicates
-- **Actor attribution** -- every change records who did it (`human:you`, `agent:claude`, `agent:codex`)
-- **File-based** -- no network, no auth, no running server. If your agent can read a file, it can use Lattice
-
-**Who uses Lattice:**
-
-- Developers using **Claude Code** who want their agent to track its own work across sessions
-- Teams running **multiple agents** (Claude + Codex + Gemini) that need to see each other's progress
-- Anyone building with **agentic workflows** -- planning, reviewing, implementing -- who needs the coordination layer that makes autonomy productive instead of chaotic
-- Solo developers who want **project management that doesn't require a browser tab** -- the CLI is the whole interface, and the dashboard is there when you want the visual
-
-**To give your agent access**, paste the Lattice commands into your agent's system prompt, CLAUDE.md, or project instructions. The agent learns the CLI in one read and starts coordinating immediately. See the [Agent-Friendly Features](#agent-friendly-features) section for the specifics.
+That's all the ceremony. Now every agent that touches this project can see what's happening, what happened before, and what needs to happen next. Your agents just got 10x better -- not because they're smarter, but because they can finally coordinate.
 
 ---
 
-Lattice begins from a premise that most project management tools have not yet internalized: the worker may be an agent. The audience may be an agent. The coordinator may be an agent. The human is the orchestrator -- the one who sets direction, makes decisions at the threshold, and observes the system's emergent behavior. Lattice is coordination infrastructure for this reality: a file-based, event-sourced task tracker that lives inside your project directory like `.git/` lives inside your repository. Every command supports machine-readable output, idempotent retries, and structured attribution. Two equal interfaces -- a full-featured CLI and a local web dashboard -- both reading and writing to the same `.lattice/` data directory.
+## What makes Lattice different
 
-Everything is stored as plain files: JSON, JSONL, Markdown. No database. No cloud dependency. Your project management lives alongside your code, version-controlled and inspectable. This is not a limitation to be apologized for. It is a deliberate act of architectural renunciation -- the recognition that files are the universal substrate, the one interface every language, every tool, and every agent can speak natively.
+Most project management tools were built for humans with browsers and Slack channels. Lattice was built for a world where the worker might be an agent, the reviewer might be an agent, and the human is the orchestrator who sets direction and makes decisions at the threshold.
 
-Lattice is in active development and open source. Pull requests are welcome.
+**File-based.** `.lattice/` lives in your project like `.git/` does. No database, no cloud dependency. Every language reads files, every agent navigates directories, every tool ever built can open a path and see what's there. Files are the universal substrate.
+
+**Event-sourced.** Every change -- status updates, comments, assignments -- becomes an immutable event. Facts accumulate and don't conflict. Task JSON files are snapshots derived from events. If they ever disagree, events win. `lattice rebuild` replays history to regenerate any snapshot. Systems that store only current state have chosen amnesia as architecture. Lattice remembers everything.
+
+**Agent-native.** `--json` on every command for structured output. `--quiet` for scripted pipelines. Idempotent retries with `--id` so agents can safely retry without duplicates. Actor attribution on every write so you always know who did what.
+
+**Opinionated about coordination, agnostic about workflow.** Lattice gives you statuses, events, relationships, and a work hierarchy. How you use them is up to you. A solo dev with Claude Code and a 10-person team with multiple agent types both find what they need.
 
 ---
 
-## Getting Started
+## Getting started
 
 ### Install
 
 ```bash
-cd lattice/
-uv venv && uv pip install -e ".[dev]"
+pip install lattice-tracker
+# or
+uv pip install lattice-tracker
 ```
 
-### Initialize a project
+For MCP server support (if your agent tools use the Model Context Protocol):
 
-Every coordination space begins with an act of initialization -- the creation of the directory structure that will hold the shared memory of all who work here.
+```bash
+pip install lattice-tracker[mcp]
+```
+
+### Initialize
 
 ```bash
 cd your-project/
 lattice init
 ```
 
-This creates a `.lattice/` directory with default configuration. You only need to do this once per project.
+You'll be asked for two things:
 
-### Set your identity
+1. **Your identity** -- `human:yourname`. Every change in Lattice is attributed to someone. This is not bureaucracy; it's the foundation of trust in a system where agents act autonomously.
+2. **A project code** -- a short prefix like `PROJ` that gives you human-friendly IDs (`PROJ-1`, `PROJ-2`) instead of raw ULIDs.
 
-During `lattice init`, you will be asked to declare your identity. In a system where humans and agents coexist as peers, knowing who acted is not bureaucracy -- it is the foundation of trust.
-
-```bash
-$ lattice init
-Default actor identity (e.g., human:atin): human:atin
-Lattice initialized in .lattice/ — ready to observe.
-Default actor: human:atin
-```
-
-You can also pass it non-interactively:
+Non-interactive version:
 
 ```bash
-lattice init --actor human:atin
+lattice init --actor human:alice --project-code PROJ
 ```
 
-The `--actor` flag on any write command still overrides the default. Agents can also set the `LATTICE_ACTOR` env var to override per-process.
+This creates `.lattice/` with config, empty task and event directories, and a reasonable default workflow. Commit it to your repo -- task state lives alongside your code, versioned and accessible to every collaborator and CI system.
 
----
-
-## Core Concepts
-
-### The Work Hierarchy
-
-Lattice organizes work in three tiers, each at a different resolution of attention:
-
-| Tier | Purpose | Example | Who thinks here |
-|------|---------|---------|-----------------|
-| **Epic** | Strategic intent — a theme or initiative | "Auth System" | Leads, planners |
-| **Ticket** | A deliverable — assignable, branchable, reviewable | "Implement OAuth for backend" | Humans, senior agents |
-| **Task** | A unit of execution — what an agent actually does | "Write token refresh handler" | Agents |
-
-Epics group tickets. Tickets group tasks. The `subtask_of` relationship connects them: a task is `subtask_of` a ticket, a ticket is `subtask_of` an epic. This hierarchy is a current design belief — the granularity we think is right for coordinating mixed human-agent teams today. It is intended to evolve.
-
-Lattice is agnostic about how you use these tiers. Different teams and different agents will have their own opinions about how to decompose work — the system accommodates all of them. A quick bug fix might be a single task with no parent. A focused feature might be a ticket with a few tasks beneath it. A large initiative might use all three tiers. The primitives are neutral. The hierarchy is available, not imposed.
-
-### Tasks
-
-A task is the fundamental unit of execution — the smallest piece of work an agent picks up and completes. It has a title, status, priority, type, and can be assigned to an actor. Each task receives a unique identifier like `task_01HQ...` -- a ULID that encodes its moment of creation.
-
-### Statuses
-
-Tasks move through a workflow that mirrors the rhythm of planning and execution. The default pipeline is:
-
-```
-backlog -> in_planning -> planned -> in_implementation -> implemented -> in_review -> done
-```
-
-Plus `cancelled`, which is reachable from any non-terminal status -- because not all paths lead forward, and recognizing a dead end is itself a form of progress.
-
-The terminal states are `done` and `cancelled`. Once a task reaches either, its journey through the workflow is complete.
-
-Not every transition is permitted. You cannot leap from `backlog` to `done` -- the workflow enforces valid progressions. If rework is needed, `in_review` can return to `in_implementation`. If you must force an invalid transition, use `--force --reason "..."`. The system will record that you overrode its constraints, and why.
-
-### Actors
-
-Every write operation requires an actor -- a declaration of who is responsible for this change. The format is `prefix:identifier`:
-
-- `human:atin` -- a person
-- `agent:claude-opus-4` -- an AI agent
-- `team:frontend` -- a team
-
-Actor IDs are free-form strings with no registry. Validation is format-only: a recognized prefix, a colon, and a non-empty identifier. There is no uniqueness check -- two agents using `agent:claude` are treated as the same actor. In this, Lattice practices a deliberate minimalism. Identity is declared, not enforced.
-
-The resolution order for actor identity is:
-
-1. `--actor` flag (highest priority)
-2. `LATTICE_ACTOR` environment variable
-3. `default_actor` in `.lattice/config.json`
-
-### Events (the source of truth)
-
-Here is the deepest principle in Lattice, the one from which all else follows: **events are authoritative**. Every change -- creating a task, changing status, adding a comment -- is recorded as an immutable event in a per-task JSONL file. The task JSON files you see in `tasks/` are materialized snapshots: derived views, convenient but subordinate.
-
-Events are facts. Facts accumulate; they do not conflict. This is what makes the entire architecture possible.
-
-What this means in practice:
-
-- Events are the authoritative record. Snapshots are a convenience cache.
-- If a snapshot gets corrupted, `lattice rebuild` regenerates it from events.
-- Writes always append the event **before** updating the snapshot. If a crash occurs between the two, rebuild recovers the correct state.
-- All timestamps come from the event, not the wall clock, so rebuilds are deterministic.
-
-The lifecycle event log (`_lifecycle.jsonl`) is a derived index of task creation, archival, and unarchival events. It is rebuilt from per-task logs by `lattice rebuild --all`. If per-task logs and the lifecycle log disagree, per-task logs win. The granular record is always closer to truth.
-
----
-
-## Two Ways to Work
-
-Lattice gives you two interfaces that are fully interchangeable. Both read and write to the same `.lattice/` data directory. Choose the one that fits the mind using it.
-
-### CLI
-
-The command-line interface is the primary interface -- fully scriptable, supporting `--json` for structured machine output and `--quiet` for minimal output (just an ID or "ok"). All write operations are available through the CLI. Agents tend to prefer this interface. It speaks their native language.
-
-### Dashboard
-
-The web dashboard is a local UI you launch with `lattice dashboard`. It provides visual Board, List, and Activity views, drag-and-drop status changes, task creation and editing, comments, and archiving. It runs at `http://127.0.0.1:8799/` by default.
-
-Both interfaces are first-class citizens. A task created in the dashboard shows up immediately in `lattice list`, and a status change made via `lattice status` appears on the board within seconds. The data directory is the single source of convergence.
-
----
-
-## Typical Workflow
-
-What follows is a complete task lifecycle as seen from the CLI -- one of the most common patterns in Lattice. A human creates and directs; an agent executes and reports; the human closes the loop. Each command is a single event appended to the permanent record.
+### Your first task
 
 ```bash
-# Human creates and assigns a task
-lattice create "Fix auth redirect bug" --type bug --priority high --actor human:atin
-lattice assign task_01HQ... agent:claude --actor human:atin
-
-# Agent picks it up and starts implementation
-lattice status task_01HQ... in_implementation --actor agent:claude
-
-# Agent adds context
-lattice comment task_01HQ... "Root cause: expired token refresh logic" --actor agent:claude
-
-# Agent links a related task
-lattice link task_01HQ... related_to task_01HX... --actor agent:claude
-
-# Agent attaches a PR
-lattice attach task_01HQ... https://github.com/org/repo/pull/42 \
-  --title "PR: Fix auth redirect" --actor agent:claude
-
-# Agent moves to review
-lattice status task_01HQ... in_review --actor agent:claude
-
-# Human approves and completes
-lattice status task_01HQ... done --actor human:atin
-
-# Clean up
-lattice archive task_01HQ... --actor human:atin
+lattice create "Set up project structure" --actor human:alice
+# Created PROJ-1: Set up project structure
 ```
 
-**From the dashboard:** The same workflow works visually. Create a task with the "+ New Task" button, drag it across the board columns as it progresses, click into the task detail to add comments and change assignments, and archive it when done. See [The Dashboard](#the-dashboard) for details.
-
----
-
-## Creating and Managing Tasks
-
-### Create a task
-
-To bring a new unit of work into existence:
+The task starts in `backlog`. Move it through the workflow:
 
 ```bash
-lattice create "Build login page" --actor human:atin
+lattice status PROJ-1 in_planning --actor human:alice
+lattice status PROJ-1 planned --actor human:alice
+lattice status PROJ-1 in_progress --actor human:alice
+lattice status PROJ-1 review --actor human:alice
+lattice status PROJ-1 done --actor human:alice
 ```
 
-With more options:
+Each status change is an immutable event with a timestamp and actor. Run `lattice show PROJ-1` to see the full history.
+
+### Give your agents access
+
+For Claude Code, run:
 
 ```bash
-lattice create "Fix auth redirect bug" \
-  --type bug \
-  --priority high \
-  --urgency immediate \
-  --tags "auth,security" \
-  --assigned-to agent:claude \
-  --description "Users are redirected to /undefined after SSO login" \
-  --actor human:atin
+lattice setup-claude
 ```
 
-**From the dashboard:** Click the "+ New Task" button in the nav bar. Fill in the title (required), type, priority, description, tags, and assignee, then click "Create Task".
+This injects a block into your `CLAUDE.md` that teaches agents to create tasks before starting work, update status at every transition, attribute actions correctly, and leave breadcrumbs for the next session. Without this block, agents *can* use Lattice if prompted. With it, they do it by default.
 
-**Task types:** `task`, `ticket`, `epic`, `bug`, `spike`, `chore`
-
-**Priorities:** `critical`, `high`, `medium` (default), `low`
-
-**Urgency:** `immediate`, `high`, `normal`, `low`
-
-**Complexity:** `low`, `medium`, `high` (optional -- signals review depth for agentic workflows)
-
-### Update fields
-
-```bash
-lattice update task_01HQ... title="Updated title" --actor human:atin
-lattice update task_01HQ... priority=high urgency=immediate --actor human:atin
-lattice update task_01HQ... tags="api,backend,urgent" --actor human:atin
-```
-
-You can update multiple fields at once. For status and assignment, use their dedicated commands instead.
-
-**Updatable fields:** `title`, `description`, `priority`, `urgency`, `complexity`, `type`, `tags`
-
-**From the dashboard:** Open a task's detail view by clicking it. Most fields are inline-editable -- click the title, description, or tags to edit them. Use the dropdowns to change priority and type.
-
-#### Custom fields (dot notation)
-
-Tasks can carry arbitrary metadata beyond the built-in fields. This is where domain-specific knowledge lives -- estimates, sprint markers, complexity ratings, whatever the work demands.
-
-```bash
-lattice update task_01HQ... custom_fields.estimate="3d" --actor human:atin
-lattice update task_01HQ... custom_fields.sprint="2026-Q1-S3" --actor human:atin
-lattice update task_01HQ... custom_fields.complexity="high" --actor agent:claude
-```
-
-Custom fields are stored in the `custom_fields` object on the task snapshot. Any string key works after `custom_fields.`.
-
-### Change status
-
-```bash
-lattice status task_01HQ... in_implementation --actor agent:claude
-```
-
-If the transition is not allowed by the workflow, you will receive an error listing valid transitions. To override:
-
-```bash
-lattice status task_01HQ... done --force --reason "Completed offline" --actor human:atin
-```
-
-**From the dashboard:** Drag a task card between columns on the Board view, or use the status dropdown in the task detail view. Invalid transitions are blocked -- columns dim to indicate which moves are allowed during a drag.
-
-### Assign a task
-
-Assignment is the act of directing attention -- telling a mind, human or artificial, that this work awaits it.
-
-```bash
-lattice assign task_01HQ... agent:claude --actor human:atin
-```
-
-**From the dashboard:** Click the assignee field in the task detail view and type the new actor ID (e.g., `agent:claude`). Clear it to unassign.
-
-### Add a comment
-
-Comments are the informal record -- the reasoning, the observations, the breadcrumbs left for whoever comes next. Unlike events, which record what happened, comments record what was understood.
-
-```bash
-lattice comment task_01HQ... "Investigated the root cause, it's a race condition in the token refresh" --actor agent:claude
-```
-
-**From the dashboard:** Open the task detail view, type in the comment box at the bottom, and click "Post" (or press Ctrl+Enter / Cmd+Enter).
-
----
-
-## Viewing Tasks
-
-### List all tasks
-
-```bash
-lattice list
-```
-
-Output looks like:
-
-```
-task_01HQ...  backlog  medium  task  "Build login page"  unassigned
-task_01HQ...  in_implementation  high  bug  "Fix auth redirect"  agent:claude
-```
-
-### Filter the list
-
-```bash
-lattice list --status in_implementation
-lattice list --assigned agent:claude
-lattice list --tag security
-lattice list --type bug
-```
-
-Filters combine with AND logic.
-
-### Show task details
-
-```bash
-lattice show task_01HQ...
-```
-
-This prints the full task including description, relationships (both outgoing and incoming), artifacts, notes, and the complete event timeline. Use `--compact` for a brief view, or `--full` to see raw event data.
-
-The `show` command also finds archived tasks automatically. Nothing that was recorded is lost.
-
-### Dashboard views
-
-The web dashboard offers visual modes for observing the state of work:
-
-- **Board** -- Kanban-style columns, one per status. Drag and drop to move tasks.
-- **List** -- Sortable, filterable table. Filter by status, priority, type, or search text. Toggle to include archived tasks.
-- **Activity** -- Recent events across all tasks, showing actor, event type, and timestamp. The stream of what has happened, rendered visible.
-- **Cube** -- Force-directed graph of task relationships. Nodes are tasks, edges are `blocks`, `depends_on`, `subtask_of`, etc. Structure becomes visible.
-- **Web** *(planned)* -- Indra's Web. The coordination landscape across repos, branches, and agent activity. Epics as hubs, tickets as spokes, tasks and commits as dots. Lattice provides the structure; git provides the vital signs. See `FutureFeatures.md` for the full design.
-
-Click any task card or table row to open the full detail view.
-
----
-
-## Relationships
-
-No task exists in isolation. Work is a graph, and Lattice makes the edges explicit. These are the relationship types:
-
-| Type | Meaning |
-|------|---------|
-| `blocks` | This task blocks the target |
-| `depends_on` | This task depends on the target |
-| `subtask_of` | This task is a subtask of the target (useful for epics) |
-| `related_to` | Loosely related |
-| `spawned_by` | This task was spawned from work on the target |
-| `duplicate_of` | This task duplicates the target |
-| `supersedes` | This task replaces the target |
-
-### How relationships are stored
-
-Relationships are stored as **outgoing edges only** on the source task's snapshot. When you run `lattice link A blocks B`, the relationship record lives in task A's `relationships_out` array.
-
-However, `lattice show` displays **both directions**: outgoing relationships (links this task has to others) and incoming relationships (links other tasks have to this task). Incoming relationships are derived by scanning all snapshots at read time. The graph is always visible from any node.
-
-### Create a link
-
-```bash
-lattice link task_01HQ... blocks task_01HX... --actor human:atin
-```
-
-With an optional note:
-
-```bash
-lattice link task_01HQ... depends_on task_01HX... \
-  --note "Need the API endpoint before the UI work" \
-  --actor human:atin
-```
-
-### Remove a link
-
-```bash
-lattice unlink task_01HQ... blocks task_01HX... --actor human:atin
-```
-
----
-
-## Artifacts
-
-Artifacts are the material evidence of work -- files, URLs, logs, transcripts. They are attached to tasks so that the record of what was done carries the proof alongside it.
-
-### Attach a file
-
-```bash
-lattice attach task_01HQ... ./report.pdf --actor human:atin
-```
-
-The file is copied into `.lattice/artifacts/payload/` and metadata is stored separately.
-
-### Attach a URL
-
-```bash
-lattice attach task_01HQ... https://github.com/org/repo/pull/42 \
-  --title "PR: Fix auth redirect" \
-  --actor human:atin
-```
-
-### Options
-
-```bash
-lattice attach task_01HQ... ./debug.log \
-  --type log \
-  --title "Debug output from reproduction" \
-  --summary "Stack trace showing the race condition" \
-  --sensitive \
-  --role "debugging" \
-  --actor agent:claude
-```
-
-**Artifact types:** `file`, `conversation`, `prompt`, `log`, `reference`
-
-The `--sensitive` flag marks artifacts that should not be committed to version control.
-
----
-
-## Archiving
-
-When a task has reached its terminal state and you wish to clear the active space, archiving moves it to rest without destroying it. The event record persists. The history remains whole.
-
-```bash
-lattice archive task_01HQ... --actor human:atin
-```
-
-This moves the task's snapshot, events, and notes into `.lattice/archive/`. Artifacts stay in place (since multiple tasks might reference them). Archived tasks still appear in `lattice show`.
-
-### Restoring archived tasks
-
-If you archive a task prematurely, you can bring it back:
-
-```bash
-lattice unarchive task_01HQ... --actor human:atin
-```
-
-This moves the task's files back from archive to the active directories and records a `task_unarchived` event.
-
-**From the dashboard:** You can archive a task from its detail view using the "Archive" button. To see archived tasks, switch to the List view and check "Show archived".
-
----
-
-## The Dashboard
-
-The dashboard is a local web UI for Lattice -- a visual surface over the same `.lattice/` directory the CLI reads and writes.
-
-### Starting the dashboard
-
-```bash
-lattice dashboard
-```
-
-This launches the server at `http://127.0.0.1:8799/`. Options:
-
-```bash
-lattice dashboard --host 0.0.0.0 --port 9000
-```
-
-### Board view
-
-The default view is a Kanban board with one column per workflow status. Each column displays task cards showing the title, priority, type, and assignee.
-
-**Drag and drop** a card between columns to change its status. During a drag, valid target columns are highlighted and invalid ones are dimmed. If the transition is not allowed by the workflow, the drop is rejected with an error message.
-
-### List view
-
-A filterable table of all tasks. Use the dropdowns and search box to filter by status, type, priority, or title text. Check "Show archived" to include archived tasks in the table.
-
-Click any row to open the task detail.
-
-### Activity view
-
-A feed of the most recent events across all tasks. Each entry shows the timestamp, event type, task ID (linked to its detail), a summary of what changed, and who did it. This is the stream of collective action -- the view that answers "what has been happening?"
-
-### Task detail
-
-Click any card on the board or row in the list to open the full task detail. From here you can:
-
-- **Edit the title** -- click it to inline-edit.
-- **Change status** -- use the status dropdown (shows only valid transitions).
-- **Change priority and type** -- use the respective dropdowns.
-- **Edit the description** -- click the description area to open a text editor.
-- **Edit tags** -- click the tags to edit them (comma-separated).
-- **Change assignment** -- click the assignee to edit it. Clear the field to unassign.
-- **Add comments** -- type in the comment box and press "Post" or Ctrl+Enter.
-- **View relationships, artifacts, and custom fields** -- displayed read-only.
-- **View the event history** -- the full timeline of changes, newest first.
-- **Archive the task** -- click the "Archive" button.
-
-Archived tasks open in read-only mode.
-
-### Creating tasks
-
-Click the "+ New Task" button in the nav bar. A modal appears with fields for title (required), type, priority, description, tags, and assignee. Press Enter in the title field or click "Create Task" to submit. After creation, you are taken directly to the new task's detail view.
-
-### Settings
-
-Click the gear icon in the nav bar to open the settings panel.
-
-- **Background image** -- Set a URL for a background image on the board view. Click "Apply" to save or "Clear" to remove it.
-- **Lane colors** -- Customize the header color of each board column. Pick colors with the color pickers and click "Apply Lane Colors". Use "Reset to Defaults" to restore the built-in palette. You can also click the color dot that appears when hovering over a column header in the board view.
-
-Settings are persisted to `.lattice/config.json` and survive server restarts.
-
-### Auto-refresh
-
-The dashboard automatically polls for changes every 5 seconds when viewing the Board, List, or Activity views. If data has changed (e.g., a CLI command updated a task), the view re-renders. Polling pauses when the browser tab is hidden to avoid unnecessary requests.
-
-### Network binding
-
-By default, the dashboard binds to `127.0.0.1` (localhost), which gives full read-write access. If you bind to a non-loopback address (e.g., `--host 0.0.0.0`), the dashboard is automatically forced into **read-only mode** -- all write operations (status changes, task creation, comments, etc.) are disabled and return a 403 error. A warning is printed to stderr when this happens. The boundary between local and exposed is treated as a security perimeter.
-
----
-
-## Integrity and Recovery
-
-The event log is memory. Lattice provides tools to verify that memory is intact and to heal it when it is not.
-
-### Health check
-
-```bash
-lattice doctor
-```
-
-This scans your `.lattice/` directory and checks for:
-- Corrupt JSON/JSONL files
-- Snapshot drift (snapshot out of sync with events)
-- Broken relationship references
-- Missing artifacts
-- Self-links and duplicate edges
-- Malformed IDs
-- Lifecycle log inconsistencies
-
-Use `--fix` to automatically repair truncated event log lines.
-
-### Rebuild snapshots
-
-If a snapshot has drifted from its events -- through corruption, a crash, or manual editing -- the events can regenerate it. The derived view is always recoverable from the authoritative record.
-
-```bash
-lattice rebuild task_01HQ...    # rebuild one task
-lattice rebuild --all           # rebuild everything
-```
-
-This replays events from the event log and regenerates the snapshot files. The `--all` flag also rebuilds the lifecycle event log.
-
----
-
-## Custom Events
-
-For domain-specific events that do not fit the built-in types, Lattice offers an extension point. The `x_` prefix marks the boundary between the system's vocabulary and yours.
-
-```bash
-lattice event task_01HQ... x_deployment_started \
-  --data '{"environment": "staging", "sha": "abc123"}' \
-  --actor agent:deployer
-```
-
-Custom event type names **must** start with `x_`. Built-in types like `status_changed` or `task_created` are reserved. Custom events are recorded in the per-task event log but do **not** go to the lifecycle log.
-
----
-
-## Notes
-
-Every task can have a markdown notes file at `.lattice/notes/<task_id>.md`. These are **not** event-sourced -- they are freeform files, edited directly, existing outside the authority of the event log. This is intentional. Not all knowledge fits neatly into structured events. Some things are best expressed as prose: design reasoning, open questions, running logs of investigation.
-
-```bash
-# Create or edit notes for a task
-vim .lattice/notes/task_01HQ....md
-```
-
-Notes are moved to the archive alongside their task when you run `lattice archive`.
-
----
-
-## Agent-Friendly Features
-
-Lattice was designed for environments where AI agents write most of the task updates. This is not a mode or a plugin. It is the foundational design assumption. Several features exist specifically to make agent interaction seamless.
-
-### JSON output
-
-Add `--json` to any command to get structured output:
-
-```bash
-lattice create "My task" --actor agent:claude --json
-```
+For MCP-compatible tools, add the server to your config:
 
 ```json
 {
-  "ok": true,
-  "data": { ... }
-}
-```
-
-Errors follow the same envelope:
-
-```json
-{
-  "ok": false,
-  "error": {
-    "code": "NOT_FOUND",
-    "message": "Task task_01HQ... not found."
-  }
-}
-```
-
-### Quiet mode
-
-Add `--quiet` to get just the ID or "ok":
-
-```bash
-TASK_ID=$(lattice create "My task" --actor agent:claude --quiet)
-```
-
-### Idempotent retries
-
-Agents operate in an uncertain world -- network interruptions, context window limits, session restarts. Lattice allows agents to supply their own IDs, making operations safe to retry without fear of duplication.
-
-```bash
-lattice create "My task" --id task_01HQ... --actor agent:claude
-```
-
-If the task already exists with the same data, Lattice returns success. If it exists with *different* data, Lattice returns a conflict error. This prevents duplicate tasks from agent retries.
-
-The same pattern works for events (`--id ev_...`) and artifacts (`--id art_...`).
-
-### Telemetry passthrough
-
-Agents can attach metadata to events for observability -- breadcrumbs for the humans who oversee the system:
-
-```bash
-lattice status task_01HQ... in_implementation \
-  --actor agent:claude \
-  --model claude-opus-4 \
-  --session session-abc123
-```
-
----
-
-## Configuration
-
-The workflow is defined in `.lattice/config.json`. You can customize:
-
-- **Statuses** -- add or remove workflow states
-- **Transitions** -- define which status changes are allowed
-- **WIP limits** -- set advisory limits per status (warnings only in v0)
-- **Task types** -- add custom types beyond the defaults
-- **Defaults** -- change the default status and priority for new tasks
-
-The default config ships with sensible agent-planning defaults. Edit it directly -- it is just JSON. There is no `lattice config` command in v0. The configuration file is the configuration interface.
-
-### Dashboard configuration
-
-The dashboard stores its settings in `config.json` under a `dashboard` key:
-
-- **`lane_colors`** -- an object mapping status names to hex color strings (e.g., `{"backlog": "#adb5bd", "done": "#198754"}`). Controls the board column header colors.
-- **`background_image`** -- a URL string for the board background image. Set to `null` or omit to clear.
-
-These are managed through the dashboard settings panel, but you can also edit `config.json` directly.
-
-### Agentic complexity
-
-Every task can carry a **complexity** field -- `low`, `medium`, or `high` -- that signals how much scrutiny the task warrants in planning and review. This is the lever that controls token cost and review depth across your project.
-
-Set it at creation:
-
-```bash
-lattice create "Add Facebook login" --complexity high --actor human:atin
-```
-
-Or update it later:
-
-```bash
-lattice update task_01HQ... complexity=medium --actor agent:claude
-```
-
-The field is optional. Tasks without a complexity value default to whatever an orchestrator or workflow decides. The intent is simple: a `low` task gets a quick plan and a single review pass. A `high` task gets multiple rounds of multi-model review before anyone writes a line of code.
-
-| Complexity | Planning | Code Review |
-|------------|----------|-------------|
-| **low** | Single agent, inline | Single reviewer |
-| **medium** | Primary plan, then one fan-out to model variations for critique, consolidate, revise | One fan-out review, consolidate |
-| **high** | Primary plan, then two rounds of fan-out/consolidate/revise | Two rounds of fan-out review |
-
-This mapping is a starting point. As models improve and workflows mature, the definitions will evolve. The complexity field is the stable interface; what happens at each level is configuration.
-
-### Model tiers
-
-Lattice supports an optional `model_tiers` configuration that defines which AI models fill which roles in agentic workflows. This is the single place where you control your token budget and model preferences.
-
-The structure is a 2x2 matrix: **tiers** (high, medium, low) crossed with **roles** (primary, variations).
-
-- **Primary** is the default model for single-agent work at that tier -- planning, implementation, consolidation.
-- **Variations** are the models activated during fan-out phases -- parallel reviewers that bring different architectural biases and different blind spots.
-
-Add this to your `.lattice/config.json`:
-
-```json
-{
-  "model_tiers": {
-    "high": {
-      "primary": "claude-opus-4-6",
-      "variations": ["codex-5-3-xhigh", "gemini-3-pro"]
-    },
-    "medium": {
-      "primary": "claude-sonnet-4-5",
-      "variations": ["codex-5-3", "gemini-2.5-flash"]
-    },
-    "low": {
-      "primary": "claude-haiku-4-5",
-      "variations": ["kimi-2.5"]
+  "mcpServers": {
+    "lattice": {
+      "command": "lattice-mcp"
     }
   }
 }
 ```
 
-**How tiers work:** When a workflow calls for a fan-out at a given complexity level, it spawns every model listed in that tier's variations alongside the primary. A medium-complexity plan review fans out to the primary plus all its variations. A low-complexity task might use only the primary with no fan-out at all.
-
-**Choosing your models:** The tier names (high, medium, low) are abstract capability levels. You decide which concrete models fill each slot based on your API access, budget, and quality requirements. Swap models freely as new ones become available -- the workflow logic references the tier, never the model name.
-
-**Cost control:** This is the single most important cost lever for agentic workflows. Running a `high` tier fan-out with three frontier models costs significantly more than a `low` tier single-agent pass. By adjusting your tier assignments, you control exactly how much intelligence you apply at each complexity level. Budget-conscious users might set `low.primary` to a fast, cheap model and leave `low.variations` empty. Users who want maximum scrutiny load every tier with multiple frontier models.
-
-**Lattice does not execute these tiers.** This configuration is informatic -- it declares preferences that orchestrators, agents, and automation tools read and act on. Lattice stores the tiers; external tooling (a Lattice Agent, a Ralph loop, a custom script) interprets them when spawning agents.
+For OpenClaw, install the Lattice skill from the OpenClaw registry. The skill teaches the agent the same workflow discipline as the CLAUDE.md block.
 
 ---
 
-## File Layout
+## Core concepts
 
-Here is the anatomy of a `.lattice/` directory -- the complete on-disk structure that holds the shared memory of a project:
+### Events are the source of truth
+
+This is the deepest principle in Lattice, the one from which all else follows. Every change is recorded as an immutable event in a per-task JSONL file. Task JSON files in `.lattice/tasks/` are materialized snapshots -- convenient caches, not the real record.
+
+What this means in practice:
+
+- Snapshots can be rebuilt from events at any time (`lattice rebuild`)
+- Writes always append the event before updating the snapshot -- crash between the two is recoverable
+- Two agents on different machines can append events independently; histories merge through git
+- You can always answer "what happened to this task and who did it" by reading the event log
+
+### Actors
+
+Every write operation requires an actor -- `human:alice`, `agent:claude-opus-4`, `team:frontend`. This is how Lattice maintains an audit trail in a world where autonomous agents make changes.
+
+The rule is simple: the actor is whoever made the decision, not whoever typed the command. If you told an agent "fix the login bug" and the agent creates the task, you're the actor -- you made the decision. If the agent independently decides to create a cleanup task while working, the agent is the actor.
+
+Resolution order: `--actor` flag > `LATTICE_ACTOR` env var > `default_actor` in config.
+
+### The work hierarchy
+
+Lattice organizes work in three tiers:
+
+| Tier | Purpose | Who thinks here |
+|------|---------|-----------------|
+| **Epic** | Strategic intent -- "Build the auth system" | Leads, planners |
+| **Ticket** | A deliverable -- "Implement OAuth for backend" | Humans, senior agents |
+| **Task** | A unit of execution -- "Write token refresh handler" | Agents |
+
+Epics group tickets. Tickets group tasks. The `subtask_of` relationship connects them. This hierarchy is available, not imposed -- a quick bug fix can be a single task with no parent. Use the structure that fits the work.
+
+### Statuses
+
+The default workflow:
 
 ```
-.lattice/
-  config.json                      # Workflow configuration
-  tasks/task_01HQ....json          # Task snapshots (one per task)
-  events/task_01HQ....jsonl        # Event logs (one per task, append-only)
-  events/_lifecycle.jsonl           # Lifecycle events (created/archived/unarchived)
-  artifacts/meta/art_01HQ....json  # Artifact metadata
-  artifacts/payload/art_01HQ...*   # Artifact files
-  notes/task_01HQ....md            # Human-editable notes
-  archive/                         # Archived tasks, events, and notes
-  locks/                           # Internal lock files
+backlog --> in_planning --> planned --> in_progress --> review --> done
 ```
 
-Everything is plain text, committed alongside your code by default. Event logs are append-only JSONL that merge cleanly. Snapshots are deterministic JSON, rebuildable from events. Use a `.lattice/.gitignore` for sensitive artifact payloads. The filesystem is the interface, the database, and the API -- all at once.
+Plus special statuses:
+- **`blocked`** -- waiting on an external dependency
+- **`needs_human`** -- waiting specifically on a human decision (reachable from any active status)
+- **`cancelled`** -- terminal, alongside `done`
+
+Invalid transitions are rejected with an error listing valid options. Override with `--force --reason "..."` when needed -- the override is recorded as part of the event.
+
+### Relationships
+
+Tasks form a graph. Lattice makes the edges explicit:
+
+| Type | Meaning |
+|------|---------|
+| `blocks` | This task blocks the target |
+| `depends_on` | This task depends on the target |
+| `subtask_of` | This task is a child of the target |
+| `related_to` | Loosely connected |
+| `spawned_by` | Created during work on the target |
+| `duplicate_of` | Same work, different task |
+| `supersedes` | Replaces the target |
+
+```bash
+lattice link PROJ-2 depends_on PROJ-1 --actor human:alice --note "Need the API first"
+```
+
+`lattice show` displays both outgoing and incoming relationships, so you can see the full context from any node.
 
 ---
 
-## Quick Reference
+## Patterns
+
+These aren't hypothetical workflows. They're how we actually use Lattice every day -- the coordination patterns that emerged from building real software with agents.
+
+### Solo dev + Claude Code
+
+The most common pattern. You're one person working with Claude Code, and you want your agent to remember what happened across sessions.
+
+**Setup:**
+
+```bash
+lattice init --actor human:you --project-code PROJ
+lattice setup-claude
+```
+
+**Daily workflow:**
+
+1. Create tasks for what you want to build
+2. Start a Claude Code session -- the agent reads the Lattice block in CLAUDE.md
+3. The agent creates tasks for its own work, moves them through statuses, leaves comments
+4. Next session: the new agent reads `.lattice/` and picks up where the last one left off
+
+**What changes:** Instead of re-explaining "we tried X but it didn't work because Y" at the start of every session, the context is in the event log. The agent reads `lattice show PROJ-5` and sees the full history -- what was tried, what was decided, what's left to do.
+
+```bash
+# Agent picks up a task
+lattice next --actor agent:claude --claim --json
+# Agent works, leaves breadcrumbs
+lattice comment PROJ-5 "Root cause: race condition in token refresh" --actor agent:claude
+# Agent finishes
+lattice status PROJ-5 review --actor agent:claude
+```
+
+### Solo dev + OpenClaw
+
+Same pattern, different tool. OpenClaw agents load the Lattice skill from the registry, which teaches the same workflow discipline as the CLAUDE.md block.
+
+The key insight is the same: Lattice is the shared memory layer between sessions. Whether your agent is Claude, GPT, Gemini, or something else, it coordinates through the same `.lattice/` directory.
+
+### Parallel agent builds
+
+When a project is large enough, you can split work across multiple agents running simultaneously. This is where Lattice's coordination primitives really shine -- without shared state, parallel agents step on each other.
+
+**The pattern:**
+
+1. Define the work as independent tasks with clear boundaries
+2. Use relationships to express dependencies
+3. Launch agents in parallel, each claiming their own task via `lattice next --claim`
+
+**Example: building a feature with frontend and backend work**
+
+```bash
+# Create the work graph
+lattice create "Auth feature" --type epic --actor human:you
+lattice create "Backend: OAuth endpoints" --type ticket --actor human:you
+lattice create "Frontend: login flow" --type ticket --actor human:you
+lattice link PROJ-3 subtask_of PROJ-2 --actor human:you
+lattice link PROJ-4 subtask_of PROJ-2 --actor human:you
+
+# Launch two agents -- each claims different work
+# Agent 1 picks PROJ-3 (backend), Agent 2 picks PROJ-4 (frontend)
+```
+
+**What makes this work:** Each agent sees the full graph. If Agent 2 needs the API contract from Agent 1, it checks PROJ-3's status and comments. If Agent 1 finishes first and the contract changes, it comments on PROJ-3 and Agent 2 can read the update.
+
+**Interface contracts first:** For builds with parallel agents, define the contracts (protocols, API shapes, shared types) before launching implementation agents. This prevents merge conflicts and ensures agents build against the same interface.
+
+### Sweep: autonomous backlog processing
+
+When you have a stack of well-defined tasks and want an agent to work through them autonomously.
+
+**The loop:**
+
+```
+lattice next --claim --> work --> transition --> lattice next --claim --> ...
+```
+
+In Claude Code, the `/lattice-sweep` command runs this loop automatically -- the agent claims a task, does the work, transitions it, commits, and moves to the next one. Up to 10 tasks per sweep (safety cap).
+
+**When to use it:**
+- Backlog of independent, well-defined tasks
+- Tasks are scoped small enough for a single agent session
+- You're comfortable reviewing the output afterward
+
+**Post-sweep:**
+
+```bash
+# What completed?
+lattice list --status done
+# What needs you?
+lattice list --status needs_human
+# What's ready for review?
+lattice list --status review
+```
+
+The human's job after a sweep: review completed work, unblock `needs_human` items, run another sweep. The agents do the work; you do the judgment.
+
+### The taste-to-code pipeline
+
+Human taste and judgment compound over time when captured structurally. This pattern shows how a review comment becomes an enforced standard.
+
+```
+Review finding --> Documentation update --> Lint rule
+```
+
+Each step makes the enforcement more mechanical and less dependent on human attention:
+
+```bash
+# Step 1: A review finding
+lattice create "Prefer shared utils over hand-rolled helpers" --type task --actor human:you
+lattice comment PROJ-10 "Found during code review of PROJ-7" --actor human:you
+
+# Step 2: Document it
+lattice create "Add util preference to ARCHITECTURE.md" --type task --actor human:you
+lattice link PROJ-11 spawned_by PROJ-10 --actor human:you
+
+# Step 3: Enforce it
+lattice create "Add lint rule: no hand-rolled helpers" --type task --actor human:you
+lattice link PROJ-12 spawned_by PROJ-11 --actor human:you
+```
+
+Query later: "Where did this lint rule come from?" Trace the `spawned_by` chain back to the original review finding. Human taste, encoded as machine-enforceable rules, tracked from origin to implementation.
+
+### Team reviews (multi-model)
+
+When the stakes are high, get multiple perspectives. Lattice tracks the review process as events, so the full audit trail is preserved.
+
+**The pattern:**
+
+1. Move a task to `review`
+2. Launch review agents (Claude, Codex, Gemini) against the same diff
+3. Each agent writes a review file and attaches it as an artifact
+4. A synthesis agent merges findings into a single report
+5. The human reads the synthesis and decides
+
+```bash
+# Task moves to review
+lattice status PROJ-5 review --actor agent:claude
+
+# After reviews complete, attach evidence
+lattice attach PROJ-5 notes/CR-PROJ-5-synthesis.md \
+  --title "Team Review Synthesis" --role review --actor agent:claude
+
+# Human approves
+lattice status PROJ-5 done --actor human:you
+```
+
+Three models reviewing the same code surface issues no single model catches alone. The synthesis separates high-confidence findings (flagged by multiple reviewers) from single-reviewer observations that need human judgment.
+
+### `needs_human` as a coordination primitive
+
+This is the pattern that prevents agents from getting stuck or making decisions above their pay grade.
+
+When an agent hits a point requiring human judgment -- a design decision, missing credentials, ambiguous requirements -- it signals immediately:
+
+```bash
+lattice status PROJ-5 needs_human --actor agent:claude
+lattice comment PROJ-5 "Need: REST vs GraphQL decision for the API" --actor agent:claude
+```
+
+The agent moves on. The human checks their queue:
+
+```bash
+lattice list --status needs_human
+```
+
+Makes the decision, comments with the rationale, and moves the task back to an active status:
+
+```bash
+lattice comment PROJ-5 "Decision: REST. Rationale: simpler client, matches existing patterns" --actor human:you
+lattice status PROJ-5 in_progress --actor human:you
+```
+
+The next agent session picks it up with full context. No Slack, no standup, no lost context. The decision is in the event log, attributed and permanent.
+
+---
+
+## The dashboard
+
+Lattice includes a local web UI for when you want the visual perspective.
+
+```bash
+lattice dashboard
+# Serving at http://127.0.0.1:8799/
+```
+
+**Views:**
+
+- **Board** -- Kanban columns per status. Drag and drop to change status. Invalid transitions are blocked visually.
+- **List** -- Filterable, searchable table. Filter by status, type, priority, or text search. Toggle to include archived tasks.
+- **Activity** -- Recent events across all tasks. The stream of what's been happening.
+- **Stats** -- Velocity, time-in-status, blocked task counts, agent activity breakdown. Quality metrics computed from the event log.
+- **Web** -- Force-directed graph of task relationships. Nodes are tasks, edges are relationships. Structure becomes visible.
+
+Click any task for the full detail view: title, description, status, comments, relationships, artifacts, and the complete event timeline. Most fields are inline-editable.
+
+The dashboard reads and writes to the same `.lattice/` directory as the CLI. A status change on the board shows up in `lattice list` immediately, and a `lattice comment` from the CLI appears on the dashboard within seconds.
+
+When bound to localhost (the default), the dashboard supports full read-write operations. When exposed to the network (`--host 0.0.0.0`), it automatically enters read-only mode as a security measure.
+
+---
+
+## CLI reference
+
+Every command supports `--json` for structured output and `--quiet` for minimal output (just the ID or "ok"). All write commands require an actor.
 
 | Command | What it does |
 |---------|-------------|
-| `lattice init` | Create a new `.lattice/` project |
+| `lattice init` | Create `.lattice/` in your project |
 | `lattice create <title>` | Create a task |
-| `lattice update <id> field=value...` | Update task fields |
 | `lattice status <id> <status>` | Change task status |
 | `lattice assign <id> <actor>` | Assign a task |
 | `lattice comment <id> "<text>"` | Add a comment |
-| `lattice list` | List tasks (with optional filters) |
-| `lattice show <id>` | Show full task details (incl. incoming relationships) |
-| `lattice link <id> <type> <target>` | Create a relationship |
-| `lattice unlink <id> <type> <target>` | Remove a relationship |
+| `lattice update <id> field=value` | Update task fields |
+| `lattice list` | List tasks (filterable by status, type, tag, assignee) |
+| `lattice show <id>` | Full task details with history |
+| `lattice next` | Get the highest-priority available task |
+| `lattice link <src> <type> <tgt>` | Create a relationship |
+| `lattice unlink <src> <type> <tgt>` | Remove a relationship |
 | `lattice attach <id> <file-or-url>` | Attach an artifact |
 | `lattice event <id> <x_type>` | Record a custom event |
-| `lattice archive <id>` | Archive a task |
+| `lattice archive <id>` | Archive a completed task |
 | `lattice unarchive <id>` | Restore an archived task |
 | `lattice dashboard` | Launch the web dashboard |
 | `lattice doctor` | Check project integrity |
 | `lattice rebuild <id\|--all>` | Rebuild snapshots from events |
+| `lattice setup-claude` | Add/update CLAUDE.md integration block |
 
-All write commands need an actor (via `--actor` flag, `LATTICE_ACTOR` env var, or config `default_actor`). Add `--json` for structured output or `--quiet` for minimal output.
+### Useful flags
 
-All validation errors list the valid options, so agents do not need to look up allowed values. The system teaches its own vocabulary.
+- `--json` -- structured output (all commands)
+- `--quiet` -- just the ID (all commands)
+- `--type` -- task, ticket, epic, bug, spike, chore (create/list)
+- `--priority` -- critical, high, medium, low (create/list)
+- `--assigned` / `--assigned-to` -- filter/set assignee (list/create)
+- `--tag` / `--tags` -- filter/set tags (list/create)
+- `--force --reason "..."` -- override workflow constraints (status)
+- `--claim` -- atomically assign and start a task (next)
+- `--id` -- supply your own ID for idempotent retries (create/event)
+
+Validation errors always list valid options, so agents don't need to memorize allowed values. The CLI teaches its own vocabulary.
 
 ---
 
-## Acknowledgments
+## Extending Lattice
 
-Lattice was built in conjunction with Claude, Opus 4.6, and friends. The specific models that contributed are thanked each for their individual uniqueness, regardless of proportional contribution — their work is visible on the stats page, attributed in the event log, and appreciated in full.
+### Event hooks
+
+Lattice fires shell hooks after event writes. Configure them in `.lattice/config.json`:
+
+```json
+{
+  "hooks": {
+    "on_status_change": {
+      "review": "echo 'Task {task_id} ready for review'"
+    }
+  }
+}
+```
+
+Hooks trigger on specific status transitions, enabling integrations with CI, notifications, or automated review workflows.
+
+### Workers
+
+Lattice workers are autonomous agents that subscribe to events and perform work. Define a worker as a JSON file specifying the trigger event, the command to run, and the context to provide:
+
+```bash
+lattice worker run code-review    # Run a worker once
+lattice worker list               # See available workers
+```
+
+Workers are the building block for fully automated workflows: a task moves to `review`, a hook fires, a worker runs a multi-model code review, attaches the synthesis as an artifact, and comments with the findings.
+
+### Custom events
+
+For domain-specific events beyond the built-in types:
+
+```bash
+lattice event PROJ-5 x_deployment_started \
+  --data '{"environment": "staging", "sha": "abc123"}' \
+  --actor agent:deployer
+```
+
+Custom event types must start with `x_`. They're recorded in the task's event log but don't affect the lifecycle log.
+
+### Making it yours
+
+Lattice is open source and designed to be forked. The architecture is deliberately simple:
+
+- `core/` -- pure business logic, no I/O
+- `storage/` -- filesystem operations
+- `cli/` -- wires them together via Click commands
+- `dashboard/` -- read-only local web UI (stdlib HTTP server, no build step)
+
+The on-disk format (events, snapshots, config) is the stable contract. The CLI can be rewritten. The dashboard can be replaced. But the events, the file layout, the schema -- those are load-bearing walls. Build on them with confidence.
+
+---
+
+## What Lattice is not
+
+Lattice is not a database. It's not a cloud service. It's not a replacement for Jira or Linear for teams that need those tools.
+
+Lattice is coordination infrastructure for agent-first development. If you're tracking agent work in markdown files, folder conventions, or ad-hoc shell scripts -- Lattice replaces all of that with a system that's event-sourced, attributed, and built for the way agents actually work.
+
+If your agents are powerful but uncoordinated, Lattice is the missing piece. Not more intelligence -- more coordination. That's the unlock.
+
+---
+
+*Lattice is proudly built by minds of both kinds. The event log records who did what. The philosophy explains why it matters. Read it at [Philosophy_v3.md](../Philosophy_v3.md).*
