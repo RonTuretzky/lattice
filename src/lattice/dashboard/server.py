@@ -10,7 +10,7 @@ import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 from lattice.core.comments import (
     materialize_comments,
@@ -395,30 +395,97 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
             self._send_json(200, _ok(result))
 
         def _handle_activity(self, ld: Path) -> None:
-            all_events: list[dict] = []
-            events_dir = ld / "events"
-            if events_dir.is_dir():
-                for event_file in events_dir.glob("*.jsonl"):
-                    if event_file.name == "_lifecycle.jsonl":
-                        continue
-                    # Tail: read last few events from each file
-                    try:
-                        lines = event_file.read_text().splitlines()
-                    except OSError:
-                        continue
-                    # Take last 5 lines from each file
-                    for line in lines[-5:]:
-                        line = line.strip()
-                        if line:
-                            try:
-                                all_events.append(json.loads(line))
-                            except json.JSONDecodeError:
-                                continue
+            # Re-parse path to get query string (since _route_api strips it)
+            parsed = urlparse(self.path)
+            params = parse_qs(parsed.query)
+
+            def _qs(key: str) -> str | None:
+                vals = params.get(key)
+                return vals[0] if vals else None
+
+            # Parse pagination params
+            try:
+                limit = max(1, min(200, int(_qs("limit") or "50")))
+            except (ValueError, TypeError):
+                limit = 50
+            try:
+                offset = max(0, int(_qs("offset") or "0"))
+            except (ValueError, TypeError):
+                offset = 0
+
+            type_filter = _qs("type")
+            task_param = _qs("task")
+            actor_filter = _qs("actor")
+            after = _qs("after")
+            before = _qs("before")
+            search = _qs("search")
+
+            has_filters = any([type_filter, task_param, actor_filter, after, before, search])
+
+            # Resolve short ID for task filter
+            task_filter: str | None = None
+            if task_param:
+                if validate_id(task_param, "task"):
+                    task_filter = task_param
+                else:
+                    # Try short ID resolution via ids.json
+                    from lattice.core.ids import is_short_id
+                    from lattice.storage.short_ids import resolve_short_id
+
+                    if is_short_id(task_param):
+                        resolved = resolve_short_id(ld, task_param.upper())
+                        if resolved:
+                            task_filter = resolved
+                        else:
+                            # Unknown short ID — return empty
+                            self._send_json(200, _ok({
+                                "events": [],
+                                "total": 0,
+                                "offset": offset,
+                                "limit": limit,
+                                "has_more": False,
+                                "facets": {"types": [], "actors": [], "tasks": []},
+                            }))
+                            return
+                    else:
+                        self._send_json(400, _err(
+                            "VALIDATION_ERROR",
+                            f"Invalid task filter: '{task_param}'",
+                        ))
+                        return
+
+            # Collect events — full scan when filters active, tail otherwise
+            all_events = _collect_events(ld, full_scan=has_filters, tail_n=10)
+
+            # Build facets from the full (unfiltered) set for dropdown population
+            facets = _build_facets(all_events, ld)
+
+            # Apply filters
+            filtered = _apply_activity_filters(
+                all_events,
+                type_filter=type_filter,
+                task_filter=task_filter,
+                actor_filter=actor_filter,
+                after=after,
+                before=before,
+                search=search,
+            )
 
             # Sort by (ts, id) descending
-            all_events.sort(key=lambda e: (e.get("ts", ""), e.get("id", "")), reverse=True)
-            # Return top 50
-            self._send_json(200, _ok(all_events[:50]))
+            filtered.sort(key=lambda e: (e.get("ts", ""), e.get("id", "")), reverse=True)
+
+            total = len(filtered)
+            page = filtered[offset : offset + limit]
+            has_more = (offset + limit) < total
+
+            self._send_json(200, _ok({
+                "events": page,
+                "total": total,
+                "offset": offset,
+                "limit": limit,
+                "has_more": has_more,
+                "facets": facets,
+            }))
 
         def _handle_stats(self, ld: Path) -> None:
             config_path = ld / "config.json"
@@ -1928,6 +1995,134 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
 
 
     return LatticeHandler
+
+
+# ---------------------------------------------------------------------------
+# Activity helpers (module-level, stateless)
+# ---------------------------------------------------------------------------
+
+
+def _collect_events(ld: Path, *, full_scan: bool = False, tail_n: int = 10) -> list[dict]:
+    """Read events from all JSONL files in the events directory.
+
+    When *full_scan* is True, reads every line.  Otherwise reads the last
+    *tail_n* lines from each file (fast path for the unfiltered default).
+    Also scans archived events when doing a full scan.
+    """
+    all_events: list[dict] = []
+    dirs = [ld / "events"]
+    if full_scan:
+        archive_events = ld / "archive" / "events"
+        if archive_events.is_dir():
+            dirs.append(archive_events)
+
+    for events_dir in dirs:
+        if not events_dir.is_dir():
+            continue
+        for event_file in events_dir.glob("*.jsonl"):
+            if event_file.name == "_lifecycle.jsonl":
+                continue
+            try:
+                lines = event_file.read_text().splitlines()
+            except OSError:
+                continue
+            subset = lines if full_scan else lines[-tail_n:]
+            for line in subset:
+                line = line.strip()
+                if line:
+                    try:
+                        all_events.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+    return all_events
+
+
+def _build_facets(events: list[dict], ld: Path) -> dict:
+    """Extract distinct types, actors, and tasks from a set of events."""
+    types: set[str] = set()
+    actors: set[str] = set()
+    task_ids: set[str] = set()
+
+    for ev in events:
+        if ev.get("type"):
+            types.add(ev["type"])
+        if ev.get("actor"):
+            actors.add(ev["actor"])
+        if ev.get("task_id"):
+            task_ids.add(ev["task_id"])
+
+    # Build task info list with short_id and title from snapshots
+    task_info: list[dict] = []
+    for tid in sorted(task_ids):
+        info: dict = {"id": tid}
+        # Try active snapshot
+        snap_path = ld / "tasks" / f"{tid}.json"
+        if not snap_path.is_file():
+            snap_path = ld / "archive" / "tasks" / f"{tid}.json"
+        if snap_path.is_file():
+            try:
+                snap = json.loads(snap_path.read_text())
+                info["short_id"] = snap.get("short_id")
+                info["title"] = snap.get("title")
+            except (json.JSONDecodeError, OSError):
+                pass
+        task_info.append(info)
+
+    return {
+        "types": sorted(types),
+        "actors": sorted(actors),
+        "tasks": task_info,
+    }
+
+
+def _apply_activity_filters(
+    events: list[dict],
+    *,
+    type_filter: str | None = None,
+    task_filter: str | None = None,
+    actor_filter: str | None = None,
+    after: str | None = None,
+    before: str | None = None,
+    search: str | None = None,
+) -> list[dict]:
+    """Apply filter chain to a list of events. All filters are AND-combined."""
+    result = events
+
+    if type_filter:
+        allowed = {t.strip() for t in type_filter.split(",")}
+        result = [e for e in result if e.get("type") in allowed]
+
+    if task_filter:
+        result = [e for e in result if e.get("task_id") == task_filter]
+
+    if actor_filter:
+        result = [e for e in result if e.get("actor") == actor_filter]
+
+    if after:
+        result = [e for e in result if (e.get("ts") or "") > after]
+
+    if before:
+        result = [e for e in result if (e.get("ts") or "") < before]
+
+    if search:
+        search_lower = search.lower()
+
+        def _matches(ev: dict) -> bool:
+            # Search in event data values (comment bodies, field values, etc.)
+            data = ev.get("data") or {}
+            for v in data.values():
+                if isinstance(v, str) and search_lower in v.lower():
+                    return True
+            # Also search in actor and type
+            if search_lower in (ev.get("actor") or "").lower():
+                return True
+            if search_lower in (ev.get("type") or "").lower():
+                return True
+            return False
+
+        result = [e for e in result if _matches(e)]
+
+    return result
 
 
 # ---------------------------------------------------------------------------

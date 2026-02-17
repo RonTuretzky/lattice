@@ -571,9 +571,33 @@ tr:hover td{background:var(--surface-hover)}
 .rel-list li,.art-list li{padding:4px 0;font-size:.85rem}
 
 /* Activity view */
-.activity-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-row);font-size:.85rem;align-items:flex-start}
+.activity-filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.activity-filters select,.activity-filters input{padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;background:var(--surface);color:var(--text-primary)}
+.activity-filters input[type="text"]{min-width:180px}
+.filter-pills{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.filter-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:var(--accent-primary);color:var(--text-on-accent,#fff);border-radius:12px;font-size:.75rem;cursor:pointer}
+.filter-pill:hover{opacity:.85}
+.filter-pill .pill-x{font-weight:bold;margin-left:2px}
+.filter-count{font-size:.8rem;color:var(--text-muted);margin-left:auto;white-space:nowrap}
+.activity-day-header{font-size:.8rem;font-weight:600;color:var(--text-secondary);padding:10px 0 4px;margin-top:8px;border-bottom:1px solid var(--border-row);text-transform:uppercase;letter-spacing:.5px}
+.activity-day-header:first-child{margin-top:0}
+.activity-item{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border-row);font-size:.85rem;align-items:flex-start;cursor:pointer;flex-wrap:wrap}
 .activity-item:last-child{border-bottom:none}
+.activity-item:hover{background:var(--surface-hover,rgba(128,128,128,.06))}
+.activity-item.focused{outline:2px solid var(--accent-primary);outline-offset:-2px;border-radius:var(--radius-sm)}
+.activity-item-main{display:flex;gap:10px;align-items:flex-start;width:100%;min-width:0}
+.activity-item-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1;min-width:0}
+.activity-item-summary{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.activity-item-meta{display:flex;gap:8px;align-items:center;flex-shrink:0;color:var(--text-muted);font-size:.8rem}
+.activity-type-badge{display:inline-block;padding:1px 6px;border-radius:var(--radius-sm);font-size:.75rem;font-weight:600;white-space:nowrap;cursor:pointer;line-height:1.4}
+.activity-type-badge:hover{filter:brightness(1.15)}
+.activity-item-detail{width:100%;background:var(--surface-raised,var(--surface));border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;margin-top:6px;font-family:var(--font-mono);font-size:.78rem;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;color:var(--text-secondary)}
+.activity-item.expanded .activity-item-detail{display:block}
+.activity-item .activity-item-detail{display:none}
 .activity-list{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 16px}
+.activity-load-more{text-align:center;padding:12px 0}
+.activity-load-more button{padding:6px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-primary);cursor:pointer;font-size:.85rem}
+.activity-load-more button:hover{background:var(--surface-hover,rgba(128,128,128,.08))}
 
 /* Settings panel */
 .settings-panel{position:fixed;top:0;right:0;width:320px;height:100%;background:var(--surface);border-left:1px solid var(--border);z-index:150;box-shadow:var(--shadow-settings);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease}
@@ -3346,7 +3370,22 @@ var VOICES = {
     "stats.recently_active": "Recently Active",
     "stats.stale_tasks": "Stale Tasks",
     "stats.busiest_tasks": "Most Active",
-    "empty.stats": "No statistics yet."
+    "empty.stats": "No statistics yet.",
+    "activity.showing": "Showing {from}\u2013{to} of {total}",
+    "activity.load_more": "Load More",
+    "activity.no_results": "No events match the current filters.",
+    "activity.all_types": "All types",
+    "activity.all_actors": "All actors",
+    "activity.all_tasks": "All tasks",
+    "activity.all_time": "All time",
+    "activity.today": "Today",
+    "activity.this_week": "This week",
+    "activity.this_month": "This month",
+    "activity.search": "Search events...",
+    "activity.date_today": "Today",
+    "activity.date_yesterday": "Yesterday",
+    "activity.expand": "Show details",
+    "activity.collapse": "Hide details"
   },
   "en-clinical": {
     _meta: { label: "Clinical (English)", lang: "en" },
@@ -3472,7 +3511,22 @@ var VOICES = {
     "stats.recently_active": "Recent",
     "stats.stale_tasks": "Stale",
     "stats.busiest_tasks": "Busiest",
-    "empty.stats": "No data."
+    "empty.stats": "No data.",
+    "activity.showing": "Showing {from}\u2013{to} of {total}",
+    "activity.load_more": "Load More",
+    "activity.no_results": "No matching events.",
+    "activity.all_types": "All types",
+    "activity.all_actors": "All actors",
+    "activity.all_tasks": "All tasks",
+    "activity.all_time": "All time",
+    "activity.today": "Today",
+    "activity.this_week": "This week",
+    "activity.this_month": "This month",
+    "activity.search": "Search events...",
+    "activity.date_today": "Today",
+    "activity.date_yesterday": "Yesterday",
+    "activity.expand": "Show details",
+    "activity.collapse": "Hide details"
   },
   "es-oracle": {
     _meta: { label: "Or\u00e1culo (Espa\u00f1ol)", lang: "es" },
@@ -3595,7 +3649,22 @@ var VOICES = {
     "stats.recently_active": "Activos Recientemente",
     "stats.stale_tasks": "Tareas Estancadas",
     "stats.busiest_tasks": "M\u00e1s Activas",
-    "empty.stats": "Sin estad\u00edsticas a\u00fan."
+    "empty.stats": "Sin estad\u00edsticas a\u00fan.",
+    "activity.showing": "Mostrando {from}\u2013{to} de {total}",
+    "activity.load_more": "Cargar m\u00e1s",
+    "activity.no_results": "Ning\u00fan evento coincide con los filtros.",
+    "activity.all_types": "Todos los tipos",
+    "activity.all_actors": "Todos los actores",
+    "activity.all_tasks": "Todas las tareas",
+    "activity.all_time": "Todo el tiempo",
+    "activity.today": "Hoy",
+    "activity.this_week": "Esta semana",
+    "activity.this_month": "Este mes",
+    "activity.search": "Buscar eventos...",
+    "activity.date_today": "Hoy",
+    "activity.date_yesterday": "Ayer",
+    "activity.expand": "Mostrar detalles",
+    "activity.collapse": "Ocultar detalles"
   }
 };
 
@@ -6472,20 +6541,89 @@ function _inlineEditTextarea(el, currentValue, onSave) {
 function eventSummary(ev) {
   var d = ev.data || {};
   switch(ev.type) {
+    case "task_created": return esc(d.title || "");
     case "status_changed": return esc((d.from||"?") + " \u2192 " + (d.to||"?"));
-    case "assignment_changed": return esc((d.from||"unassigned") + " \u2192 " + (d.to||"?"));
-    case "field_updated": return esc(d.field + ": " + (d.from||"?") + " \u2192 " + (d.to||"?"));
+    case "assignment_changed": return esc((d.from||"unassigned") + " \u2192 " + (d.to||"unassigned"));
+    case "field_updated": return esc(d.field + ": " + (d.from||"\u2013") + " \u2192 " + (d.to||"\u2013"));
     case "comment_added": {
       var body = d.body || "";
-      if (body.length > 80) body = body.slice(0,77) + "...";
-      return '"' + esc(body) + '"';
+      if (body.length > 80) body = body.slice(0,77) + "\u2026";
+      return '\u201c' + esc(body) + '\u201d';
     }
-    case "relationship_added": return esc(d.type) + " \u2192 " + esc(d.target_task_id||"");
-    case "relationship_removed": return esc(d.type) + " -x- " + esc(d.target_task_id||"");
-    case "artifact_attached": return "artifact " + esc(d.artifact_id||"");
-    case "task_created": return "";
-    default: return "";
+    case "comment_edited": return "edited comment";
+    case "comment_deleted": return "deleted comment";
+    case "relationship_added": return esc(d.type||"") + " \u2192 " + esc(d.target_task_id ? d.target_task_id.slice(0,12) : "");
+    case "relationship_removed": return esc(d.type||"") + " \u00d7 " + esc(d.target_task_id ? d.target_task_id.slice(0,12) : "");
+    case "artifact_attached": return "attached " + esc(d.artifact_id ? d.artifact_id.slice(0,12) : "");
+    case "task_archived": return "archived";
+    case "task_unarchived": return "restored from archive";
+    case "task_short_id_assigned": return esc(d.short_id || "");
+    case "reaction_added": return esc(d.emoji||"") + " on comment";
+    case "reaction_removed": return "removed " + esc(d.emoji||"") + " from comment";
+    case "git_event": return esc((d.ref_type||"ref") + ": " + (d.ref_name||""));
+    case "branch_linked": return "branch: " + esc(d.branch||d.branch_name||"");
+    case "branch_unlinked": return "unlinked branch: " + esc(d.branch||d.branch_name||"");
+    case "resource_added": return "added resource " + esc(d.resource_id ? d.resource_id.slice(0,12) : "");
+    case "resource_removed": return "removed resource " + esc(d.resource_id ? d.resource_id.slice(0,12) : "");
+    case "resource_updated": return "updated resource " + esc(d.resource_id ? d.resource_id.slice(0,12) : "");
+    case "resource_linked": return "linked resource " + esc(d.resource_id ? d.resource_id.slice(0,12) : "");
+    case "resource_unlinked": return "unlinked resource " + esc(d.resource_id ? d.resource_id.slice(0,12) : "");
+    case "resource_reordered": return "reordered resources";
+    default: return esc(ev.type || "");
   }
+}
+
+// Event type display labels and badge colors
+var EVENT_TYPE_LABELS = {
+  task_created: "Created", status_changed: "Status", assignment_changed: "Assigned",
+  field_updated: "Updated", comment_added: "Comment", comment_edited: "Edited",
+  comment_deleted: "Deleted", relationship_added: "Linked", relationship_removed: "Unlinked",
+  artifact_attached: "Artifact", task_archived: "Archived", task_unarchived: "Restored",
+  task_short_id_assigned: "Short ID", reaction_added: "Reaction", reaction_removed: "Unreacted",
+  git_event: "Git", branch_linked: "Branch", branch_unlinked: "Unbranch",
+  resource_added: "Resource", resource_removed: "Removed", resource_updated: "Resource",
+  resource_linked: "Linked", resource_unlinked: "Unlinked", resource_reordered: "Reordered"
+};
+var EVENT_TYPE_COLORS = {
+  task_created: "var(--color-success,#22c55e)", status_changed: "var(--accent-primary,#3b82f6)",
+  assignment_changed: "var(--color-info,#6366f1)", field_updated: "var(--text-secondary,#888)",
+  comment_added: "var(--color-warning,#f59e0b)", comment_edited: "var(--color-warning,#f59e0b)",
+  comment_deleted: "var(--color-error,#ef4444)", relationship_added: "var(--accent-secondary,#8b5cf6)",
+  relationship_removed: "var(--accent-secondary,#8b5cf6)", artifact_attached: "var(--color-info,#6366f1)",
+  task_archived: "var(--text-muted,#999)", task_unarchived: "var(--color-success,#22c55e)",
+  branch_linked: "var(--color-info,#6366f1)", branch_unlinked: "var(--text-muted,#999)"
+};
+
+function timeAgo(iso) {
+  if (!iso) return "";
+  var now = Date.now();
+  var then = new Date(iso).getTime();
+  var diff = Math.max(0, now - then);
+  var s = Math.floor(diff / 1000);
+  if (s < 60) return s + "s ago";
+  var m = Math.floor(s / 60);
+  if (m < 60) return m + "m ago";
+  var h = Math.floor(m / 60);
+  if (h < 24) return h + "h ago";
+  var d = Math.floor(h / 24);
+  if (d === 1) return "yesterday";
+  if (d < 7) return d + "d ago";
+  var w = Math.floor(d / 7);
+  if (w < 5) return w + "w ago";
+  return new Date(iso).toLocaleDateString();
+}
+
+function formatDateHeader(iso) {
+  if (!iso) return "";
+  var d = new Date(iso);
+  var now = new Date();
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  var target = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  var diff = Math.floor((today - target) / 86400000);
+  if (diff === 0) return t("activity.date_today");
+  if (diff === 1) return t("activity.date_yesterday");
+  if (diff < 7) return d.toLocaleDateString(undefined, { weekday: "long" });
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
 // --- Epics Tree View ---
@@ -6618,37 +6756,382 @@ async function renderEpics() {
 }
 
 // --- Activity View ---
+var _activityEvents = [];
+var _activityOffset = 0;
+var _activityTotal = 0;
+var _activityFacets = { types: [], actors: [], tasks: [] };
+var _activityFilters = {};
+var _activityFocusIdx = -1;
+var _activityLimit = 50;
+
+function _buildActivityQS() {
+  var params = [];
+  params.push("limit=" + _activityLimit);
+  params.push("offset=" + _activityOffset);
+  if (_activityFilters.type) params.push("type=" + encodeURIComponent(_activityFilters.type));
+  if (_activityFilters.task) params.push("task=" + encodeURIComponent(_activityFilters.task));
+  if (_activityFilters.actor) params.push("actor=" + encodeURIComponent(_activityFilters.actor));
+  if (_activityFilters.after) params.push("after=" + encodeURIComponent(_activityFilters.after));
+  if (_activityFilters.before) params.push("before=" + encodeURIComponent(_activityFilters.before));
+  if (_activityFilters.search) params.push("search=" + encodeURIComponent(_activityFilters.search));
+  return params.join("&");
+}
+
+async function _fetchActivity(initial) {
+  if (initial) {
+    _activityOffset = 0;
+    _activityEvents = [];
+    _activityFocusIdx = -1;
+  }
+  var data = await api("/api/activity?" + _buildActivityQS());
+  if (initial) {
+    _activityEvents = data.events || [];
+  } else {
+    _activityEvents = _activityEvents.concat(data.events || []);
+  }
+  _activityTotal = data.total || 0;
+  _activityFacets = data.facets || { types: [], actors: [], tasks: [] };
+  return data;
+}
+
+function _applyActivityFilter(key, value) {
+  if (value) {
+    _activityFilters[key] = value;
+  } else {
+    delete _activityFilters[key];
+  }
+  renderActivity();
+}
+
+function _renderActivityFilterBar() {
+  var html = '<div class="activity-filters">';
+
+  // Type dropdown
+  html += '<select id="activity-type-filter">';
+  html += '<option value="">' + esc(t("activity.all_types")) + '</option>';
+  _activityFacets.types.forEach(function(tp) {
+    var sel = _activityFilters.type === tp ? ' selected' : '';
+    var label = EVENT_TYPE_LABELS[tp] || tp.replace(/_/g, ' ');
+    html += '<option value="' + esc(tp) + '"' + sel + '>' + esc(label) + '</option>';
+  });
+  html += '</select>';
+
+  // Actor dropdown
+  html += '<select id="activity-actor-filter">';
+  html += '<option value="">' + esc(t("activity.all_actors")) + '</option>';
+  _activityFacets.actors.forEach(function(a) {
+    var sel = _activityFilters.actor === a ? ' selected' : '';
+    html += '<option value="' + esc(a) + '"' + sel + '>' + esc(a) + '</option>';
+  });
+  html += '</select>';
+
+  // Task dropdown
+  html += '<select id="activity-task-filter">';
+  html += '<option value="">' + esc(t("activity.all_tasks")) + '</option>';
+  _activityFacets.tasks.forEach(function(ti) {
+    var val = ti.short_id || ti.id;
+    var label = ti.short_id ? ti.short_id + (ti.title ? ': ' + ti.title.slice(0,30) : '') : ti.id.slice(0,16);
+    var sel = (_activityFilters.task === val) ? ' selected' : '';
+    html += '<option value="' + esc(val) + '"' + sel + '>' + esc(label) + '</option>';
+  });
+  html += '</select>';
+
+  // Date range quick-select
+  html += '<select id="activity-date-filter">';
+  var dateOpts = [
+    { value: "", label: t("activity.all_time") },
+    { value: "today", label: t("activity.today") },
+    { value: "week", label: t("activity.this_week") },
+    { value: "month", label: t("activity.this_month") }
+  ];
+  var curDate = _activityFilters._dateRange || "";
+  dateOpts.forEach(function(opt) {
+    var sel = curDate === opt.value ? ' selected' : '';
+    html += '<option value="' + esc(opt.value) + '"' + sel + '>' + esc(opt.label) + '</option>';
+  });
+  html += '</select>';
+
+  // Search input
+  html += '<input type="text" id="activity-search" placeholder="' + esc(t("activity.search")) + '" value="' + esc(_activityFilters.search || '') + '">';
+
+  // Event count
+  var from = _activityEvents.length > 0 ? 1 : 0;
+  var to = _activityEvents.length;
+  html += '<span class="filter-count">' + esc(t("activity.showing").replace("{from}", from).replace("{to}", to).replace("{total}", _activityTotal)) + '</span>';
+
+  html += '</div>';
+
+  // Active filter pills
+  var pills = [];
+  if (_activityFilters.type) pills.push({ key: "type", label: EVENT_TYPE_LABELS[_activityFilters.type] || _activityFilters.type });
+  if (_activityFilters.actor) pills.push({ key: "actor", label: _activityFilters.actor });
+  if (_activityFilters.task) pills.push({ key: "task", label: _activityFilters.task });
+  if (_activityFilters._dateRange) pills.push({ key: "_dateRange", label: _activityFilters._dateRange });
+  if (_activityFilters.search) pills.push({ key: "search", label: '"' + _activityFilters.search + '"' });
+
+  if (pills.length > 0) {
+    html += '<div class="filter-pills">';
+    pills.forEach(function(p) {
+      html += '<span class="filter-pill" data-filter-key="' + esc(p.key) + '">' + esc(p.label) + ' <span class="pill-x">\u00d7</span></span>';
+    });
+    html += '</div>';
+  }
+
+  return html;
+}
+
+function _renderActivityItem(ev, taskIdMap) {
+  var typeLabel = EVENT_TYPE_LABELS[ev.type] || ev.type.replace(/_/g, " ");
+  var typeColor = EVENT_TYPE_COLORS[ev.type] || "var(--surface-raised)";
+  var taskLabel = taskIdMap[ev.task_id] || (ev.task_id ? ev.task_id.slice(0,12) + "\u2026" : "");
+  var ts = timeAgo(ev.ts);
+
+  var html = '<div class="activity-item" data-event-id="' + esc(ev.id || '') + '" data-task-id="' + esc(ev.task_id || '') + '" tabindex="-1">';
+  html += '<div class="activity-item-main">';
+  html += '<div class="activity-item-top">';
+  html += '<span class="activity-type-badge" style="background:' + typeColor + ';color:#fff" data-filter-type="' + esc(ev.type || '') + '" title="' + esc(ev.type || '') + '">' + esc(typeLabel) + '</span>';
+  html += '<a href="#/task/' + esc(ev.task_id || '') + '" style="font-weight:600;color:var(--accent-primary);white-space:nowrap" data-filter-task="' + esc(ev.task_id || '') + '">' + esc(taskLabel) + '</a>';
+  html += '<span class="activity-item-summary">' + eventSummary(ev) + '</span>';
+  html += '</div>';
+  html += '<div class="activity-item-meta">';
+  html += '<span class="event-actor" data-filter-actor="' + esc(ev.actor || '') + '" style="cursor:pointer" title="' + esc(ev.actor || '') + '">' + esc(ev.actor || '') + '</span>';
+  html += '<span class="event-ts" title="' + esc(ev.ts || '') + '">' + esc(ts) + '</span>';
+  html += '</div>';
+  html += '</div>';
+  // Expandable detail (hidden by default)
+  html += '<div class="activity-item-detail">' + esc(JSON.stringify(ev.data || {}, null, 2)) + '</div>';
+  html += '</div>';
+  return html;
+}
+
+function _renderActivityDayGroups(events, taskIdMap) {
+  var html = '';
+  var lastDay = '';
+  events.forEach(function(ev) {
+    var day = formatDateHeader(ev.ts);
+    if (day && day !== lastDay) {
+      html += '<div class="activity-day-header">' + esc(day) + '</div>';
+      lastDay = day;
+    }
+    html += _renderActivityItem(ev, taskIdMap);
+  });
+  return html;
+}
+
 async function renderActivity() {
   var app = document.getElementById("app");
   app.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   try {
-    var events = await api("/api/activity");
-    if (events.length === 0) {
+    await _fetchActivity(true);
+
+    if (_activityTotal === 0 && Object.keys(_activityFilters).length === 0) {
       app.innerHTML = '<div class="empty"><p>' + esc(t("empty.activity")) + '</p></div>';
       return;
     }
-    var html = '<div class="activity-list">';
-    // Build task_id lookups from loaded tasks
-    var taskIdMap = {};
-    tasks.forEach(function(t) {
-      if (t.short_id) taskIdMap[t.id] = t.short_id;
-    });
 
-    events.forEach(function(ev) {
-      var taskLabel = taskIdMap[ev.task_id] || (ev.task_id ? ev.task_id.slice(0,18)+"..." : "");
-      html += '<div class="activity-item">';
-      html += '<span class="event-ts">' + esc(ev.ts || "") + "</span>";
-      html += '<span class="badge badge-stat">' + esc(ev.type || "") + "</span>";
-      html += '<a href="#/task/' + esc(ev.task_id || "") + '"' + (taskIdMap[ev.task_id] ? ' style="font-weight:600;color:var(--accent-primary)"' : '') + '>' + esc(taskLabel) + "</a>";
-      html += "<span>" + eventSummary(ev) + "</span>";
-      html += '<span class="event-actor">' + esc(ev.actor || "") + "</span>";
-      html += "</div>";
-    });
-    html += "</div>";
-    app.innerHTML = html;
+    _renderActivityUI(app);
   } catch(e) {
-    app.innerHTML = '<div class="error-box"><p>' + esc(e.message) + '</p><button class="btn" onclick="location.reload()">' + esc(t("btn.retry")) + '</button></div>';
+    app.innerHTML = '<div class="error-box"><p>' + esc(e.message) + '</p><button class="btn" onclick="renderActivity()">' + esc(t("btn.retry")) + '</button></div>';
   }
+}
+
+function _renderActivityUI(app) {
+  // Build task_id -> short_id map from facets + loaded tasks
+  var taskIdMap = {};
+  tasks.forEach(function(tk) { if (tk.short_id) taskIdMap[tk.id] = tk.short_id; });
+  _activityFacets.tasks.forEach(function(ti) { if (ti.short_id) taskIdMap[ti.id] = ti.short_id; });
+
+  var html = '';
+  html += _renderActivityFilterBar();
+  html += '<div class="activity-list">';
+
+  if (_activityEvents.length === 0) {
+    html += '<div style="padding:16px;text-align:center;color:var(--text-muted)">' + esc(t("activity.no_results")) + '</div>';
+  } else {
+    html += _renderActivityDayGroups(_activityEvents, taskIdMap);
+  }
+
+  html += '</div>';
+
+  // Load More
+  if (_activityOffset + _activityLimit < _activityTotal) {
+    html += '<div class="activity-load-more"><button id="activity-load-more-btn">' + esc(t("activity.load_more")) + '</button></div>';
+  }
+
+  app.innerHTML = html;
+  _wireActivityEvents(app);
+}
+
+function _wireActivityEvents(app) {
+  var _searchTimer = null;
+
+  // Filter dropdowns
+  var typeSelect = document.getElementById("activity-type-filter");
+  if (typeSelect) typeSelect.addEventListener("change", function() { _applyActivityFilter("type", this.value); });
+
+  var actorSelect = document.getElementById("activity-actor-filter");
+  if (actorSelect) actorSelect.addEventListener("change", function() { _applyActivityFilter("actor", this.value); });
+
+  var taskSelect = document.getElementById("activity-task-filter");
+  if (taskSelect) taskSelect.addEventListener("change", function() { _applyActivityFilter("task", this.value); });
+
+  var dateSelect = document.getElementById("activity-date-filter");
+  if (dateSelect) dateSelect.addEventListener("change", function() {
+    var val = this.value;
+    var now = new Date();
+    delete _activityFilters.after;
+    delete _activityFilters.before;
+    delete _activityFilters._dateRange;
+    if (val === "today") {
+      _activityFilters.after = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      _activityFilters._dateRange = "today";
+    } else if (val === "week") {
+      var weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
+      _activityFilters.after = weekAgo.toISOString();
+      _activityFilters._dateRange = "week";
+    } else if (val === "month") {
+      var monthAgo = new Date(now); monthAgo.setMonth(monthAgo.getMonth() - 1);
+      _activityFilters.after = monthAgo.toISOString();
+      _activityFilters._dateRange = "month";
+    }
+    renderActivity();
+  });
+
+  // Search input with debounce
+  var searchInput = document.getElementById("activity-search");
+  if (searchInput) {
+    searchInput.addEventListener("input", function() {
+      var val = this.value;
+      clearTimeout(_searchTimer);
+      _searchTimer = setTimeout(function() {
+        _applyActivityFilter("search", val);
+      }, 300);
+    });
+  }
+
+  // Filter pill removal
+  app.querySelectorAll(".filter-pill").forEach(function(pill) {
+    pill.addEventListener("click", function() {
+      var key = pill.dataset.filterKey;
+      if (key === "_dateRange") {
+        delete _activityFilters.after;
+        delete _activityFilters.before;
+        delete _activityFilters._dateRange;
+        renderActivity();
+      } else {
+        _applyActivityFilter(key, "");
+      }
+    });
+  });
+
+  // Load More
+  var loadMoreBtn = document.getElementById("activity-load-more-btn");
+  if (loadMoreBtn) {
+    loadMoreBtn.addEventListener("click", async function() {
+      loadMoreBtn.disabled = true;
+      loadMoreBtn.textContent = "Loading...";
+      _activityOffset += _activityLimit;
+      try {
+        await _fetchActivity(false);
+        _renderActivityUI(app);
+      } catch(e) {
+        loadMoreBtn.disabled = false;
+        loadMoreBtn.textContent = t("activity.load_more");
+      }
+    });
+  }
+
+  // Click-to-expand event detail
+  app.querySelectorAll(".activity-item").forEach(function(item) {
+    item.addEventListener("click", function(e) {
+      // Don't toggle if clicking a link or badge filter
+      if (e.target.tagName === "A") return;
+      if (e.target.dataset.filterType) {
+        e.stopPropagation();
+        _applyActivityFilter("type", e.target.dataset.filterType);
+        return;
+      }
+      if (e.target.dataset.filterActor) {
+        e.stopPropagation();
+        _applyActivityFilter("actor", e.target.dataset.filterActor);
+        return;
+      }
+      item.classList.toggle("expanded");
+    });
+  });
+
+  // Quick-filter shortcuts on badges and actors
+  app.querySelectorAll("[data-filter-type]").forEach(function(el) {
+    el.addEventListener("click", function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      _applyActivityFilter("type", el.dataset.filterType);
+    });
+  });
+
+  // Keyboard navigation
+  document.addEventListener("keydown", _activityKeyHandler);
+}
+
+function _activityKeyHandler(e) {
+  if (currentView !== "activity") return;
+  // Don't intercept when focus is in an input/select
+  var tag = (document.activeElement || {}).tagName;
+  if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") {
+    if (e.key === "Escape") {
+      document.activeElement.blur();
+      e.preventDefault();
+    }
+    return;
+  }
+  var items = document.querySelectorAll(".activity-item");
+  if (!items.length) return;
+
+  if (e.key === "j" || e.key === "ArrowDown") {
+    e.preventDefault();
+    _activityFocusIdx = Math.min(_activityFocusIdx + 1, items.length - 1);
+    _activitySetFocus(items);
+  } else if (e.key === "k" || e.key === "ArrowUp") {
+    e.preventDefault();
+    _activityFocusIdx = Math.max(_activityFocusIdx - 1, 0);
+    _activitySetFocus(items);
+  } else if (e.key === "Enter" || e.key === " ") {
+    e.preventDefault();
+    if (_activityFocusIdx >= 0 && _activityFocusIdx < items.length) {
+      items[_activityFocusIdx].classList.toggle("expanded");
+    }
+  } else if (e.key === "o") {
+    if (_activityFocusIdx >= 0 && _activityFocusIdx < items.length) {
+      var taskId = items[_activityFocusIdx].dataset.taskId;
+      if (taskId) location.hash = "#/task/" + taskId;
+    }
+  } else if (e.key === "Escape") {
+    // Clear focus or collapse expanded
+    if (_activityFocusIdx >= 0 && _activityFocusIdx < items.length) {
+      var focused = items[_activityFocusIdx];
+      if (focused.classList.contains("expanded")) {
+        focused.classList.remove("expanded");
+      } else {
+        items.forEach(function(it) { it.classList.remove("focused"); });
+        _activityFocusIdx = -1;
+      }
+    }
+  } else if (e.key === "/") {
+    e.preventDefault();
+    var si = document.getElementById("activity-search");
+    if (si) si.focus();
+  }
+}
+
+function _activitySetFocus(items) {
+  items.forEach(function(it, i) {
+    if (i === _activityFocusIdx) {
+      it.classList.add("focused");
+      it.scrollIntoView({ block: "nearest" });
+    } else {
+      it.classList.remove("focused");
+    }
+  });
 }
 
 // --- Stats View ---

@@ -224,7 +224,15 @@ class TestActivityEndpoint:
         status, body = _get(base_url, "/api/activity")
         assert status == 200
         assert body["ok"] is True
-        events = body["data"]
+        data = body["data"]
+        # Response is now an envelope with events, total, offset, limit, has_more, facets
+        assert "events" in data
+        assert "total" in data
+        assert "offset" in data
+        assert "limit" in data
+        assert "has_more" in data
+        assert "facets" in data
+        events = data["events"]
         assert isinstance(events, list)
         assert len(events) > 0
 
@@ -235,6 +243,134 @@ class TestActivityEndpoint:
         # Newest first
         timestamps = [e["ts"] for e in events]
         assert timestamps == sorted(timestamps, reverse=True)
+
+        # Facets should have types, actors, tasks
+        facets = data["facets"]
+        assert isinstance(facets["types"], list)
+        assert isinstance(facets["actors"], list)
+        assert isinstance(facets["tasks"], list)
+        assert len(facets["types"]) > 0
+        assert len(facets["actors"]) > 0
+
+    def test_activity_pagination(self, dashboard_server):
+        """Limit and offset should control the returned page."""
+        base_url, _ld, _ids = dashboard_server
+        # Get all events first
+        status, body = _get(base_url, "/api/activity?limit=200")
+        total = body["data"]["total"]
+        all_events = body["data"]["events"]
+        assert total > 0
+
+        # Now paginate with limit=2
+        status, body = _get(base_url, "/api/activity?limit=2&offset=0")
+        assert status == 200
+        data = body["data"]
+        assert len(data["events"]) == min(2, total)
+        assert data["offset"] == 0
+        assert data["limit"] == 2
+        if total > 2:
+            assert data["has_more"] is True
+
+        # Second page
+        status, body = _get(base_url, "/api/activity?limit=2&offset=2")
+        data = body["data"]
+        assert data["offset"] == 2
+        # Events should be different from first page
+        if total > 2:
+            assert data["events"][0]["id"] != all_events[0]["id"]
+
+    def test_activity_type_filter(self, dashboard_server):
+        """Filtering by event type should return only matching events."""
+        base_url, _ld, _ids = dashboard_server
+        status, body = _get(base_url, "/api/activity?type=comment_added&limit=200")
+        assert status == 200
+        events = body["data"]["events"]
+        for ev in events:
+            assert ev["type"] == "comment_added"
+
+    def test_activity_multi_type_filter(self, dashboard_server):
+        """Comma-separated type filter should match any listed type."""
+        base_url, _ld, _ids = dashboard_server
+        status, body = _get(base_url, "/api/activity?type=comment_added,status_changed&limit=200")
+        assert status == 200
+        events = body["data"]["events"]
+        for ev in events:
+            assert ev["type"] in ("comment_added", "status_changed")
+
+    def test_activity_task_filter_ulid(self, dashboard_server):
+        """Filtering by task ULID should return only that task's events."""
+        base_url, _ld, ids = dashboard_server
+        task_id = ids["in_progress"]
+        status, body = _get(base_url, f"/api/activity?task={task_id}&limit=200")
+        assert status == 200
+        events = body["data"]["events"]
+        assert len(events) > 0
+        for ev in events:
+            assert ev["task_id"] == task_id
+
+    def test_activity_actor_filter(self, dashboard_server):
+        """Filtering by actor should return only matching events."""
+        base_url, _ld, _ids = dashboard_server
+        status, body = _get(base_url, "/api/activity?actor=agent:claude&limit=200")
+        assert status == 200
+        events = body["data"]["events"]
+        for ev in events:
+            assert ev["actor"] == "agent:claude"
+
+    def test_activity_date_range(self, dashboard_server):
+        """After/before filters should constrain timestamps."""
+        base_url, _ld, _ids = dashboard_server
+        # Events in the fixture are from 2025-01-10
+        status, body = _get(
+            base_url,
+            "/api/activity?after=2025-01-10T12:00:00Z&limit=200",
+        )
+        assert status == 200
+        events = body["data"]["events"]
+        for ev in events:
+            assert ev["ts"] > "2025-01-10T12:00:00Z"
+
+    def test_activity_search(self, dashboard_server):
+        """Search filter should match text in event data."""
+        base_url, _ld, _ids = dashboard_server
+        status, body = _get(base_url, "/api/activity?search=dependency%20audit&limit=200")
+        assert status == 200
+        events = body["data"]["events"]
+        # Should find the comment "Starting dependency audit."
+        assert len(events) >= 1
+        found = any(
+            "dependency audit" in (e.get("data", {}).get("body") or "").lower()
+            for e in events
+        )
+        assert found
+
+    def test_activity_invalid_task_filter(self, dashboard_server):
+        """Invalid task ID format should return 400."""
+        base_url, _ld, _ids = dashboard_server
+        status, body = _get(base_url, "/api/activity?task=not-valid-not-short")
+        assert status == 400
+        assert body["ok"] is False
+        assert body["error"]["code"] == "VALIDATION_ERROR"
+
+    def test_activity_facets_completeness(self, dashboard_server):
+        """Facets should list all event types and actors present."""
+        base_url, _ld, _ids = dashboard_server
+        status, body = _get(base_url, "/api/activity?limit=200")
+        facets = body["data"]["facets"]
+        # We know there are human:atin and agent:claude actors in the fixture
+        assert "human:atin" in facets["actors"]
+        # Types should include task_created at minimum
+        assert "task_created" in facets["types"]
+
+    def test_activity_default_backward_compat(self, dashboard_server):
+        """Default request (no params) should return events in envelope."""
+        base_url, _ld, _ids = dashboard_server
+        status, body = _get(base_url, "/api/activity")
+        assert status == 200
+        data = body["data"]
+        assert data["limit"] == 50
+        assert data["offset"] == 0
+        assert isinstance(data["events"], list)
 
 
 class TestStatsEndpoint:
