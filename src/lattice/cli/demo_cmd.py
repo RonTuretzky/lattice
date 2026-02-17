@@ -1352,14 +1352,8 @@ def _seed_demo(target_dir: Path, quiet: bool = False) -> None:
             1 for t in task_defs if t["type"] != "epic" and "parent_idx" not in t
         )
         click.echo(
-            f"\nDemo project seeded: {len(task_defs)} tasks "
-            f"({epic_count} epics, {standalone_count} standalone)."
+            f"\nSeeded {len(task_defs)} tasks ({epic_count} epics, {standalone_count} standalone)."
         )
-        click.echo(f"Location: {lattice_dir}")
-        click.echo("\nTo explore:")
-        click.echo(f"  cd {target_dir}")
-        click.echo("  lattice list")
-        click.echo("  lattice dashboard")
 
 
 def _add_relationship(
@@ -1416,13 +1410,21 @@ def demo() -> None:
     help="Directory to create demo project in. Defaults to ./lattice-demo/.",
 )
 @click.option("--quiet", is_flag=True, help="Minimal output.")
-def demo_init(target_path: str | None, quiet: bool) -> None:
+@click.option(
+    "--no-dashboard",
+    is_flag=True,
+    help="Don't launch the dashboard after seeding.",
+)
+def demo_init(target_path: str | None, quiet: bool, no_dashboard: bool) -> None:
     """Seed a demo Lattice project: 'The Lighthouse'.
 
     Creates a fully populated Lattice instance with epics, tasks,
     comments, relationships, and branch links — a distributed health
     monitoring system built by a team of agents and humans, told in
     the voice of Gregorovich.
+
+    After seeding, automatically opens the dashboard in your browser.
+    Use --no-dashboard to skip this.
     """
     if target_path is None:
         target_dir = Path.cwd() / "lattice-demo"
@@ -1444,3 +1446,34 @@ def demo_init(target_path: str | None, quiet: bool) -> None:
         click.echo(f"Target: {target_dir}\n")
 
     _seed_demo(target_dir, quiet=quiet)
+
+    if no_dashboard or quiet:
+        return
+
+    # Launch dashboard automatically
+    import sys
+    import webbrowser
+
+    from lattice.dashboard.server import create_server
+
+    lattice_dir = target_dir / LATTICE_DIR
+    host, port = "127.0.0.1", 8799
+    url = f"http://{host}:{port}/"
+
+    try:
+        server = create_server(lattice_dir, host, port)
+    except OSError as exc:
+        click.echo(f"\nCouldn't start dashboard: {exc}", err=True)
+        click.echo("Run 'lattice dashboard' manually from the demo directory.")
+        return
+
+    click.echo(f"\n  Dashboard → {url}")
+    click.echo("  Press Ctrl+C to stop.\n")
+    webbrowser.open(url)
+
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        sys.exit(0)
+    finally:
+        server.server_close()
