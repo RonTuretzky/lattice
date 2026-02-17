@@ -673,6 +673,123 @@ def _task_definitions(ts: dict[str, str]) -> list[dict]:
                 ),
             ],
         },
+        # -----------------------------------------------------------------
+        # STANDALONE tasks (34-40) — not part of any epic
+        # -----------------------------------------------------------------
+        {
+            "title": "Fix Safari CSS grid alignment bug",
+            "type": "bug",
+            "priority": "high",
+            "status": "in_progress",
+            "assigned_to": "agent:cursor",
+            "ts": ts["sun_1pm"],
+            "description": "Editor toolbar wraps incorrectly on Safari 17. Flexbox gap property not behaving as expected. Affects both macOS and iOS Safari.",
+            "tags": ["bug", "browser-compat"],
+            "status_history": [
+                ("in_progress", ts["sun_1pm"], "agent:cursor"),
+            ],
+            "comments": [
+                (
+                    "Root cause: Safari doesn't support `gap` in flex containers the same way Chrome does. "
+                    "Switching to margin-based spacing as a workaround. Also found a related z-index issue "
+                    "with the dropdown menus.",
+                    ts["sun_2pm"],
+                    "agent:cursor",
+                ),
+            ],
+        },
+        {
+            "title": "Set up error monitoring with Sentry",
+            "type": "task",
+            "priority": "high",
+            "status": "done",
+            "assigned_to": "agent:claude",
+            "ts": ts["sat_noon"],
+            "description": "Sentry for error tracking in both frontend and API routes. Source maps for meaningful stack traces. Slack alerts for P0 errors.",
+            "tags": ["observability", "infra"],
+            "status_history": [
+                ("in_progress", ts["sat_noon"], "agent:claude"),
+                ("done", ts["sat_1pm"], "agent:claude"),
+            ],
+        },
+        {
+            "title": "Investigate slow initial page load",
+            "type": "spike",
+            "priority": "medium",
+            "status": "done",
+            "assigned_to": "agent:claude",
+            "ts": ts["sun_10am"],
+            "description": "First paint is 3.2s on mobile. Suspected causes: large JS bundle, unoptimized images, no caching headers. Need to profile and identify top bottlenecks.",
+            "tags": ["performance"],
+            "status_history": [
+                ("in_progress", ts["sun_10am"], "agent:claude"),
+                ("done", ts["sun_noon"], "agent:claude"),
+            ],
+            "comments": [
+                (
+                    "Found three issues: (1) Tiptap editor bundle is 180KB gzipped — needs dynamic import, "
+                    "(2) hero image is 2.4MB unoptimized, (3) no Cache-Control headers on static assets. "
+                    "Filed separate tasks for the fixes. Dynamic import alone should cut load time by 40%.",
+                    ts["sun_noon"],
+                    "agent:claude",
+                ),
+            ],
+        },
+        {
+            "title": "Dynamic import for Tiptap editor bundle",
+            "type": "task",
+            "priority": "high",
+            "status": "planned",
+            "assigned_to": "agent:claude",
+            "ts": ts["sun_noon"],
+            "description": "Lazy-load the Tiptap editor with next/dynamic. Show a skeleton placeholder during load. Should reduce initial JS by ~180KB.",
+            "tags": ["performance"],
+            "status_history": [
+                ("in_planning", ts["sun_noon"], "agent:claude"),
+                ("planned", ts["sun_1pm"], "agent:claude"),
+            ],
+        },
+        {
+            "title": "Seed database with demo content for investor pitch",
+            "type": "chore",
+            "priority": "critical",
+            "status": "needs_human",
+            "assigned_to": "human:alex",
+            "ts": ts["sun_3pm"],
+            "description": "Need 5 polished example documents in the app for the demo. Should showcase different templates and AI features. Alex needs to provide the content/topics.",
+            "tags": ["demo", "investor"],
+            "status_history": [
+                ("in_progress", ts["sun_3pm"], "agent:claude"),
+                ("needs_human", ts["sun_4pm"], "agent:claude"),
+            ],
+            "comments": [
+                (
+                    "I can generate the documents once Alex picks the 5 topics. Suggestion: "
+                    "a blog post, a newsletter, a product description, a press release, and a social thread. "
+                    "Each should show a different AI feature in action.",
+                    ts["sun_4pm"],
+                    "agent:claude",
+                ),
+            ],
+        },
+        {
+            "title": "Add keyboard shortcuts for editor actions",
+            "type": "task",
+            "priority": "low",
+            "status": "backlog",
+            "ts": ts["sun_5pm"],
+            "description": "Cmd+Shift+G for AI generate, Cmd+Shift+R for rewrite, Cmd+/ for slash commands. Display shortcut hints in toolbar tooltips.",
+            "tags": ["editor", "ux"],
+        },
+        {
+            "title": "Write changelog for v0.1.0",
+            "type": "chore",
+            "priority": "low",
+            "status": "backlog",
+            "ts": ts["sun_6pm"],
+            "description": "Changelog summarizing everything shipped in the MVP. Include screenshots. Will be used for the Product Hunt listing and first blog post.",
+            "tags": ["docs", "launch"],
+        },
     ]
     return tasks
 
@@ -705,6 +822,18 @@ _DEPENDENCY_RELS: list[tuple[int, str, int]] = [
     (23, "depends_on", 20),
     # Password reset depends on NextAuth
     (14, "depends_on", 11),
+]
+
+# Other relationship types
+_OTHER_RELS: list[tuple[int, str, int]] = [
+    # Safari bug relates to the editor (standalone → epic child)
+    (33, "related_to", 20),
+    # Performance spike spawned the dynamic import task
+    (35, "spawned_by", 36),
+    # Dynamic import fix relates to the editor too
+    (36, "related_to", 20),
+    # Changelog relates to Product Hunt launch
+    (39, "related_to", 32),
 ]
 
 
@@ -888,14 +1017,21 @@ def _seed_demo(target_dir: Path, quiet: bool = False) -> None:
                 lattice_dir, config, task_ids, i, "subtask_of", parent_idx, ts["fri_6pm"]
             )
 
-    # blocking and dependency relationships
-    for source_idx, rel_type, target_idx in _BLOCKING_RELS + _DEPENDENCY_RELS:
+    # blocking, dependency, and cross-cutting relationships
+    for source_idx, rel_type, target_idx in _BLOCKING_RELS + _DEPENDENCY_RELS + _OTHER_RELS:
         _add_relationship(
             lattice_dir, config, task_ids, source_idx, rel_type, target_idx, ts["fri_6pm"]
         )
 
     if not quiet:
-        click.echo(f"\nDemo project seeded: {len(task_defs)} tasks across 6 epics.")
+        epic_count = sum(1 for t in task_defs if t["type"] == "epic")
+        standalone_count = sum(
+            1 for t in task_defs if t["type"] != "epic" and "parent_idx" not in t
+        )
+        click.echo(
+            f"\nDemo project seeded: {len(task_defs)} tasks "
+            f"({epic_count} epics, {standalone_count} standalone)."
+        )
         click.echo(f"Location: {lattice_dir}")
         click.echo("\nTo explore:")
         click.echo(f"  cd {target_dir}")
