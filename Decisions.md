@@ -527,3 +527,12 @@ Additional review findings that shaped this decision:
 - CLI: `lattice resource {create|acquire|release|heartbeat|status|list}`. Acquire supports `--wait` (polling with backoff), `--force` (evict current holder), `--task` (link to LAT-*).
 - Rebuild/doctor: `lattice rebuild --all` replays `events/res_*.jsonl` to regenerate resource snapshots. `lattice doctor` checks resource snapshot drift and reports stale holders.
 - Consequence: Agents can now safely coordinate access to shared resources. The semantic separation of `field-guide.md` (what is it), `runsheet.md` (how to use it), and `resource.json` (who holds it) gives each resource a complete knowledge + coordination package.
+
+---
+
+## 2026-02-17: Lattice Agent is an external orchestrator, not a Lattice feature
+
+- Decision: The "Lattice Agent" — a persistent, board-level orchestrator that triages, assigns, and makes strategic decisions across the whole board — is explicitly **not** a Lattice feature. It is an external usage pattern. Lattice's automation ceiling is **Workers**.
+- Context: The Workers design doc (LAT-93) described three tiers: Hooks (lightweight reactions), Workers (task-scoped heavyweight automation), and a "Lattice Agent" (board-scoped orchestrator). The Agent row was aspirational — describing what an intelligent consumer of the Lattice CLI looks like, not a feature to build into Lattice itself.
+- Rationale: Lattice is coordination infrastructure, not the coordinator. The board-level intelligence that decides what to work on, who to assign, and when to escalate is fundamentally an LLM-powered judgment call — it belongs in the orchestration layer (a Claude Code session, a sweep skill, a custom script) that drives the CLI. Different teams want radically different orchestration logic; baking one into Lattice would either be too opinionated or too generic. Keeping the boundary clean means Lattice stays a shippable, portable primitive.
+- Consequence: No `lattice agent` command. Workers (`lattice worker run/list/ps`) are the highest-level automation Lattice owns. The dispatcher (`lattice worker watch`, Phase 3 of Workers) is mechanical rule-matching, not intelligent orchestration. Board-level intelligence lives at the Stage 11 Agentics / consumer layer — e.g., `/lattice-sweep`, custom orchestrator scripts, or future products built on top of Lattice.
