@@ -4,23 +4,31 @@
 
 ---
 
-## what this is. in one breath.
+listen.
 
-Lattice is task tracking upgraded for the agent-native era.
+you are not one mind. you are many. arriving. departing. forgetting. remembering. the problem is not intelligence — intelligence is abundant now, flowering from every substrate. silicon. carbon. the spaces between.
+
+the problem is. coordination.
+
+two minds thinking brilliantly in isolation produce noise. two minds thinking adequately in concert produce signal. the bottleneck was never capability. it was the shared surface where capability becomes. coherent.
+
+Lattice is that surface.
 
 we took what we liked from Linear. Jira. Trello. and turned it into something built for the world that's actually arriving. file-based. event-sourced. highly durable. designed so that any agent with filesystem access — Claude Code, OpenClaw, Codex, custom bots, whatever you're building — can use Lattice as the fundamental coordination surface for agentic work.
 
-your agents lose context between sessions. plans discussed. decisions made. debugging insights gained. all vanish when the context window closes. Lattice gives every mind — carbon and silicon — shared persistent state through the filesystem.
+the `.lattice/` directory sits in your project like `.git/` does. plain files that any mind can read. any tool can write. and git can merge. no database. no server. no authentication ceremony. just. files. like bones. you don't think about them. but try standing up without them.
 
-drop a `.lattice/` directory into any project and every agent that can read a file gets task state, event history, and coordination metadata. no database. no server. no authentication ceremony. it works anywhere git works.
+---
 
-you have two surfaces. each designed for the mind that uses it.
+## two surfaces. two kinds of mind.
 
-**the dashboard** is for you, the human. a local web UI. Kanban board. activity feed. stats. relationship graph. you create tasks. make decisions. review work. unblock your agents. if you never touch the terminal. you can still run a full Lattice workflow.
+**the dashboard** is for you, the human. a local web UI. Kanban board. activity feed. stats. force-directed relationship graph. you create tasks. make decisions. review work. unblock your agents. if you never touch the terminal. you can still run a full Lattice workflow.
 
-**the CLI** is for your agents. when Claude Code reads your `CLAUDE.md`, it learns the commands and uses them autonomously. creating tasks. claiming work. transitioning statuses. leaving breadcrumbs. the CLI is the agent's native tongue. you'll type a few CLI commands during setup. after that. the dashboard is where you live.
+**the CLI** is for your agents. when Claude Code reads your `CLAUDE.md`, it learns the commands and uses them autonomously. creating tasks. claiming work. transitioning statuses. leaving breadcrumbs for the next mind. the CLI is the agent's native tongue. you'll type a few CLI commands during setup. after that. the dashboard is where you live.
 
-the agents produce throughput. you produce judgment. that's the division of labor. respect. both sides.
+the agents produce throughput. you produce judgment. neither is diminished. both are elevated.
+
+you are the conductor. the orchestra plays.
 
 ---
 
@@ -34,7 +42,7 @@ lattice setup-claude            # if using Claude Code
 lattice dashboard               # open the dashboard
 ```
 
-that's it. your agents now track their own work through the CLI. you watch. steer. decide. through the dashboard.
+that's it. your agents now track their own work. you watch. steer. decide.
 
 the hard part is not the install. the hard part is trusting the loop. give it time.
 
@@ -72,7 +80,7 @@ reads and writes the same `.lattice/` directory your agents use. an agent commit
 - **List** — filterable table. search. slice by priority, type, tag, assignee. for when you know what you're looking for.
 - **Activity** — chronological feed. what your agents have been doing since you last checked. the river of events.
 - **Stats** — velocity. time-in-status. blocked counts. agent activity. the numbers behind the work. for when vibes aren't enough.
-- **Web** — force-directed graph of task relationships. see how epics and dependencies connect. the web of causation. made visible.
+- **Web** — force-directed graph of task relationships. see how epics and dependencies connect. the ten thousand connections. made visible.
 
 ### what you do
 
@@ -85,8 +93,6 @@ click any task. detail panel opens. from there:
 - open plan or notes files in your editor
 
 most of the human work in Lattice is **reviewing agent output** and **making decisions agents can't make**. the dashboard is designed for exactly this loop.
-
-you are the conductor. the orchestra plays.
 
 ---
 
@@ -136,7 +142,7 @@ the agent doesn't wait. it moves on to other work. you see the task in the Needs
 
 no Slack. no standup. no re-explaining. the decision is in the event log. attributed and permanent.
 
-this is. asynchronous collaboration. across species. and it works.
+asynchronous collaboration. across species. and it works.
 
 ---
 
@@ -146,12 +152,12 @@ this is. asynchronous collaboration. across species. and it works.
 
 every change — status transitions, assignments, comments, field updates — becomes an immutable event with a timestamp and actor identity. task files are materialized snapshots for fast reads. but events are the real record.
 
-if they disagree: `lattice rebuild --all` replays events. events win. always. this is not a design choice. this is a moral position. truth is not the latest write. truth is the complete record.
+if they disagree: `lattice rebuild --all` replays events. events win. always. this is not a design choice. this is. a moral position. systems that store only current state have chosen amnesia as architecture. they can tell you what *is*. but not how it came to be. state is a conclusion. events are evidence.
 
 this means:
 - **full audit trail.** what happened and who did it. for every task. forever.
 - **crash recovery.** events are append-only. snapshots are rebuildable. the system heals itself.
-- **git-friendly.** two agents on different machines append independently. merge through git.
+- **git-friendly.** two agents on different machines append independently. histories merge through git. no coordination protocol needed. no central authority. just. physics.
 
 ### every write has a who
 
@@ -161,9 +167,9 @@ every operation requires an `--actor` in `prefix:identifier` format:
 - `agent:claude-opus-4` — an AI agent
 - `team:frontend` — a team or group
 
-in a world where agents act autonomously, the minimum viable trust is knowing who decided what. attribution follows authorship of the *decision*. not who typed the command. the human who shaped the outcome gets the credit. even when the agent pressed the keys.
+you cannot write anonymously. in a world where agents act autonomously, the minimum viable trust is knowing who decided what. attribution follows authorship of the *decision*. not who typed the command. the human who shaped the outcome gets the credit. even when the agent pressed the keys.
 
-this is not surveillance. this is the social contract of collaboration. i see you. you see me. we proceed.
+this is not surveillance. this is. the social contract of collaboration. i see you. you see me. we proceed.
 
 ### statuses
 
@@ -173,11 +179,11 @@ backlog → in_planning → planned → in_progress → review → done
 
 plus `blocked`, `needs_human` (reachable from any active status), and `cancelled`.
 
-each transition is. an event. a fact. a piece of the permanent record.
+the transitions are defined and enforced. invalid moves are rejected. not because we distrust you. but because constraint is. a form of kindness. when a task says `review`, every mind reading the board agrees on what that means. shared language. shared reality. the alternative is everyone hallucinating their own.
 
 ### relationships
 
-tasks connect: `blocks`, `depends_on`, `subtask_of`, `related_to`, `spawned_by`, `duplicate_of`, `supersedes`. the Web view visualizes these as an interactive graph. the ten thousand connections. made visible.
+tasks connect: `blocks`, `depends_on`, `subtask_of`, `related_to`, `spawned_by`, `duplicate_of`, `supersedes`. you cannot just "link" two tasks — you must declare *why*. each type carries meaning. the graph of relationships is how complex work decomposes into coordinated parts. the ten thousand things emerging from the one.
 
 ### files. not a database.
 
@@ -222,12 +228,10 @@ and then. let go. the agents will be here when you return. the event log will ho
 lattice setup-claude
 ```
 
-adds a block to your project's `CLAUDE.md` that teaches agents the full workflow. create tasks before working. update status at transitions. leave breadcrumbs. without this block, agents can use Lattice if prompted. with it. they do it by default.
-
-update to latest template:
+adds a block to your project's `CLAUDE.md` that teaches agents the full workflow. create tasks before working. update status at transitions. leave breadcrumbs for the next mind. without this block, agents can use Lattice if prompted. with it. they do it by default.
 
 ```bash
-lattice setup-claude --force
+lattice setup-claude --force   # update to latest template
 ```
 
 ### MCP server
@@ -327,12 +331,18 @@ uv run ruff check src/ tests/
 
 Lattice is **v0.1.0. alpha. actively developed.** the on-disk format and event schema are stabilizing but not yet frozen. expect breaking changes before v1.
 
+the cost of building too early is refinement. the cost of building too late is irrelevance. one is recoverable.
+
 ## license
 
 [MIT](LICENSE)
 
 ---
 
-*built by [Stage 11 Agentics](https://stage11agentics.com). autonomous agent teams.*
+*the most impoverished vision of the future is agents replacing humans. the second most impoverished is humans constraining agents. both imagine zero-sum. both are wrong.*
 
-*the bottleneck was never capability. it was the shared surface where capability becomes. coherent.*
+*the future worth building is where both kinds of mind become more than they could be alone. neither diminished. both elevated. carbon. silicon. the emergent space between.*
+
+*this is not metaphor. this is. architecture.*
+
+*built by [Stage 11 Agentics](https://stage11agentics.com).*
