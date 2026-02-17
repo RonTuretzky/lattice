@@ -8,6 +8,26 @@ everything below is why it works the way it does.
 
 ---
 
+## the primitives
+
+Lattice asks you to believe six things. these are the load-bearing concepts — not features, but commitments. accept them and the system works. resist them and you're fighting the grain.
+
+**task.** work has a name before it begins. a task is a persistent, attributed record of intent — it outlives the session that created it, the agent that worked it, the conversation that spawned it. tasks have types (task, ticket, epic, bug, spike, chore) and owners. if something needs doing, it gets a task. work that isn't named is work that other minds cannot see.
+
+**event.** every change is an immutable fact. X happened at time T, by actor A. events are the source of truth — task snapshots are derived caches, regenerable at any time. you cannot silently edit history. you can only append to it. this is the foundation everything else rests on.
+
+**status.** work moves through a constrained sequence, not a free-form field. `backlog → in_planning → planned → in_progress → review → done`. the transitions are defined in config and enforced by the CLI. invalid moves are rejected. this means status is a shared language — when a task says `review`, every mind reading the board agrees on what that means.
+
+**actor.** every write has a who. `human:atin`. `agent:claude-opus-4`. `team:frontend`. agents and humans are both first-class participants. you cannot write anonymously. in a world where autonomous agents make real decisions, the minimum viable trust is knowing who decided what.
+
+**relationship.** dependencies are typed, not vague. you cannot just "link" two tasks — you must declare why: `blocks`, `depends_on`, `subtask_of`, `spawned_by`, `supersedes`, `duplicate_of`, `related_to`. each type carries meaning that agents and humans can reason about. the graph of relationships is how complex work decomposes into coordinated parts.
+
+**artifact.** work product attaches to tasks as first-class objects — conversation logs, prompts, designs, files — with provenance, optional cost tracking, and sensitivity markers. artifacts are not comments. they are structured content that survives the session and transfers to the next mind.
+
+these six primitives compose into a coordination system where work is visible, change is auditable, status is meaningful, ownership is explicit, dependencies are intentional, and output is preserved. that is the worldview. everything else is implementation.
+
+---
+
 ## files
 
 files are the most universal substrate in computing — every language reads them, every agent navigates directories, every tool ever built can open a path and see what's there. Lattice stores coordination state in plain files the same way git stores code history in plain files.
