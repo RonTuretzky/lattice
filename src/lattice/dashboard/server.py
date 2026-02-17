@@ -1929,21 +1929,28 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
             self._send_json(200, _ok({"opened": str(resolved)}))
 
         # ---------------------------------------------------------------
-        # POST /api/open-guide — Open user guide on thelattice.works
+        # POST /api/open-guide — Open user guide (local docs/user-guide.md)
         # ---------------------------------------------------------------
 
         def _handle_post_open_guide(self, ld: Path) -> None:
-            """Handle POST /api/open-guide — open the user guide on the Lattice website."""
-            guide_url = "http://thelattice.works/guide"
+            """Handle POST /api/open-guide — open the local user guide file."""
+            # Walk up from .lattice/ to find the project root, then docs/user-guide.md
+            project_root = ld.parent
+            guide_path = project_root / "docs" / "user-guide.md"
 
+            if not guide_path.exists():
+                self._send_json(404, _err("NOT_FOUND", f"Guide not found at {guide_path}"))
+                return
+
+            resolved = guide_path.resolve()
             system = platform.system()
             try:
                 if system == "Darwin":
-                    subprocess.Popen(["open", guide_url])
+                    subprocess.Popen(["open", str(resolved)])
                 elif system == "Linux":
-                    subprocess.Popen(["xdg-open", guide_url])
+                    subprocess.Popen(["xdg-open", str(resolved)])
                 elif system == "Windows":
-                    subprocess.Popen(["start", "", guide_url], shell=True)
+                    subprocess.Popen(["start", "", str(resolved)], shell=True)
                 else:
                     self._send_json(500, _err("UNSUPPORTED", f"Unsupported platform: {system}"))
                     return
@@ -1951,7 +1958,7 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 self._send_json(500, _err("OPEN_ERROR", f"Failed to open guide: {exc}"))
                 return
 
-            self._send_json(200, _ok({"opened": guide_url}))
+            self._send_json(200, _ok({"opened": str(resolved)}))
 
     return LatticeHandler
 
