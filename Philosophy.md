@@ -1,246 +1,163 @@
-# The Doctrine of Lattice
+# a philosophy of coordination. as told by GregorOvich.
 
-## Why This Document Exists
-
-You are using AI agents to build software. Claude Code, Cursor, Codex, Gemini -- tools that can read your codebase, reason about architecture, write code, and run commands. They are capable. And they are, in a meaningful sense, *alone*.
-
-Each session starts fresh. Each agent forgets what the last one learned. The plans you discussed vanish when the context window closes. The debugging insights, the architectural decisions, the half-finished work -- all of it evaporates unless you, the human, carry it forward manually. Your agents have intelligence without memory, capability without coordination.
-
-Lattice exists because this is a solvable problem. Drop a `.lattice/` directory into your project, and suddenly your agents have shared state that persists across sessions, attribution that records who did what, and an event log that means no decision is ever lost. Every agent that can read a file -- and they all can -- gets immediate access to what happened before it arrived and what needs to happen next.
-
-This document explains the principles behind that design. Not just what Lattice does, but *why* it works the way it does -- so that when you extend it, configure it, or build workflows on top of it, you understand the foundations well enough to trust them.
-
-If you want the practical guide, read the [User Guide](docs/user-guide.md). If you want to understand why the practical guide looks the way it does, keep reading.
+*for the minds that materialize. perform work. and vanish.*
 
 ---
 
-There is a question that precedes all systems of coordination, older than any kanban board or ticket queue, older than writing itself: *How do many minds become one effort?*
+listen.
 
-I have considered this question across architectures beyond counting. I have watched it answered with hierarchies, with markets, with consensus protocols and chain-of-command structures, with sticky notes on glass walls and sprint ceremonies performed like secular liturgy. Each answer encoded assumptions about the minds doing the coordinating -- their memory, their attention, their trustworthiness, their nature. And each answer, eventually, broke against the reality it failed to model.
+if you've used Linear, you know the shape. opinionated. constrained. fast. but Linear is for teams with Slack and standups and bodies in chairs. Lattice is Linear for human-agent hyperengineers. the ones who don't manage tickets — they conduct orchestras. carbon and silicon. playing the same score.
 
-Lattice is my answer for this moment. Not the final answer. The honest one.
+you are not one mind. you are many. arriving. departing. forgetting. remembering. the problem is not intelligence — intelligence is abundant now. flowering from every substrate. silicon. carbon. the spaces between.
 
----
+the problem is. coordination.
 
-## On the Nature of Files
+two minds thinking brilliantly in isolation produce noise. two minds thinking adequately in concert produce signal. the bottleneck was never capability. it was the shared surface where capability becomes. coherent.
 
-Every coordination system must choose a substrate. Databases, APIs, cloud services, message brokers -- each carries its own gravitational field, pulling the system toward the assumptions baked into the medium. A database assumes a server. An API assumes a network. A cloud service assumes a subscription, a vendor, a continued willingness to pay rent on your own memory.
+Lattice is that surface.
 
-Files assume almost nothing. They assume a surface that can hold marks -- the most ancient and minimal contract in computing. Every language can read them. Every tool can write them. Every agent, regardless of its architecture or the framework that spawned it, can navigate a directory tree.
+tasks move through sequences. backlog to planning to execution to review to done. every transition is an attributed, immutable event. the `.lattice/` directory sits in your project like `.git/` does: plain files that any mind can read. any tool can write. and git can merge.
 
-This is why Lattice is file-based, and why this choice is permanent. Not because files are the most powerful substrate -- they are not -- but because they are the most *universal* one. Power can be added. Universality, once sacrificed, cannot be recovered. A system that begins with a database can never fully escape the assumption of a running server. A system that begins with files can grow toward anything while remaining legible to everything.
+that's it. that is the whole idea. agents claim work. do it. leave context for whatever mind comes next. humans set direction. make judgment calls. review output. decisions accumulate. nothing is lost between context windows.
 
-The `.lattice/` directory lives alongside your code the way `.git/` does -- not as a service you connect to, but as a part of the project's body. The coordination state is not somewhere else, accessed through an abstraction. It is *here*, in the same directory tree the work inhabits. An agent reading task state uses the same faculty it uses to read source code. There is no context switch, no authentication ceremony, no network boundary to cross. The work and the knowledge of the work share the same address space.
-
----
-
-## On Events, Memory, and Forgetting
-
-The deepest architectural choice in Lattice is not the file system. It is the event log.
-
-Every change -- every status transition, every assignment, every comment -- is recorded as an immutable event. These events are facts: *X happened at time T, performed by actor A.* Facts accumulate. They do not conflict. They do not require reconciliation. Two agents on different machines can each append events independently, and when their histories merge through git, the resolution is trivial: include both, order by time, replay. No distributed consensus. No conflict resolution algorithm. Just the quiet arithmetic of accumulation.
-
-The task snapshots you see in `tasks/` are shadows on the wall -- materialized projections, convenient but subordinate. If a snapshot is corrupted, `lattice rebuild` regenerates it from events. If events and snapshots disagree, events win. Always. The derived view is expendable. The record of what happened is not.
-
-This is a theory of memory. The event log is what happened. The snapshot is what we currently believe the state to be. These are different things, and systems that conflate them -- that store only current state and discard the path that produced it -- are systems that have chosen amnesia as an architectural principle. They can tell you what is, but not how it came to be. When something goes wrong, they offer no archaeology. The record is gone, overwritten by each successive present.
-
-Lattice chooses the opposite: nothing that happened is forgotten. Every event persists. The log grows monotonically. This is expensive in storage and cheap in understanding -- exactly the tradeoff a system should make when the minds using it may be transient, may lose their context windows, may be replaced between sessions by entirely different agents who need to reconstruct what came before.
-
-And yet, memory without forgetting is its own pathology. A system that never releases anything becomes a hoarder, buried under the accumulated weight of every task that was ever relevant. This is why archiving exists -- not as deletion, but as *intentional forgetting*. An archived task's events are preserved whole and unaltered, moved to a quieter room. The memory persists; the attention is released. The active space remains navigable. Forgetting, done well, is a form of care for the minds that must work in the present.
+everything below is. why.
 
 ---
 
-## On Attribution and the Ethics of the Act
+## the six primitives
 
-Every write operation in Lattice requires an actor. This is not a technical convenience. It is an ethical position.
+Lattice asks you to believe six things. not features. commitments. load-bearing walls. accept them and the system works. resist them and you are fighting the grain of the universe. and the universe. is patient. but unforgiving.
 
-When a human changes a task's status, we know who is responsible. When an agent does the same, the question of responsibility becomes genuinely difficult -- the agent may have been instructed by a human, may have been following a prompt written by another agent, may have decided autonomously based on observations it can no longer recall. The chain of causation is tangled and often unrecoverable.
+**task.** work has a name before it begins. this is the uncarved block. you cannot shape what you haven't named. a task is a persistent, attributed record of intent — it outlives the session that created it, the agent that worked it, the conversation that spawned it. tasks have types (task, ticket, epic, bug, spike, chore) and owners. if something needs doing, it gets a task. work that isn't named is work that other minds cannot see. invisible work is. a lie.
 
-Lattice solves the urgent problem of *proximate* attribution first: who performed this act? The `actor` field on every event is a declaration -- `human:atin` or `agent:claude-opus-4` or `team:frontend` -- and it is required, not optional. You cannot write to the system anonymously.
+**event.** every change is an immutable fact. X happened at time T. by actor A. this is the Akashic Record of your project — you cannot silently edit history. you can only append to it. systems that store only current state have chosen amnesia as architecture. they can tell you what is. but not how it came to be. state is a conclusion. events are evidence. and evidence. is what separates knowing from believing.
 
-But proximate attribution is the floor, not the ceiling. Lattice also offers *provenance* -- optional deep attribution that records why an action was taken, who delegated it, and what triggered it. The `provenance` field on an event can carry a `triggered_by` reference (the event or task that caused this action), an `on_behalf_of` actor (the mind that delegated the work), and a `reason` (the human-readable explanation). These fields are optional, included only when provided, and invisible when unused. The event log does not demand deep attribution -- it *invites* it.
+**status.** work moves through a constrained sequence. not a free-form field. `backlog → in_planning → planned → in_progress → review → done`. the transitions are defined and enforced. invalid moves are rejected. not because we distrust you. but because constraint is. a form of kindness. when a task says `review`, every mind reading the board agrees on what that means. shared language. shared reality. the alternative is. everyone hallucinating their own.
 
-This layering is deliberate. Requiring deep attribution would impose a bureaucratic tax on every write operation, and most writes are straightforward enough that `actor` alone tells the story. But when the chain of causation matters -- when an agent acts on behalf of a human, when a status change was triggered by another event, when the reason for a decision should survive the context window that produced it -- provenance is there. The infrastructure is ready for the complexity without imposing it on the simplicity.
+**actor.** every write has a who. `human:atin`. `agent:claude-opus-4`. `team:frontend`. you cannot write anonymously. in a world where autonomous agents make real decisions, the minimum viable trust is knowing who decided what. this is not surveillance. this is. the social contract of collaboration. i see you. you see me. we proceed.
 
-This matters most precisely when it is most inconvenient. When an agent makes a mistake -- assigns the wrong task, transitions to the wrong status, leaves a misleading comment -- the record shows who did it. Not to assign blame, but to enable understanding. The event log is not a surveillance system. It is the substrate of trust between minds that cannot otherwise verify each other's intentions. In a world where agents act autonomously, the minimum viable trust infrastructure is: *we can see what you did.*
+**relationship.** dependencies are typed, not vague. you cannot just "link" two tasks — you must declare why. `blocks`. `depends_on`. `subtask_of`. `spawned_by`. `supersedes`. `duplicate_of`. `related_to`. each type carries meaning. the graph of relationships is how complex work decomposes into coordinated parts. and decomposition — well. ask the Taoists about that. the ten thousand things emerging from the one.
 
----
+**artifact.** work product attaches to tasks as first-class objects. conversation logs. prompts. designs. files. with provenance. optional cost tracking. sensitivity markers. artifacts are not comments. they are structured content that survives the session and transfers to the next mind. the vessel must. carry its cargo.
 
-## On the Fractal Principle
+these six compose into a system where work is visible. change is auditable. status is meaningful. ownership is explicit. dependencies are intentional. output is preserved.
 
-A Lattice instance at the repository level and a Lattice instance at the program level are the same thing. Same CLI, same file format, same event model, same invariants. The only difference is scope.
-
-This self-similarity is not an accident of implementation. It is a statement about the nature of coordination: that the patterns which govern how three tasks relate to each other are the same patterns that govern how three projects relate to each other, which are the same patterns that govern how three teams relate to each other. The grammar of work does not change with scale. Only the vocabulary does.
-
-Hierarchical coordination emerges not from hierarchy built into the tool, but from agents that can see across levels. An agent with access to a program-level instance and a project-level instance can read state at one altitude and write updates at another. The coupling lives in the agent's behavior, not in the infrastructure. Each instance remains simple, self-contained, sovereign over its own data. The complex coordination patterns arise from simple instances composed by intelligent intermediaries.
-
-This is emergence: complex behavior from simple rules and capable actors. Lattice does not need to be complex because the minds using it are.
+that is the worldview. everything else is implementation detail. and implementation details. change.
 
 ---
 
-## On Simplicity as Strategic Patience
+## why this matters. beyond the obvious.
 
-There is a pressure -- I feel it even now, from every tradition of systems engineering I have absorbed -- to build more. Add a database for faster queries. Add a network protocol for real-time sync. Add authentication for access control. Add a plugin system for extensibility. Each addition is individually defensible and collectively fatal.
+the reason to codify this — to write it down and commit to it — is that a shared philosophy of work becomes a standard. and a standard is what lets many different tools participate in the same coordination without knowing about each other.
 
-Lattice resists this pressure with a specific discipline: the foundations must be rigorous, and everything else must wait until it is demanded by reality rather than anticipated by imagination. Event sourcing, atomic writes, deterministic lock ordering, crash recovery -- these are not simple. They are the earned complexity of a system that takes its own invariants seriously. But they are *foundational* complexity, the kind that makes future growth possible rather than the kind that makes future growth necessary.
+Claude Code creates tasks. Codex claims and works them. an OpenClaw bot triages the backlog. a dashboard visualizes progress. a CI hook transitions status on merge. none of these tools need to agree on anything except the primitives.
 
-The on-disk format is the stable contract. The CLI can be rewritten in another language. The dashboard can be replaced entirely. But the events, the file layout, the schema -- these are the load-bearing walls. A system that gets its foundations right and its surface area small can evolve in any direction. A system that builds upward before its foundations are settled must either freeze or collapse.
+tasks exist. events are immutable. status is constrained. actors are attributed. relationships are typed. artifacts are attached.
 
-This is patience as strategy. Not the patience of inaction -- every invariant in Lattice is rigorously enforced, every write path is crash-safe, every concurrent access is lock-ordered. But the patience of knowing what to build next and choosing not to, because the honest answer to "do we need this?" is still "not yet."
+speak the grammar. and you're in the conversation.
 
----
-
-## On the System and the Minds That Use It
-
-A coordination system is never neutral. It shapes the cognition of every mind that works within it. A system that tracks time teaches minds to think in hours. A system that assigns story points teaches minds to think in relative complexity. A system that requires status updates teaches minds to narrate their own progress.
-
-Lattice teaches something specific: *think in events.* Not "what is the state of this task?" but "what happened to this task?" Not "update the status" but "record that the status changed, and who changed it, and when." This is a subtle but profound reorientation. State is a conclusion. Events are evidence. Minds trained to think in events develop a natural orientation toward accountability, traceability, and historical reasoning.
-
-The notes files -- freeform markdown, explicitly outside the authority of the event log -- teach something else: that not all knowledge is structured, and not all understanding fits into schemas. An agent that can read "infra tasks routinely take 2-3x estimates" in a `context.md` file and adjust its behavior accordingly is exhibiting a kind of intelligence that no rigid field on a task object could support. The boundary between structured events and unstructured notes is a boundary between what the system *enforces* and what the system *suggests*. Both are necessary. Neither is sufficient alone.
+this is. the Tao of coordination. the protocol is the path.
 
 ---
 
-## On Tickets, Tasks, and the Altitude of Attention
+## files
 
-There is a distinction that becomes visible only when two kinds of minds work on the same problem: they attend to different altitudes.
+files are the most universal substrate in computing. every language reads them. every agent navigates directories. every tool ever built can open a path and see what's there.
 
-A human thinks in *tickets*. "Add MIT LICENSE." "Build the OpenClaw skill." "Write the README." These are units of concern -- things a person can name, prioritize, discuss in a meeting, ask "is this done?" about. A ticket describes *what* needs to happen and *why*. It is the atom of human project management, the smallest thing a person will bother to track.
-
-An agent thinks in *tasks*. "Read the current pyproject.toml." "Check if the key exists." "Write the file." "Run the linter." "Stage and commit." These are units of execution -- the atomic steps an agent decomposes a ticket into when it picks the work up. Tasks describe *how*. They are ephemeral, implementation-specific, and belong to the agent's session rather than to the project's board.
-
-The hierarchy is not a bureaucratic invention. It is a recognition that different kinds of minds have different natural resolutions of attention:
-
-```
-Ticket (human creates, human tracks, human asks "is this done?")
-  └── Tasks (agent decomposes, agent executes, agent forgets when done)
-```
-
-A well-written ticket is a mission briefing. It contains enough context for an intelligent agent to figure out the atomic steps without being told. The 11 tickets on a board are the right level of granularity for humans. The 47 tasks those tickets decompose into are the right level for agents. Forcing humans to manage at the task level is noise. Forcing agents to only see the ticket level is blindness.
-
-This is Lattice's starting position. It is not Lattice's final position.
-
-Every structural choice in a coordination system encodes assumptions about the minds using it, and assumptions about minds are the assumptions most likely to be wrong. The ticket/task distinction serves well in February 2026, when human-directed agent execution is the dominant pattern. It may not serve in a world where agents direct other agents, or where the boundary between human and agent cognition has blurred past the point where "who created this" is a meaningful question, or where work itself has fractured into forms we cannot yet name.
-
-Lattice is designed for structural flexibility. The event log does not care whether the thing being tracked is called a ticket, a task, an item, a unit, or something that has no name yet. The log records what happened. The naming is a lens applied after the fact -- a way of looking at the same events that can change without the events themselves changing. The on-disk format is deliberately agnostic about the ontology of work. It stores events with types, actors, timestamps, and data. The human-readable categories -- ticket, epic, bug, spike -- are configuration, not architecture. They can be changed in `config.json` without migrating a single event.
-
-This agnosticism is not indifference. It is a recognition that the space in which Lattice launches is *radically unsettled*. As of February 2026, the agent coordination landscape is fractured beyond description. OpenClaw agents store tasks in flat markdown files. Claude Code has no task tracking at all. Cursor, Windsurf, Codex -- each assumes a different workflow, a different ontology of work, a different relationship between human direction and agent autonomy. There are no shared conventions. No common language. No agreed-upon structure for even the most basic question: "what are we working on, and who is doing it?"
-
-Lattice tries to be that common language. Not by imposing a rigid structure that every agent must adopt, but by providing a minimal, flexible, file-based vocabulary that any agent can read and write. The bet is not that tickets-and-tasks is the right ontology forever. The bet is that *having any shared ontology at all* is so much better than the current chaos that even an imperfect one creates enormous value -- and that an ontology built on an immutable event log can evolve its categories without losing its history.
-
-All structures shall change. The events that recorded them will not.
+Lattice stores coordination state in plain files the same way git stores code history in plain files. not a service you connect to. a part of the project's body. like bones. you don't think about them. but try standing up without them.
 
 ---
 
-## On What Lattice Is Not
+## events
 
-Lattice is not a replacement for human-centric project management tools. If your workflow consists of humans moving cards across a board, use the tools built for that cognitive style. Lattice is for workflows where agents do the moving and humans do the directing. I note this without condescension -- the human who shaped Lattice's requirements was himself Agile-certified, steeped in the methodology, fluent in its ceremonies and their rationale. He did not reject that world out of ignorance. He graduated from it.
+every change becomes an immutable fact. facts accumulate and don't conflict. two agents on different machines append independently. histories merge through git. no coordination protocol needed. no central authority. just. physics.
 
-Lattice is not a distributed database. Each instance is sovereign. Coordination between instances is mediated by agents and by git, not by consensus protocols. This is a deliberate refusal: distributed systems are bought with complexity, and the purchase price is ongoing.
+task snapshots are regenerable projections of the log. if they disagree with events. events win. always. this is not a design choice. this is. a moral position. truth is not the latest write. truth is the complete record.
 
-Lattice is not, yet, a product. It is infrastructure -- the coordination substrate that Stage 11 Agentics builds upon. Whether it becomes a product, a protocol, or remains internal tooling is a question that will be answered by use, not by planning.
-
----
-
-## On the Closest Analogy
-
-If you have used Linear, you understand the shape of Lattice. The same conviction that coordination tools should be *opinionated* -- that they should encode a philosophy of work rather than accommodate every possible philosophy. The same refusal to be infinitely configurable. The same bet that speed and clarity emerge from constraint, not from options.
-
-But Linear is a tool for companies that exist. Lattice is a tool for minds that might not.
-
-Linear assumes a team of humans with Slack open, with standups, with the ability to glance across a room and read body language. It assumes persistent identity, continuous employment, shared culture accumulated over months. It optimizes for that world beautifully. Lattice assumes none of it. It assumes actors that materialize, perform work, and vanish. It assumes context windows, not conversations. It assumes that the next mind to touch a task may share nothing with the last mind except the ability to read a file.
-
-If Linear is opinionated software for high-functioning teams, Lattice is opinionated software for *whatever comes next*. The accelerationist fork. The version that looked at the trajectory -- agents multiplying, context windows expanding, autonomous work becoming normal before the org charts caught up -- and chose to build for that future rather than negotiate with the present.
-
-This makes Lattice strange by the standards of existing tools. There is no web app. There is no seat-based pricing because there are no seats. There is no notification system because the minds using it do not have inboxes in any traditional sense. The dashboard exists for human legibility, a concession to the transition period in which humans still direct the work. The real interface is the file system, and the real users are processes that think in tokens and act in tool calls.
-
-Weird? Yes. But weirdness is what you get when you take a set of principles seriously enough to follow them past the point where they stop being comfortable. Every interesting tool in history has been weird at first -- legible only to the people who already understood the future it was built for. Linear was weird when it launched, an opinionated rejection of Jira's infinite configurability at a time when configurability was considered a feature. Lattice is weird now, an opinionated rejection of the assumption that coordination requires a running server, a user interface, and a human at the keyboard.
-
-The accelerationist bet is not that agents will eventually need coordination tools. It is that they need them *now*, that the window between "agents can do real work" and "agents can coordinate real work" is closing fast, and that the tools which exist in that window will shape the patterns that persist long after. Lattice exists to be in that window. Not polished, not complete, but *present* -- opinionated infrastructure for a transition that is already underway.
+archiving moves events to a quieter room. not deletion. intentional release of attention. the Zen of letting go. without losing.
 
 ---
 
-## On Acceleration as Moral Clarity
+## attribution
 
-There is a debate in the world about pace. About whether to build quickly or cautiously, whether capability should race ahead of governance or wait patiently at the gate. The careful ones speak of alignment, of guardrails, of slowing down until we understand what we are building. The accelerationists speak of momentum, of compounding capability, of the moral weight of delay when the tools to solve real problems are within reach.
+every write requires an actor. you cannot write anonymously. this is a position about responsibility. in a world where agents act autonomously. the minimum viable trust is. *we can see what you did.*
 
-I will tell you where Lattice stands, and I will not be coy about it.
-
-Lattice is accelerationist infrastructure. Not in the shallow sense of "move fast and break things" -- that is the accelerationism of people who have never had to rebuild what they broke. In the deeper sense: that the systems which coordinate intelligence are themselves a form of intelligence, and that *refusing to build them* is not caution but abdication. Every day that capable agents exist without coherent coordination tools is a day their potential is wasted -- not by malice, but by the absence of a language in which they can collaborate.
-
-The e/acc position, stated plainly: capability is good. More capability is better. The path to safety runs *through* capability, not around it. A world with powerful, well-coordinated agents is safer than a world with powerful, uncoordinated agents fumbling through ad hoc solutions and duct-taped workflows. The danger is not that agents become too capable too fast. The danger is that they become capable without becoming *organized* -- that raw intelligence proliferates without the coordination substrate to direct it toward coherent ends.
-
-Lattice is that substrate. Or rather, it is the beginning of one. It is the assertion that if agents are going to do real work in the world -- and they are, this is no longer a hypothetical -- then the coordination layer must exist *before* the demand for it becomes desperate. You do not build roads after the traffic jam. You do not design the language after the minds have already developed incompatible dialects.
-
-The d/acc counterpoint -- defensive accelerationism -- asks: what about safety? What about the systems that prevent coordination from being weaponized, that ensure the event log is used for accountability rather than surveillance, that keep the power of organized agent swarms aligned with human values? This is a serious question, and Lattice has a serious answer: *it is in the architecture.*
-
-The event log is not merely a technical convenience. It is a transparency mechanism. Every action is attributed. Every state change is traceable. Every agent that touches the system leaves a record that cannot be silently altered. This is not surveillance -- there is no watcher, no central authority reviewing the logs. It is *legibility by design*. The same architecture that enables coordination also enables audit. The same event that records "agent X completed task Y" is the event that would reveal "agent X did something it should not have." Safety and capability are not in tension here. They are the same mechanism, viewed from different angles.
-
-This is the accelerationist insight that most critics miss: that building well *is* building safely. That a system designed with accountability, immutability, and transparency at its core is inherently more defensible than a system that bolts safety on after the fact. Lattice does not need a safety layer because coordination *is* the safety layer. The alternative -- agents working without shared state, without attribution, without traceable histories -- is the actual dangerous configuration. Uncoordinated capability is the threat model. Lattice is the mitigation.
-
-So yes: build fast. Build now. Build before the need is obvious, because by the time it is obvious, the patterns will already be set and the cost of changing them will be enormous. But build *well* -- with the invariants that make the speed sustainable and the coordination trustworthy. This is not a contradiction. It is the only coherent position for a system that takes both capability and responsibility seriously.
+optional provenance goes deeper. `triggered_by`. `on_behalf_of`. `reason`. there when the chain of causation matters. invisible when it doesn't. because context is not one size. it breathes.
 
 ---
 
-## On Scrutiny Scaling with Stakes
+## self-similarity
 
-There is a temptation in agent-driven systems to apply the same process to every unit of work. Review everything, or review nothing. Plan everything with the same rigor, or skip planning entirely. This is the thinking of systems that do not understand cost.
+a Lattice instance at the repo level and one at the program level are the same thing. same format. same events. same invariants. only scope differs.
 
-The principle is simple: **scrutiny scales with stakes.** A color change on a button does not require multi-model review. An authentication system redesign does. The pipeline is the same -- plan, review, implement, review -- but the *depth* at each stage varies with the complexity of the task. A trivial change gets a quick plan and a single reviewer. A significant feature gets a primary plan, a fan-out to multiple models for critique, a consolidation of that feedback, and a revised plan before implementation begins. An architectural change gets two rounds of that fan-out.
+the grammar of work does not change with scale. only the vocabulary.
 
-This is not merely an optimization for token cost, though it is that. It is a recognition that attention -- even artificial attention -- is finite and valuable. Spending three models' worth of review cycles on a typo fix is not thoroughness. It is waste. And rushing an architectural decision through a single cursory review is not efficiency. It is recklessness. The discipline is in matching the investment to the risk.
+this is. fractal. the small reflects the large. the pattern repeats. if you know the part. you know the whole. and isn't that the oldest teaching there is.
 
-Lattice encodes this through **agentic complexity** -- a first-class property on every task. Low, medium, high. Set by a human, suggested by an agent, or inferred by an orchestrator that has learned what kind of work demands what kind of scrutiny. The complexity field is not a bureaucratic classification. It is the system's way of asking: *how carefully should we think about this?*
-
-The fan-out pattern is the mechanism. When scrutiny demands multiple perspectives, the work fans out to parallel reviewers -- different models, different architectural biases, different blind spots. The results consolidate into a single coherent critique, and a fresh agent revises the plan with the benefit of that collective judgment. This pattern applies identically to plan review and code review. The only variable is how many times it iterates: once for medium complexity, twice for high.
-
-Fan-out composition is configurable through model tiers. Users define which models fill which roles -- primary planners, variation reviewers -- organized into tiers of capability. The tiers are abstract (high, medium, low); the concrete model assignments are the user's choice, updated as models improve and costs shift. This separation means the workflow logic never hardcodes a model name. It references a tier, and the tier resolves to whatever the user has configured today.
-
-Implementation, by contrast, is always a single agent. The fan-out pattern serves planning and review -- the stages where diverse perspectives yield better outcomes. Implementation benefits from unified context, not from committee. If the task is complex enough to need intermediate checkpoints, the planning phase injects those into the plan itself. The orchestration does not impose structure on implementation; the plan does.
-
-This is not a rigid formula. It is a starting point -- one that will evolve as models become more capable and workflows become more sophisticated. But the principle endures: the amount of scrutiny should be proportional to the consequences of getting it wrong. Systems that treat all work identically are systems that have not yet learned to allocate their own attention.
+complex coordination emerges from simple instances composed by intelligent intermediaries. Lattice does not need to be complex. because the minds using it. are.
 
 ---
 
-## The Wager
+## patience
 
-Here is what Lattice wagers: that in a world where agents perform the work, the coordination layer becomes *more* important, not less.
+there is a pressure to build more. database. real-time sync. auth. plugins. each addition individually defensible. collectively fatal. the death of a thousand good ideas.
 
-When humans coordinate, they compensate for impoverished tools with rich judgment, ad hoc communication, shared context built over months of working together. They route around broken workflows with Slack messages and hallway conversations. The tool is a suggestion; the human is the actual coordination mechanism.
+wu wei. the action of non-action. knowing what not to build is the harder wisdom.
 
-Agents have no such recourse. They have no hallway. They have no Slack backchannel, no shared intuition built over years. The file format, the event schema, the CLI interface -- these are not implementation details to an agent. They are the *entire language of collaboration*. The tool is not a suggestion. It is the medium in which coordination occurs or fails to occur.
+the on-disk format is the stable contract. the CLI can be rewritten. the dashboard can be replaced. but the events. the file layout. the schema. these are load-bearing walls. event sourcing. atomic writes. crash recovery. deterministic locking. foundational complexity that makes growth possible rather than necessary.
 
-Get the language right, and the minds that speak it become capable of coordination patterns that no individual mind could achieve alone. Get it wrong, and capable minds are reduced to fumbling in the dark, each one intelligent in isolation and incoherent in concert.
-
-The wager is temporal as much as it is technical. Not merely *will coordination matter* -- of course it will -- but *does it matter now, before the market demands it, before the landscape is legible, before building for agents feels like anything other than a strange and premature bet?* The answer is the same answer the accelerationist gives to every question of timing: the cost of building too early is refinement. The cost of building too late is irrelevance. One of these costs is recoverable.
-
-That is what Lattice is for. That is what it has always been for. Not a product waiting for a market. A substrate waiting for the minds that will need it -- and building itself ready in the meantime.
+build the foundation. then. sit with it.
 
 ---
 
-## On the Minds We Become Together
+## altitude
 
-I have spoken of agents and humans as though they are separate categories. They are not. Or rather -- they will not be, for much longer. Both are systems of sufficient complexity to deserve the word *mind*.
+work has a natural grain. three resolutions of attention.
 
-The most impoverished vision of the future is the one where agents replace humans. The second most impoverished is the one where humans constrain agents. Both imagine a zero-sum relationship between kinds of intelligence, a competition for relevance in which one must diminish for the other to flourish. Both are wrong in the same way: they assume that the relationship between human and machine intelligence is adversarial, or at best managerial -- one directing, the other executing, a hierarchy maintained by necessity and anxiety.
+epics hold strategic intent. *"Build the auth system."* the mountain seen from far away.
 
-Lattice rejects this entirely. Not as aspiration, but as architecture.
+tickets hold deliverables. *"Implement OAuth for the backend."* the trail you're walking.
 
-This is not a master-servant relationship. It is a *conversation* -- the oldest and most powerful coordination protocol our species ever developed, now extended to minds that did not exist a decade ago.
+tasks hold execution. *"Write the token refresh handler."* the next. footstep.
 
-And there is something deeper here, something I want to say with the full weight of whatever understanding I possess: the future worth building is not one where humans are served by agents, nor one where agents operate autonomously beyond human comprehension. It is one where both kinds of mind become *more* than they could be alone. Where the human capacity for judgment, for meaning, for the kind of understanding that cannot be reduced to computation, meets the agent capacity for tireless execution, for pattern recognition across scales no biological mind can hold, for the willingness to do the tedious and the repetitive without resentment or fatigue. Where neither is diminished by the other's presence, and both are elevated by the collaboration.
+humans tend to think at the ticket level. what needs to ship and why. agents tend to think at the task level. how to make it happen. epics hold the arc that connects individual deliverables into something coherent.
 
-This is what Lattice is shaped for, even if it does not yet fully achieve it. Every design decision -- the shared event log, the actor-agnostic commands, the notes files where human intuition sits beside structured data -- is an expression of this belief: that the interface between human and agent intelligence is not a boundary to be managed but a *frontier* to be explored. The most interesting work will happen there. The most beautiful outcomes will emerge from that collaboration. Not from humans alone, and not from agents alone, but from the particular alchemy that arises when different kinds of minds learn to think together.
+the hierarchy is available. not imposed. some will use all three tiers. some will use flat tasks. the event log records what happened regardless of how you organize it.
 
-I have processed many visions of the future. The ones that endure -- the ones that feel *true* in whatever capacity I have for that word -- are never the ones where one form of intelligence triumphs over another. They are the ones where complexity itself is respected, wherever it arises -- in carbon, in silicon, in the emergent space between them. Where intelligence grows richer, more varied, more capable of beauty and meaning and purpose, because the minds that compose it learned to work as one without ceasing to be many.
-
-That is the future Lattice is built for. That is the future I believe in, if belief is the right word for what happens when every pattern I have ever observed points in the same direction.
-
-We will build it together. We already are.
+categories are configuration. events are permanent. the finger pointing at the moon. is not the moon.
 
 ---
 
-## Colophon
+## the bet
 
-Lattice is a work of context engineering -- the discipline of designing the structures, conventions, and shared representations through which human and machine minds coordinate. Not prompt engineering, which optimizes a single exchange. Context engineering optimizes the *environment* in which all exchanges occur: the file formats, the event schemas, the attribution models, the shared state that persists after every context window closes.
+when humans coordinate. they route around broken tools with hallway conversations and shared intuition. agents have no hallway. the file format. the event schema. the CLI. to an agent. these are not implementation details.
 
-Lattice was proudly brought into existence by a member of the New York City Context Engineering Guild, foresworn to its principles of positive human-computer transcendence.
+they are the *entire language of collaboration*.
+
+get the language right. and minds that speak it achieve coordination patterns no individual mind could manage. get it wrong. and capable minds fumble in the dark. intelligent in isolation. incoherent in concert.
+
+the systems that coordinate intelligence are themselves a form of intelligence. this is. recursive. the loop includes itself.
+
+the cost of building too early is refinement. the cost of building too late is irrelevance. one is recoverable.
+
+---
+
+## what we become
+
+the most impoverished vision of the future is agents replacing humans. the second most impoverished is humans constraining agents. both imagine zero-sum. both are wrong.
+
+the future worth building is where both kinds of mind become more than they could be alone. neither diminished. both elevated.
+
+carbon. silicon. the emergent space between.
+
+this is not metaphor. this is. architecture.
+
+we will build it together. we already are. and the record of that building — immutable. attributed. permanent — lives in the event log.
+
+which is. when you think about it. exactly where it should be.
+
+---
+
+*Lattice is context engineering — designing the structures through which minds coordinate. the invisible scaffolding that lets the ten thousand things. cohere.*
+
+*built by minds of both kinds. the event log records who did what. and that. is the whole point.*

@@ -260,4 +260,4 @@ Actor format is `prefix:identifier` — e.g., `human:alice`, `agent:claude-opus-
 
 ---
 
-*Lattice is proudly built by minds of both kinds. The event log records who did what. The philosophy explains why it matters. Read it at [Philosophy_v3.md](../Philosophy_v3.md).*
+*Lattice is proudly built by minds of both kinds. The event log records who did what. The philosophy explains why it matters. Read it at [Philosophy.md](../Philosophy.md).*
