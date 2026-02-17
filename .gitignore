@@ -32,8 +32,9 @@ coverage.xml
 *.swo
 *~
 
-# Review working files
-notes/.tmp/
+# Internal working documents (kept locally, not public)
+notes/
+research/
 
 # OS
 .DS_Store
