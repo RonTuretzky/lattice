@@ -144,8 +144,11 @@ def _seed_example_tasks(lattice_dir: Path, config: dict) -> None:
     epic_snapshot = apply_event_to_snapshot(None, epic_ev)
     write_task_event(lattice_dir, epic_id, [epic_ev], epic_snapshot, config)
     scaffold_plan(
-        lattice_dir, epic_id, _GREGOROVICH_EPIC["title"],
-        epic_sid, _GREGOROVICH_EPIC["description"],
+        lattice_dir,
+        epic_id,
+        _GREGOROVICH_EPIC["title"],
+        epic_sid,
+        _GREGOROVICH_EPIC["description"],
     )
     click.echo(f"  {epic_sid}: {_GREGOROVICH_EPIC['title']} [epic]")
 
@@ -239,9 +242,39 @@ def _seed_example_tasks(lattice_dir: Path, config: dict) -> None:
         write_task_event(lattice_dir, source_id, [rel_ev], snapshot, config)
 
 
-@click.group()
-def cli() -> None:
+@click.group(invoke_without_command=True)
+@click.pass_context
+def cli(ctx: click.Context) -> None:
     """Lattice: file-based, agent-native task tracker."""
+    if ctx.invoked_subcommand is not None:
+        return
+
+    # No subcommand — show context-aware welcome
+    from lattice.storage.fs import find_root
+
+    root = find_root()
+    if root is not None:
+        # Inside a project — nudge toward useful commands
+        click.echo("Lattice: file-based, agent-native task tracker.\n")
+        click.echo("You're in a Lattice project. Common commands:\n")
+        click.echo("  lattice list          Show all tasks")
+        click.echo("  lattice dashboard     Open the web dashboard")
+        click.echo("  lattice next          Pick the next task to work on")
+        click.echo("  lattice create        Create a new task")
+        click.echo("  lattice show <task>   View task details")
+        click.echo("\nRun 'lattice --help' for all commands.")
+    else:
+        # Not in a project — guide them to get started
+        click.echo("Lattice: file-based, agent-native task tracker.\n")
+        click.echo("Get started:\n")
+        click.echo("  lattice init          Set up Lattice in your project")
+        click.echo("  lattice demo init     See a fully populated example\n")
+        click.echo(
+            "Run these from the directory where your project lives.\n"
+            "Lattice creates a .lattice/ folder there to track tasks,\n"
+            "events, and coordination state — alongside your code."
+        )
+        click.echo("\nRun 'lattice --help' for all commands.")
 
 
 @cli.command()
@@ -372,8 +405,7 @@ def init(
             display_names = preset["display_names"]
             if display_names:
                 sample = " → ".join(
-                    display_names.get(s, s)
-                    for s in ["backlog", "in_progress", "done"]
+                    display_names.get(s, s) for s in ["backlog", "in_progress", "done"]
                 )
             else:
                 sample = "backlog → in_progress → done"
@@ -708,9 +740,7 @@ def setup_openclaw(target_path: str, install_global: bool, force: bool) -> None:
 
     if dest.exists():
         if not force:
-            click.echo(
-                f"Lattice skill already exists at {dest}. Use --force to overwrite."
-            )
+            click.echo(f"Lattice skill already exists at {dest}. Use --force to overwrite.")
             return
         try:
             shutil.rmtree(dest)
