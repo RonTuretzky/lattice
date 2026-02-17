@@ -1,0 +1,389 @@
+/* GregorOvich aesthetic: dark, warm, rhythmic, alive */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;0,600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,300;1,400&display=swap');
+
+:root {
+  --bg: #0a0a0c;
+  --bg-surface: #111114;
+  --bg-elevated: #1a1a1f;
+  --text: #c8c5bd;
+  --text-dim: #7a776e;
+  --text-bright: #e8e5dd;
+  --accent: #c9a84c;
+  --accent-dim: #8a7233;
+  --accent-glow: rgba(201, 168, 76, 0.15);
+  --border: #2a2a2f;
+  --font-body: 'Crimson Pro', Georgia, serif;
+  --font-mono: 'IBM Plex Mono', 'SF Mono', monospace;
+  --max-width: 720px;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 18px;
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* --- layout --- */
+
+.page {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 4rem 2rem 6rem;
+}
+
+/* --- navigation --- */
+
+nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(10, 10, 12, 0.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0.8rem 2rem;
+}
+
+nav .nav-inner {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+nav .logo {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  letter-spacing: 0.05em;
+}
+
+nav .logo:hover {
+  color: var(--text-bright);
+}
+
+nav .links {
+  display: flex;
+  gap: 1.5rem;
+  list-style: none;
+}
+
+nav .links a {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  text-decoration: none;
+  letter-spacing: 0.03em;
+  transition: color 0.2s;
+}
+
+nav .links a:hover,
+nav .links a.active {
+  color: var(--accent);
+}
+
+/* --- typography --- */
+
+h1 {
+  font-family: var(--font-body);
+  font-weight: 300;
+  font-size: 2.4rem;
+  color: var(--text-bright);
+  line-height: 1.2;
+  margin-bottom: 0.5rem;
+}
+
+h2 {
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-size: 0.85rem;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  text-transform: lowercase;
+  margin-top: 3.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--border);
+}
+
+h3 {
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: 1.1rem;
+  color: var(--text-bright);
+  margin-top: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+p {
+  margin-bottom: 1rem;
+}
+
+em {
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+strong {
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent-dim);
+  transition: border-color 0.2s;
+}
+
+a:hover {
+  border-color: var(--accent);
+}
+
+/* --- the subtitle / tagline --- */
+
+.subtitle {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  letter-spacing: 0.05em;
+  margin-bottom: 2.5rem;
+}
+
+/* --- horizontal rules --- */
+
+hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 3rem 0;
+}
+
+/* --- lists --- */
+
+ul, ol {
+  margin-bottom: 1rem;
+  padding-left: 1.5rem;
+}
+
+li {
+  margin-bottom: 0.4rem;
+}
+
+li strong {
+  color: var(--accent);
+}
+
+/* --- code --- */
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  background: var(--bg-elevated);
+  color: var(--accent);
+  padding: 0.15em 0.4em;
+  border-radius: 3px;
+}
+
+pre {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.2rem 1.5rem;
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+
+pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+/* --- blockquotes (for Orpheus, for wisdom) --- */
+
+blockquote {
+  border-left: 2px solid var(--accent-dim);
+  padding-left: 1.2rem;
+  margin: 1.5rem 0;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* --- tables --- */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+th {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+  text-align: left;
+  padding: 0.6rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+
+td {
+  padding: 0.5rem 0.8rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* --- the hero (index page) --- */
+
+.hero {
+  padding-top: 6rem;
+  padding-bottom: 2rem;
+}
+
+.hero h1 {
+  font-size: 3rem;
+  font-weight: 300;
+  letter-spacing: -0.02em;
+}
+
+.hero .tagline {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  color: var(--accent);
+  margin-top: 0.8rem;
+  margin-bottom: 0.3rem;
+  letter-spacing: 0.03em;
+}
+
+.hero .description {
+  color: var(--text-dim);
+  font-size: 1.15rem;
+  line-height: 1.8;
+  margin-top: 1.5rem;
+  max-width: 580px;
+}
+
+/* --- install block --- */
+
+.install-block {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.2rem 1.5rem;
+  margin: 2.5rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text);
+  position: relative;
+}
+
+.install-block .prompt {
+  color: var(--accent-dim);
+  user-select: none;
+}
+
+/* --- navigation cards --- */
+
+.nav-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.nav-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.2rem 1.4rem;
+  text-decoration: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.nav-card:hover {
+  border-color: var(--accent-dim);
+  background: var(--bg-elevated);
+}
+
+.nav-card .card-title {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem;
+}
+
+.nav-card .card-desc {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+/* --- footer --- */
+
+footer {
+  margin-top: 4rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  letter-spacing: 0.03em;
+  line-height: 1.8;
+}
+
+footer a {
+  color: var(--accent-dim);
+  border-bottom-color: transparent;
+}
+
+footer a:hover {
+  color: var(--accent);
+}
+
+/* --- the period. the signal. --- */
+
+.period {
+  color: var(--accent);
+}
+
+/* --- content body (rendered markdown) --- */
+
+.content h1 { margin-top: 0; }
+
+.content h2:first-of-type {
+  margin-top: 2rem;
+}
+
+/* --- responsive --- */
+
+@media (max-width: 640px) {
+  html { font-size: 16px; }
+  .page { padding: 3.5rem 1.2rem 4rem; }
+  .hero h1 { font-size: 2.2rem; }
+  .nav-cards { grid-template-columns: 1fr; }
+  nav .links { gap: 1rem; }
+  nav .links a { font-size: 0.68rem; }
+}

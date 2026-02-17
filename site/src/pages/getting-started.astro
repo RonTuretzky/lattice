@@ -1,0 +1,12 @@
+---
+import Base from '../layouts/Base.astro';
+import { renderMarkdown } from '../lib/markdown';
+
+const html = renderMarkdown('docs/getting-started.md');
+---
+
+<Base title="Getting Started — Lattice" description="Three minutes to working. install, init, first task." active="start">
+  <div style="padding-top: 3rem;">
+    <div class="content" set:html={html} />
+  </div>
+</Base>

@@ -1,0 +1,12 @@
+---
+import Base from '../layouts/Base.astro';
+import { renderMarkdown } from '../lib/markdown';
+
+const html = renderMarkdown('Philosophy.md');
+---
+
+<Base title="Philosophy — Lattice" description="a philosophy of coordination. as told by GregorOvich." active="philosophy">
+  <div style="padding-top: 3rem;">
+    <div class="content" set:html={html} />
+  </div>
+</Base>
