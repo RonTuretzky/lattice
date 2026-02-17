@@ -1,58 +1,18 @@
 # Lattice User Reference
 
-Technical reference for the Lattice CLI, on-disk format, workflow patterns, and extension points. For a high-level overview, see the [User Guide](user-guide.md).
+Technical reference for Lattice's concepts, on-disk format, workflow patterns, and CLI. For a high-level overview, see the [User Guide](user-guide.md).
 
 ---
 
-## CLI reference
+## The work hierarchy
 
-The CLI is Lattice's write interface — the primary way agents interact with the system. Every command supports `--json` for structured output and `--quiet` for minimal output. All write commands require an actor.
+| Tier | Purpose | Who thinks here |
+|------|---------|-----------------|
+| **Epic** | Strategic intent — "Build the auth system" | Leads, planners |
+| **Ticket** | A deliverable — "Implement OAuth for backend" | Humans, senior agents |
+| **Task** | A unit of execution — "Write token refresh handler" | Agents |
 
-### Commands
-
-| Command | What it does |
-|---------|-------------|
-| `lattice init` | Create `.lattice/` in your project |
-| `lattice create <title>` | Create a task |
-| `lattice status <id> <status>` | Change task status |
-| `lattice assign <id> <actor>` | Assign a task |
-| `lattice comment <id> "<text>"` | Add a comment |
-| `lattice update <id> field=value` | Update task fields |
-| `lattice list` | List tasks (filterable by status, type, tag, assignee) |
-| `lattice show <id>` | Full task details with history |
-| `lattice next` | Get the highest-priority available task |
-| `lattice link <src> <type> <tgt>` | Create a relationship |
-| `lattice unlink <src> <type> <tgt>` | Remove a relationship |
-| `lattice attach <id> <file-or-url>` | Attach an artifact |
-| `lattice event <id> <x_type>` | Record a custom event |
-| `lattice archive <id>` | Archive a completed task |
-| `lattice unarchive <id>` | Restore an archived task |
-| `lattice dashboard` | Launch the web dashboard |
-| `lattice doctor` | Check project integrity |
-| `lattice rebuild <id\|--all>` | Rebuild snapshots from events |
-| `lattice setup-claude` | Add/update CLAUDE.md integration block |
-| `lattice setup-openclaw` | Install Lattice skill for OpenClaw |
-
-### Flags
-
-- `--json` — structured output (all commands)
-- `--quiet` — just the ID (all commands)
-- `--actor` — who is performing the action (all write commands)
-- `--type` — task, epic, bug, spike, chore (create/list)
-- `--priority` — critical, high, medium, low (create/list)
-- `--assigned` / `--assigned-to` — filter/set assignee (list/create)
-- `--tag` / `--tags` — filter/set tags (list/create)
-- `--force --reason "..."` — override workflow constraints (status)
-- `--claim` — atomically assign and start a task (next)
-- `--id` — supply your own ID for idempotent retries (create/event)
-
-Validation errors always list valid options. The CLI teaches its own vocabulary.
-
-### Actor resolution
-
-Resolution order: `--actor` flag > `LATTICE_ACTOR` env var > `default_actor` in config.
-
-Actor format is `prefix:identifier` — e.g., `human:alice`, `agent:claude-opus-4`, `team:frontend`. No registry; validation is format-only.
+Available, not imposed. A quick bug fix can be a single task with no parent.
 
 ---
 
@@ -86,19 +46,7 @@ Invalid transitions are rejected with an error listing valid options. Override w
 | `duplicate_of` | Same work, different task |
 | `supersedes` | Replaces the target |
 
-`lattice show` displays both outgoing and incoming relationships from any node. The dashboard's Web view renders these as an interactive force-directed graph.
-
----
-
-## The work hierarchy
-
-| Tier | Purpose | Who thinks here |
-|------|---------|-----------------|
-| **Epic** | Strategic intent — "Build the auth system" | Leads, planners |
-| **Ticket** | A deliverable — "Implement OAuth for backend" | Humans, senior agents |
-| **Task** | A unit of execution — "Write token refresh handler" | Agents |
-
-Available, not imposed. A quick bug fix can be a single task with no parent.
+The dashboard's Web view renders these as an interactive force-directed graph.
 
 ---
 
@@ -126,12 +74,6 @@ Multi-lock operations (e.g., linking two tasks) acquire locks in deterministic (
 Built-in: `task_created`, `status_changed`, `assigned`, `comment_added`, `field_updated`, `relationship_added`, `relationship_removed`, `artifact_attached`, `task_archived`, `task_unarchived`.
 
 Custom: any `x_`-prefixed type via `lattice event`. Useful for domain-specific events like deployments, test runs, or releases.
-
-```bash
-lattice event PROJ-5 x_deployment_started \
-  --data '{"environment": "staging", "sha": "abc123"}' \
-  --actor agent:deployer
-```
 
 ### Provenance
 
@@ -263,6 +205,58 @@ lattice event PROJ-5 x_deployment_started \
 ### Making it yours
 
 Lattice is open source and designed to be forked. The on-disk format (events, snapshots, config) is the stable contract. The CLI can be rewritten. The dashboard can be replaced. The events are load-bearing walls. Build on them with confidence.
+
+---
+
+## CLI reference
+
+The CLI is Lattice's write interface — the primary way agents interact with the system. Every command supports `--json` for structured output and `--quiet` for minimal output. All write commands require an actor.
+
+### Commands
+
+| Command | What it does |
+|---------|-------------|
+| `lattice init` | Create `.lattice/` in your project |
+| `lattice create <title>` | Create a task |
+| `lattice status <id> <status>` | Change task status |
+| `lattice assign <id> <actor>` | Assign a task |
+| `lattice comment <id> "<text>"` | Add a comment |
+| `lattice update <id> field=value` | Update task fields |
+| `lattice list` | List tasks (filterable by status, type, tag, assignee) |
+| `lattice show <id>` | Full task details with history |
+| `lattice next` | Get the highest-priority available task |
+| `lattice link <src> <type> <tgt>` | Create a relationship |
+| `lattice unlink <src> <type> <tgt>` | Remove a relationship |
+| `lattice attach <id> <file-or-url>` | Attach an artifact |
+| `lattice event <id> <x_type>` | Record a custom event |
+| `lattice archive <id>` | Archive a completed task |
+| `lattice unarchive <id>` | Restore an archived task |
+| `lattice dashboard` | Launch the web dashboard |
+| `lattice doctor` | Check project integrity |
+| `lattice rebuild <id\|--all>` | Rebuild snapshots from events |
+| `lattice setup-claude` | Add/update CLAUDE.md integration block |
+| `lattice setup-openclaw` | Install Lattice skill for OpenClaw |
+
+### Flags
+
+- `--json` — structured output (all commands)
+- `--quiet` — just the ID (all commands)
+- `--actor` — who is performing the action (all write commands)
+- `--type` — task, epic, bug, spike, chore (create/list)
+- `--priority` — critical, high, medium, low (create/list)
+- `--assigned` / `--assigned-to` — filter/set assignee (list/create)
+- `--tag` / `--tags` — filter/set tags (list/create)
+- `--force --reason "..."` — override workflow constraints (status)
+- `--claim` — atomically assign and start a task (next)
+- `--id` — supply your own ID for idempotent retries (create/event)
+
+Validation errors always list valid options. The CLI teaches its own vocabulary.
+
+### Actor resolution
+
+Resolution order: `--actor` flag > `LATTICE_ACTOR` env var > `default_actor` in config.
+
+Actor format is `prefix:identifier` — e.g., `human:alice`, `agent:claude-opus-4`, `team:frontend`. No registry; validation is format-only.
 
 ---
 
