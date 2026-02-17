@@ -599,21 +599,7 @@ def show_cmd(
 
 def _read_events(lattice_dir: Path, task_id: str, is_archived: bool) -> list[dict]:
     """Read all events for a task from the JSONL log."""
-    if is_archived:
-        event_path = lattice_dir / "archive" / "events" / f"{task_id}.jsonl"
-    else:
-        event_path = lattice_dir / "events" / f"{task_id}.jsonl"
-
-    events: list[dict] = []
-    if event_path.exists():
-        for line in event_path.read_text().splitlines():
-            line = line.strip()
-            if line:
-                try:
-                    events.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue
-    return events
+    return read_task_events(lattice_dir, task_id, is_archived=is_archived)
 
 
 def _enrich_relationships(lattice_dir: Path, snapshot: dict) -> list[dict]:
@@ -855,13 +841,15 @@ def _event_summary(event: dict, full: bool) -> str:
             body = body[:57] + "..."
         return f'"{body}"'
     elif etype == "comment_edited":
-        return f'edited comment {data["comment_id"][:20]}...'
+        cid = data.get("comment_id", "?")
+        return f"edited comment {cid[:20]}..."
     elif etype == "comment_deleted":
-        return f'deleted comment {data["comment_id"][:20]}...'
+        cid = data.get("comment_id", "?")
+        return f"deleted comment {cid[:20]}..."
     elif etype == "reaction_added":
-        return f':{data["emoji"]}: on {data["comment_id"][:20]}...'
+        return f':{data.get("emoji", "?")}: on {data.get("comment_id", "?")[:20]}...'
     elif etype == "reaction_removed":
-        return f'removed :{data["emoji"]}: from {data["comment_id"][:20]}...'
+        return f'removed :{data.get("emoji", "?")}: from {data.get("comment_id", "?")[:20]}...'
     elif etype == "task_created":
         return ""
     elif etype == "task_short_id_assigned":

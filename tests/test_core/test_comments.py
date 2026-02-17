@@ -6,6 +6,7 @@ import pytest
 
 from lattice.core.comments import (
     materialize_comments,
+    validate_comment_body,
     validate_comment_for_delete,
     validate_comment_for_edit,
     validate_comment_for_react,
@@ -291,3 +292,68 @@ class TestValidateCommentForReact:
         events = [_comment_event("ev_1", "hello"), _delete_event("ev_1")]
         with pytest.raises(ValueError, match="deleted"):
             validate_comment_for_react(events, "ev_1")
+
+
+# ---------------------------------------------------------------------------
+# validate_comment_body
+# ---------------------------------------------------------------------------
+
+
+class TestValidateCommentBody:
+    def test_valid_body(self) -> None:
+        assert validate_comment_body("hello") == "hello"
+
+    def test_strips_whitespace(self) -> None:
+        assert validate_comment_body("  hello  ") == "hello"
+
+    def test_empty_string(self) -> None:
+        with pytest.raises(ValueError, match="non-empty"):
+            validate_comment_body("")
+
+    def test_whitespace_only(self) -> None:
+        with pytest.raises(ValueError, match="non-empty"):
+            validate_comment_body("   ")
+
+    def test_non_string(self) -> None:
+        with pytest.raises(ValueError, match="non-empty"):
+            validate_comment_body(42)  # type: ignore[arg-type]
+
+
+# ---------------------------------------------------------------------------
+# Additional materialization edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestMaterializeCommentsEdgeCases:
+    def test_multiple_sequential_edits(self) -> None:
+        """Two sequential edits should produce two edit_history entries."""
+        events = [
+            _comment_event("ev_1", "original"),
+            _edit_event("ev_1", "first edit", "original"),
+            {
+                "id": "ev_edit2_ev_1",
+                "type": "comment_edited",
+                "ts": "2026-02-17T01:05:00Z",
+                "actor": "human:atin",
+                "data": {"comment_id": "ev_1", "body": "second edit", "previous_body": "first edit"},
+            },
+        ]
+        result = materialize_comments(events)
+        assert result[0]["body"] == "second edit"
+        assert result[0]["edited"] is True
+        assert len(result[0]["edit_history"]) == 2
+        assert result[0]["edit_history"][0]["body"] == "original"
+        assert result[0]["edit_history"][1]["body"] == "first edit"
+
+    def test_reaction_on_reply(self) -> None:
+        """Reactions should work on reply comments (nested)."""
+        events = [
+            _comment_event("ev_1", "top-level"),
+            _comment_event("ev_2", "reply", parent_id="ev_1"),
+            _react_event("ev_2", "thumbsup"),
+        ]
+        result = materialize_comments(events)
+        assert len(result) == 1  # only top-level
+        reply = result[0]["replies"][0]
+        assert reply["id"] == "ev_2"
+        assert reply["reactions"] == {"thumbsup": ["human:atin"]}

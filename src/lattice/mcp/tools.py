@@ -14,6 +14,7 @@ from pydantic import Field
 from lattice.core.artifacts import ARTIFACT_TYPES, create_artifact_metadata, serialize_artifact
 from lattice.core.comments import (
     materialize_comments,
+    validate_comment_body,
     validate_comment_for_delete,
     validate_comment_for_edit,
     validate_comment_for_react,
@@ -120,21 +121,7 @@ def _validate_actor(actor: str) -> None:
 
 def _read_events(lattice_dir: Path, task_id: str, is_archived: bool = False) -> list[dict]:
     """Read all events for a task from the JSONL log."""
-    if is_archived:
-        event_path = lattice_dir / "archive" / "events" / f"{task_id}.jsonl"
-    else:
-        event_path = lattice_dir / "events" / f"{task_id}.jsonl"
-
-    events: list[dict] = []
-    if event_path.exists():
-        for line in event_path.read_text().splitlines():
-            line = line.strip()
-            if line:
-                try:
-                    events.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue
-    return events
+    return read_task_events(lattice_dir, task_id, is_archived=is_archived)
 
 
 # ---------------------------------------------------------------------------
@@ -465,6 +452,8 @@ def lattice_comment(
     _validate_actor(actor)
     task_id = _resolve_task_id(lattice_dir, task_id)
     snapshot = _read_snapshot_or_error(lattice_dir, task_id)
+
+    text = validate_comment_body(text)
 
     event_data: dict = {"body": text}
     if parent_id is not None:
@@ -966,6 +955,8 @@ def lattice_comment_edit(
     task_id = _resolve_task_id(lattice_dir, task_id)
     snapshot = _read_snapshot_or_error(lattice_dir, task_id)
 
+    new_text = validate_comment_body(new_text)
+
     events = read_task_events(lattice_dir, task_id)
     previous_body = validate_comment_for_edit(events, comment_id)
 
@@ -1089,6 +1080,9 @@ def lattice_unreact(
         )
 
     events = read_task_events(lattice_dir, task_id)
+
+    # Validate the target comment exists and is not deleted
+    validate_comment_for_react(events, comment_id)
 
     # Check that the reaction exists for this actor
     comments = materialize_comments(events)

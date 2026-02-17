@@ -21,6 +21,7 @@ from lattice.storage.operations import scaffold_notes
 from lattice.cli.main import cli
 from lattice.core.comments import (
     materialize_comments,
+    validate_comment_body,
     validate_comment_for_delete,
     validate_comment_for_edit,
     validate_comment_for_react,
@@ -709,6 +710,12 @@ def comment(
         except ValueError as exc:
             output_error(str(exc), "VALIDATION_ERROR", is_json)
 
+    # Validate and normalize body
+    try:
+        text = validate_comment_body(text)
+    except ValueError as exc:
+        output_error(str(exc), "VALIDATION_ERROR", is_json)
+
     event_data: dict = {"body": text}
     if reply_to is not None:
         event_data["parent_id"] = reply_to
@@ -773,12 +780,17 @@ def comment_edit(
 
     snapshot = read_snapshot_or_exit(lattice_dir, task_id, is_json)
 
+    # Validate and normalize new body
+    try:
+        new_text = validate_comment_body(new_text)
+    except ValueError as exc:
+        output_error(str(exc), "VALIDATION_ERROR", is_json)
+
     events = read_task_events(lattice_dir, task_id)
     try:
         previous_body = validate_comment_for_edit(events, comment_id)
     except ValueError as exc:
         output_error(str(exc), "VALIDATION_ERROR", is_json)
-        return  # unreachable — output_error exits, but keeps type checker happy
 
     event = create_event(
         type="comment_edited",
@@ -1002,6 +1014,12 @@ def unreact(
         )
 
     events = read_task_events(lattice_dir, task_id)
+
+    # Validate the target comment exists and is not deleted
+    try:
+        validate_comment_for_react(events, comment_id)
+    except ValueError as exc:
+        output_error(str(exc), "VALIDATION_ERROR", is_json)
 
     # Check the reaction exists for this actor
     comments = materialize_comments(events)

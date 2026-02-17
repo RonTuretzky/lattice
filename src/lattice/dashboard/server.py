@@ -12,6 +12,7 @@ from urllib.parse import urlparse
 
 from lattice.core.comments import (
     materialize_comments,
+    validate_comment_body,
     validate_comment_for_delete,
     validate_comment_for_edit,
     validate_comment_for_react,
@@ -293,13 +294,10 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 self._send_json(400, _err("INVALID_ID", "Invalid task ID format"))
                 return
 
-            events = _read_task_events(ld, task_id)
-            if events is None:
+            events = read_task_events(ld, task_id)
+            if not events:
                 # Check archive
-                events = _read_task_events_archive(ld, task_id)
-
-            if events is None:
-                events = []
+                events = read_task_events(ld, task_id, is_archived=True)
 
             # Return newest first
             events.reverse()
@@ -1002,12 +1000,14 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
             if body is None:
                 return
 
-            comment_body = body.get("body")
+            comment_body = body.get("body", "")
             actor = body.get("actor", "dashboard:web")
             parent_id = body.get("parent_id")
 
-            if not comment_body or not isinstance(comment_body, str) or not comment_body.strip():
-                self._send_json(400, _err("VALIDATION_ERROR", "Missing or empty 'body' field"))
+            try:
+                comment_body = validate_comment_body(comment_body)
+            except ValueError as exc:
+                self._send_json(400, _err("VALIDATION_ERROR", str(exc)))
                 return
 
             if not validate_actor(actor):
@@ -1311,7 +1311,7 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 return
 
             comment_id = body.get("comment_id")
-            new_body = body.get("body")
+            new_body = body.get("body", "")
             actor = body.get("actor", "dashboard:web")
 
             if not comment_id or not isinstance(comment_id, str):
@@ -1320,8 +1320,10 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 )
                 return
 
-            if not new_body or not isinstance(new_body, str) or not new_body.strip():
-                self._send_json(400, _err("VALIDATION_ERROR", "Missing or empty 'body' field"))
+            try:
+                new_body = validate_comment_body(new_body)
+            except ValueError as exc:
+                self._send_json(400, _err("VALIDATION_ERROR", str(exc)))
                 return
 
             if not validate_actor(actor):
@@ -1495,6 +1497,21 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 self._send_json(400, _err("VALIDATION_ERROR", str(exc)))
                 return
 
+            # Idempotency: check if actor already has this reaction
+            comments = materialize_comments(events)
+            for c in comments:
+                if c["id"] == comment_id:
+                    if actor in c.get("reactions", {}).get(emoji, []):
+                        self._send_json(200, _ok(snapshot))
+                        return
+                    break
+                for reply in c.get("replies", []):
+                    if reply["id"] == comment_id:
+                        if actor in reply.get("reactions", {}).get(emoji, []):
+                            self._send_json(200, _ok(snapshot))
+                            return
+                        break
+
             event = create_event(
                 type="reaction_added",
                 task_id=task_id,
@@ -1575,6 +1592,27 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 self._send_json(400, _err("VALIDATION_ERROR", str(exc)))
                 return
 
+            # Check the reaction exists for this actor
+            comments = materialize_comments(events)
+            found = False
+            for c in comments:
+                if c["id"] == comment_id:
+                    if actor in c.get("reactions", {}).get(emoji, []):
+                        found = True
+                    break
+                for reply in c.get("replies", []):
+                    if reply["id"] == comment_id:
+                        if actor in reply.get("reactions", {}).get(emoji, []):
+                            found = True
+                        break
+
+            if not found:
+                self._send_json(
+                    404,
+                    _err("NOT_FOUND", f"No '{emoji}' reaction by {actor} on comment {comment_id}."),
+                )
+                return
+
             event = create_event(
                 type="reaction_removed",
                 task_id=task_id,
@@ -1619,40 +1657,6 @@ def _read_snapshot_archive(ld: Path, task_id: str) -> dict | None:
         return None
 
 
-def _read_task_events(ld: Path, task_id: str) -> list[dict] | None:
-    path = ld / "events" / f"{task_id}.jsonl"
-    if not path.is_file():
-        return None
-    events: list[dict] = []
-    try:
-        for line in path.read_text().splitlines():
-            line = line.strip()
-            if line:
-                try:
-                    events.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue
-    except OSError:
-        return None
-    return events
-
-
-def _read_task_events_archive(ld: Path, task_id: str) -> list[dict] | None:
-    path = ld / "archive" / "events" / f"{task_id}.jsonl"
-    if not path.is_file():
-        return None
-    events: list[dict] = []
-    try:
-        for line in path.read_text().splitlines():
-            line = line.strip()
-            if line:
-                try:
-                    events.append(json.loads(line))
-                except json.JSONDecodeError:
-                    continue
-    except OSError:
-        return None
-    return events
 
 
 def _read_artifact_info(ld: Path, snapshot: dict) -> list[dict]:
