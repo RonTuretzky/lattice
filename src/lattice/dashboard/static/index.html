@@ -4074,14 +4074,21 @@ function webDrawCard(ctx, node, radius, globalScale, opts) {
   var actColor = opts.actColor;
   var fa = (opts.fadeAlpha != null) ? opts.fadeAlpha : 1;
   var centered = !!opts.centered;
+  var large = !!opts.large;
 
-  var fs = 10 / globalScale;
-  if (fs > 12) fs = 12;
-  var lineH = fs * 1.35;
-  var pad = 6 / globalScale;
-  var cardW = 120 / globalScale;
+  // Large cards: wider, bigger font, more padding
+  var baseFs = large ? 13 : 10;
+  var baseW = large ? 200 : 130;
+  var basePad = large ? 10 : 6;
+  var baseCorner = large ? 5 : 3;
+
+  var fs = baseFs / globalScale;
+  if (fs > (large ? 16 : 12)) fs = (large ? 16 : 12);
+  var lineH = fs * (large ? 1.45 : 1.35);
+  var pad = basePad / globalScale;
+  var cardW = baseW / globalScale;
   var cardH = pad * 2 + lines.length * lineH;
-  var cornerR = 3 / globalScale;
+  var cornerR = baseCorner / globalScale;
 
   var cardX, cardY;
   if (centered) {
@@ -6661,6 +6668,19 @@ function startAutoRefresh() {
           loadBackgroundSetting();
         }
         await route(location.hash.slice(1));
+        // Silently refresh floating detail panel if open and no active edit
+        if (_detailPanelTaskId && tasksChanged) {
+          var dpBody = document.getElementById("dp-body");
+          if (dpBody && !dpBody.querySelector("input:focus, textarea:focus")) {
+            try {
+              var dpResults = await Promise.all([
+                api("/api/tasks/" + _detailPanelTaskId),
+                api("/api/tasks/" + _detailPanelTaskId + "/events")
+              ]);
+              if (_detailPanelTaskId) _renderPanelContent(_detailPanelTaskId, dpResults[0], dpResults[1]);
+            } catch(ex) { /* panel data fetch failed, ignore */ }
+          }
+        }
       }
     } catch(e) {
       // Silently ignore refresh errors — server may be restarting
