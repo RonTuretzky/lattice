@@ -4129,7 +4129,7 @@ function webDrawCard(ctx, node, radius, globalScale, opts) {
 
   // Status color left stripe
   if (statusColor) {
-    var stripeW = 3 / globalScale;
+    var stripeW = (large ? 4 : 3) / globalScale;
     webRoundRect(ctx, cardX, cardY, stripeW, cardH, cornerR);
     ctx.fillStyle = statusColor;
     ctx.fill();
@@ -4232,23 +4232,28 @@ function drawWebNode(node, ctx, globalScale) {
 
   if (showSmall) {
     var lines = [];
+    var isLargeCard = false;
 
     if (showLarge) {
-      // Large card: full detail
+      // Large card: full detail, physically bigger
+      isLargeCard = true;
       lines.push({ text: sid, bold: true, color: "rgba(255,255,255,1)" });
       if (node.title) lines.push({ text: node.title, bold: false, color: "rgba(255,255,255,0.85)" });
       lines.push({ text: statusLabel, bold: false, color: color });
-      if (node.assigned_to) lines.push({ text: node.assigned_to, bold: false, color: "rgba(200,200,255,0.7)" });
+      if (node.assigned_to) lines.push({ text: "\ud83d\udc64 " + node.assigned_to, bold: false, color: "rgba(200,200,255,0.7)" });
+      if (tier === "epic" && node.type) lines.push({ text: "\ud83c\udfaf " + node.type, bold: false, color: "rgba(255,255,255,0.5)" });
       if (node.branches && node.branches.length > 0) {
-        lines.push({ text: "\u2514 " + node.branches[0], bold: false, color: "rgba(255,255,255,0.5)" });
+        lines.push({ text: "\u2514 " + node.branches[0], bold: false, color: "rgba(180,220,255,0.6)" });
       }
+      if (node.priority) lines.push({ text: "\u26a1 " + node.priority, bold: false, color: "rgba(255,220,150,0.7)" });
     } else {
-      // Small card: compact — just ID + status
+      // Small card: compact — ID + title + status
       lines.push({ text: sid, bold: true, color: "rgba(255,255,255,1)" });
+      if (node.title) lines.push({ text: node.title, bold: false, color: "rgba(255,255,255,0.8)" });
       lines.push({ text: statusLabel, bold: false, color: color });
     }
 
-    // Epic cards center below the hub; others fan outward
+    // Epic cards center on the hub; others fan outward
     var isEpicCentered = (tier === "epic");
 
     webDrawCard(ctx, node, radius, globalScale, {
@@ -4256,7 +4261,8 @@ function drawWebNode(node, ctx, globalScale) {
       statusColor: color,
       actColor: actColor,
       fadeAlpha: cardFade,
-      centered: isEpicCentered
+      centered: isEpicCentered,
+      large: isLargeCard
     });
 
     // Short label below circle (skip for centered epics — card is right there)
