@@ -32,6 +32,9 @@ coverage.xml
 *.swo
 *~
 
+# Review working files
+notes/.tmp/
+
 # OS
 .DS_Store
 Thumbs.db
