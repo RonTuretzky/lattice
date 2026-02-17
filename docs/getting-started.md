@@ -1,5 +1,15 @@
 # Getting Started
 
+## What you're setting up
+
+Lattice is a shared coordination language that your agentic coding tools speak. It gives agents and humans a common vocabulary — tasks, statuses, events, actors — so that multiple minds can work on the same project without talking past each other.
+
+**You install Lattice on your machine, then use it from inside your existing coding agent** — Claude Code, Codex CLI, OpenClaw, Cursor, Windsurf, or any tool that gives an AI agent filesystem access. Lattice isn't a replacement for those tools. It's the coordination layer that makes them work together.
+
+**What you need:**
+- **An agentic coding tool** — if you don't have one, start with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or [Codex CLI](https://github.com/openai/codex)
+- **Python 3.12+** on your machine
+
 ## Install
 
 ```bash
@@ -10,7 +20,7 @@ This installs `lattice` as a global command — available from any directory, an
 
 If you see a warning that `lattice` is not on your PATH, run `uv tool update-shell` and restart your terminal.
 
-If you prefer pipx: `pipx install lattice-tracker`.
+If you prefer pipx: `pipx install lattice-tracker`. Or plain pip: `pip install lattice-tracker`.
 
 ## Try the demo (optional)
 
@@ -22,7 +32,7 @@ lattice demo init
 
 This seeds 30 tasks across 4 epics and opens the dashboard in your browser. Press Ctrl+C when you're done looking.
 
-## Initialize
+## Initialize in your project
 
 ```bash
 cd your-project/
@@ -33,15 +43,23 @@ You'll set your identity (`human:yourname`) and a project code (like `APP` for I
 
 Commit it to your repo.
 
-## Connect your agent
+## Connect your coding agent
 
-**Claude Code:**
+This is the key step. You're teaching your agent the Lattice protocol so it knows how to create tasks, claim work, update status, and leave context — automatically, every session.
+
+**Claude Code** (most common):
 
 ```bash
 lattice setup-claude
 ```
 
-This teaches your agent to create tasks before coding, update status at transitions, and leave context for the next session. [Full guide →](integration-claude-code.md)
+This writes a block into your project's `CLAUDE.md` — the file Claude Code reads at startup. From now on, every time you open Claude Code in this project, it already knows Lattice. You don't need to explain anything. It will create tasks before working, update statuses at transitions, and leave breadcrumbs for the next session.
+
+[Full Claude Code integration guide →](integration-claude-code.md)
+
+**Codex CLI:**
+
+Codex can use the `lattice` CLI directly through shell access. For deeper integration, add Lattice workflow instructions to your Codex prompts or use the MCP server (below).
 
 **OpenClaw:**
 
@@ -51,7 +69,11 @@ lattice setup-openclaw
 
 Installs the Lattice skill so your agent uses `lattice` commands naturally. [Full guide →](integration-openclaw.md)
 
-**Any MCP client:**
+**Any MCP-compatible tool** (Cursor, Windsurf, custom agents):
+
+```bash
+pip install lattice-tracker[mcp]
+```
 
 ```json
 {
@@ -63,6 +85,12 @@ Installs the Lattice skill so your agent uses `lattice` commands naturally. [Ful
 }
 ```
 
+This exposes Lattice as native tool calls — no CLI parsing needed. [Full MCP guide →](integration-mcp.md)
+
+**Any agent with shell access:**
+
+If your agent can run commands and read files, it can use Lattice. Add the CLI patterns to whatever instructions your agent reads at startup. No special integration required.
+
 ## Open the dashboard
 
 ```bash
@@ -73,10 +101,10 @@ This is where you live. The dashboard opens at [http://127.0.0.1:8799](http://12
 
 You don't need to use the CLI after setup. The dashboard handles creating tasks, dragging them between status columns, adding comments, and reviewing the activity feed. Your agents handle the CLI side — you handle the dashboard side.
 
-## Fill the backlog
+## Fill the backlog and start the loop
 
 Your backlog already has a couple of example tasks to help you get the feel. You can create more directly in the dashboard, or just tell your agent what you want built — "break down the auth system into tasks" or "create tasks for the MVP features we discussed." The agent will populate the backlog with structured tasks, priorities, and descriptions. You review and adjust from the dashboard.
 
 Once there's work in the backlog, tell your agent to advance — it claims the top task, does the work, and reports back. You come back to a sorted inbox: work in review, decisions waiting, blockers identified.
 
-That's the loop. [Read the guide →](/guide) to understand it deeply.
+That's the loop. [Read the full guide →](user-guide.md) to understand it deeply.

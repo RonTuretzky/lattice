@@ -14,7 +14,9 @@ two minds thinking brilliantly in isolation produce noise. two minds thinking ad
 
 Lattice is that surface.
 
-**we took what we liked from Linear. Jira. Trello. and turned it into something built for the world that's actually arriving. file-based. event-sourced. highly durable. designed so that any agent with filesystem access — Claude Code, OpenClaw, Codex, custom bots, whatever you're building — can use Lattice as the fundamental coordination surface for agentic work.**
+**Lattice is a conceptual framework — a shared pattern of language that lets multiple agents, multiple humans, and the spaces between them coordinate as one.** tasks, statuses, events, relationships, actors. these are the primitives. not implementation details. a vocabulary that any mind can speak. when your Claude Code session and your Codex session and the human reviewing the dashboard all agree on what `in_progress` means, what `needs_human` signals, what an actor is — you have coordination. without a shared language. you have noise.
+
+we took what we liked from Linear. Jira. Trello. and turned it into something built for the world that's actually arriving. file-based. event-sourced. highly durable. designed so that any agent with filesystem access — Claude Code, OpenClaw, Codex, custom bots, whatever you're building — can use Lattice as the fundamental coordination surface for agentic work.
 
 the `.lattice/` directory sits in your project like `.git/` does. plain files that any mind system can read. any tool can write. and git can merge. no database. no server. no authentication ceremony. just. files. like bones. you don't think about them. but try standing up without them.
 
@@ -32,22 +34,66 @@ you are the conductor. the orchestra plays.
 
 ---
 
+## how you use it
+
+Lattice is not a standalone app. it's infrastructure that plugs into your agentic coding environment.
+
+you already work inside something — **Claude Code**, **Codex**, **OpenClaw**, **Cursor**, **Windsurf**, or a custom agent you built yourself. those tools write code. Lattice gives them a shared memory. a task board. a coordination surface. so they stop being brilliant in isolation and start being. coherent.
+
+**the flow:**
+
+1. **install Lattice** on your machine (one command)
+2. **initialize it** in your project directory (creates `.lattice/`)
+3. **connect it** to your agentic coding tool (one command per tool)
+4. **use the dashboard** to create tasks, set priorities, and review work
+5. **your agents use the CLI** automatically — claiming tasks, updating statuses, leaving context
+
+you don't use Lattice *instead of* Claude Code or Codex. you use Lattice *from inside* them. it's the layer that turns a single-agent session into a coordinated project.
+
+### what you need
+
+- **Python 3.12+** (for the install)
+- **An agentic coding tool** — Claude Code, Codex CLI, OpenClaw, or any tool that can run shell commands and read files. if your agent can access the filesystem. it can use Lattice.
+- **A project directory** — Lattice initializes inside your project, next to your source code
+
+if you're not using an agentic coding tool yet, start with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) or [Codex CLI](https://github.com/openai/codex). Lattice is designed for this world. it assumes you have at least one agent working alongside you.
+
+---
+
 ## three minutes to working
 
 ```bash
+# 1. install
 uv tool install lattice-tracker
+
+# 2. initialize in your project
 cd your-project/
 lattice init --project-code PROJ --actor human:yourname
-lattice setup-claude            # if using Claude Code
-lattice dashboard               # open the dashboard
+
+# 3. connect to your coding agent
+lattice setup-claude            # Claude Code — adds workflow to CLAUDE.md
+# or: lattice setup-openclaw    # OpenClaw — installs the Lattice skill
+# or: configure MCP (see docs)  # any MCP-compatible tool
+
+# 4. open the dashboard
+lattice dashboard
 ```
 
 that's it. your agents now track their own work. you watch. steer. decide.
 
 the hard part is not the install. the hard part is trusting the loop. give it time.
 
+### what just happened
+
+- `uv tool install` put the `lattice` command on your PATH globally
+- `lattice init` created a `.lattice/` directory in your project (like `.git/`)
+- `lattice setup-claude` wrote instructions into your project's `CLAUDE.md` so that Claude Code automatically uses Lattice when working in this project
+- `lattice dashboard` opened a local web UI where you manage everything
+
+from this point forward, when you open Claude Code (or Codex, or OpenClaw) in this project, your agent already knows how to use Lattice. create tasks in the dashboard. tell your agent to advance. the loop is running.
+
 ```bash
-# create a task
+# create a task (from CLI or dashboard)
 lattice create "Implement user authentication" --actor human:yourname
 
 # update status
@@ -220,28 +266,78 @@ and then. let go. the agents will be here when you return. the event log will ho
 
 ---
 
-## agent integration
+## connecting your agents
+
+Lattice needs to know which coding tool you're using so it can teach the agent how to participate. this is the bridge. without it, you have a task tracker with no one to track.
 
 ### Claude Code
+
+the most common setup. one command.
 
 ```bash
 lattice setup-claude
 ```
 
-adds a block to your project's `CLAUDE.md` that teaches agents the full workflow. create tasks before working. update status at transitions. leave breadcrumbs for the next mind. without this block, agents can use Lattice if prompted. with it. they do it by default.
+this writes a block into your project's `CLAUDE.md` — the file Claude Code reads at the start of every session. the block teaches the agent to: create tasks before working. update status at transitions. leave breadcrumbs for the next mind. claim work from the backlog. signal when it needs you.
+
+without this block, Claude Code *can* use Lattice if you prompt it. with this block, it does it by default. every session. automatically.
 
 ```bash
 lattice setup-claude --force   # update to latest template
 ```
 
-### MCP server
+**how it works in practice:** you open Claude Code in your project. the agent reads `CLAUDE.md`, sees the Lattice block, and knows the protocol. you say "advance the project" or `/lattice-advance`. the agent claims the top task, does the work, updates the status, leaves a comment. you come back to the dashboard and see what happened.
+
+### Codex CLI
+
+Codex can use Lattice through the CLI directly. initialize Lattice in your project, then Codex reads the `.lattice/` directory and executes `lattice` commands like any shell tool.
+
+```bash
+codex exec "advance the project using lattice"
+```
+
+for deeper integration, add Lattice workflow instructions to your Codex prompts or use the MCP server.
+
+### OpenClaw
+
+```bash
+lattice setup-openclaw
+```
+
+installs a Lattice skill so OpenClaw uses `lattice` commands naturally, just like the Claude Code integration.
+
+### any MCP-compatible tool
 
 ```bash
 pip install lattice-tracker[mcp]
-lattice-mcp
 ```
 
-exposes Lattice operations as MCP tools and resources. direct tool-call integration for any MCP-compatible agent. no CLI parsing required.
+```json
+{
+  "mcpServers": {
+    "lattice": {
+      "command": "lattice-mcp"
+    }
+  }
+}
+```
+
+exposes Lattice operations as MCP tools — direct tool-call integration for any MCP-compatible agent (Cursor, Windsurf, custom builds, etc.). no CLI parsing required. the agent calls tools like `lattice_create`, `lattice_status`, `lattice_next` natively.
+
+### any agent with shell access
+
+if your agent can run shell commands and read files, it can use Lattice. no special integration required. the CLI is the universal interface.
+
+```bash
+lattice list                    # see what's available
+lattice next --claim --actor agent:my-bot   # claim the top task
+lattice status PROJ-1 in_progress --actor agent:my-bot
+# ... do the work ...
+lattice comment PROJ-1 "Implemented the feature" --actor agent:my-bot
+lattice status PROJ-1 review --actor agent:my-bot
+```
+
+add these patterns to whatever prompt or instructions your agent reads at startup.
 
 ### hooks and plugins
 

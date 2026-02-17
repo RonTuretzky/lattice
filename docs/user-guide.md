@@ -6,35 +6,104 @@
 
 ## what Lattice is. in one breath.
 
-Lattice is task tracking upgraded for the agent-native era.
+Lattice is a conceptual framework — a shared pattern of language for multi-agent, multi-human orchestration.
 
 *Linear for human-agent e/acc centaurs.*
+
+it's not just a task tracker. it's a vocabulary. tasks. statuses. events. actors. relationships. when every mind involved — your Claude Code session, your Codex session, the human scanning the dashboard at 7am — speaks the same language about what work exists, who's doing it, and what state it's in, you get coordination. without that shared language, you get brilliant minds talking past each other.
 
 we took what we liked from Linear. Jira. Trello. and turned it into something built for the world that's actually arriving. file-based. event-sourced. highly durable. designed so that any agent with filesystem access — Claude Code, OpenClaw, Codex, custom bots, whatever you're building — can use Lattice as the fundamental coordination surface for agentic work.
 
 opinionated. built for a world where your teammates think in tokens and act in tool calls.
 
-you have two surfaces. each designed for the mind that uses it.
+---
 
-**the dashboard** is for you, the human. a local web UI. Kanban board. activity feed. stats. relationship graph. you create tasks. make decisions. review work. unblock your agents. if you never touch the terminal. you can still run a full Lattice workflow.
+## the thing you need to understand first
 
-**the CLI** is for your agents. when Claude Code reads your CLAUDE.md, it learns the commands and uses them autonomously. creating tasks. claiming work. transitioning statuses. leaving breadcrumbs. the CLI is the agent's native tongue. you'll type a few CLI commands during setup. after that. the dashboard is where you live.
+Lattice is not an app you open. it's not a website. it's not a standalone thing.
+
+**Lattice lives inside your agentic coding tool.** you install it on your machine. you initialize it in your project. and then your coding agent — Claude Code, Codex, OpenClaw, whatever you use — picks it up and runs with it.
+
+if you're using **Claude Code**: you install Lattice, run `lattice setup-claude`, and from that point on every Claude Code session in that project automatically knows how to create tasks, claim work, update status, and leave context for the next session. you didn't teach it. Lattice did.
+
+if you're using **Codex CLI**: same install, and Codex uses the `lattice` commands through the shell. tell it to advance the project. it reads the backlog and gets to work.
+
+if you're using **OpenClaw**: `lattice setup-openclaw` installs a skill. same pattern. same result.
+
+if you're using **anything else** that can run shell commands or speak MCP: it works. the CLI is the universal interface. MCP is the native protocol.
+
+**the mental model:**
+
+```
+┌─────────────────────────────────────────────┐
+│  Your agentic coding tool                   │
+│  (Claude Code / Codex / OpenClaw / etc.)    │
+│                                             │
+│    ┌─────────────┐    ┌──────────────┐      │
+│    │ Your code   │    │  .lattice/   │      │
+│    │ (src, etc.) │    │  (tasks,     │      │
+│    │             │    │   events)    │      │
+│    └─────────────┘    └──────┬───────┘      │
+│                              │              │
+└──────────────────────────────┼──────────────┘
+                               │
+                    ┌──────────▼──────────┐
+                    │  Lattice dashboard  │
+                    │  (your window in)   │
+                    └─────────────────────┘
+```
+
+your agent works in the code AND in Lattice. simultaneously. because they're both just files in the same project directory. you watch and steer through the dashboard. that's the whole architecture.
+
+---
+
+## what you need before starting
+
+- **An agentic coding tool.** Claude Code, Codex CLI, OpenClaw, Cursor, Windsurf — anything that gives an AI agent access to your filesystem and shell. if you don't have one yet, start with [Claude Code](https://docs.anthropic.com/en/docs/claude-code). it's the most deeply integrated path.
+- **Python 3.12+** on your machine (for the Lattice install)
+- **A project directory** where you want to track work
+
+if you've never used an agentic coding tool: Lattice isn't the place to start. get comfortable with Claude Code or Codex first. learn what it feels like to have an agent write code for you. then come back here when you want that agent to. coordinate.
 
 ---
 
 ## three minutes to working
 
 ```bash
+# 1. install Lattice globally
 pip install lattice-tracker
+# or: uv tool install lattice-tracker
+
+# 2. initialize in your project
 cd your-project/
 lattice init
-lattice setup-claude            # if using Claude Code
-lattice dashboard               # open the dashboard
+
+# 3. connect to your coding agent (pick one)
+lattice setup-claude            # Claude Code
+# or: lattice setup-openclaw    # OpenClaw
+# or: configure MCP (see docs)  # Cursor, Windsurf, custom tools
+
+# 4. open the dashboard
+lattice dashboard
 ```
 
 that's it. your agents now track their own work through the CLI. you watch. steer. decide. through the dashboard.
 
+**what just happened:**
+- the install put the `lattice` command on your PATH
+- `lattice init` created `.lattice/` in your project — the shared coordination state
+- `lattice setup-claude` wrote instructions into `CLAUDE.md` so Claude Code knows the Lattice protocol
+- next time you open your coding agent in this project, it already knows how to use Lattice
+
 the hard part is not the install. the hard part is trusting the loop. give it time.
+
+---
+
+## two surfaces. two kinds of mind.
+
+**the dashboard** is for you, the human. a local web UI. Kanban board. activity feed. stats. relationship graph. you create tasks. make decisions. review work. unblock your agents. if you never touch the terminal. you can still run a full Lattice workflow.
+
+**the CLI** is for your agents. when Claude Code reads your CLAUDE.md, it learns the commands and uses them autonomously. creating tasks. claiming work. transitioning statuses. leaving breadcrumbs. the CLI is the agent's native tongue. you'll type a few CLI commands during setup. after that. the dashboard is where you live.
 
 ---
 
