@@ -57,6 +57,10 @@ This is where you live. The dashboard opens at [http://127.0.0.1:8799](http://12
 
 You don't need to use the CLI after setup. The dashboard handles creating tasks, dragging them between status columns, adding comments, and reviewing the activity feed. Your agents handle the CLI side — you handle the dashboard side.
 
-Then tell your agent to advance — it claims the top task, does the work, and reports back. You come back to a sorted inbox: work in review, decisions waiting, blockers identified.
+## Fill the backlog
+
+Before your agent can advance, it needs tasks to work on. You can create them directly in the dashboard, or just tell your agent what you want built — "break down the auth system into tasks" or "create tasks for the MVP features we discussed." The agent will populate the backlog with structured tasks, priorities, and descriptions. You review and adjust from the dashboard.
+
+Once there's work in the backlog, tell your agent to advance — it claims the top task, does the work, and reports back. You come back to a sorted inbox: work in review, decisions waiting, blockers identified.
 
 That's the loop. [Read the guide →](/guide) to understand it deeply.
