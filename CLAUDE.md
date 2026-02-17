@@ -39,11 +39,23 @@ lattice status <task> <status> --actor agent:<your-id>
 `backlog → in_planning → planned → in_progress → review → done`
 
 **Transition discipline:**
-- Moving to `in_planning`? Do it before you open the first file.
+- Moving to `in_planning`? Do it before you open the first file. Then **write the plan** — see below.
+- Moving to `planned`? Only after the plan file has real content.
 - Moving to `in_progress`? Do it before you write the first line of code.
 - Moving to `review`? Do it when implementation is complete, before review starts. Then **actually review** — see below.
 - Moving to `done`? Only after a review has been performed and recorded.
 - Spawning a sub-agent to work on a task? Update status in the parent context before the sub-agent launches.
+
+### The Planning Gate
+
+Moving a task to `in_planning` means you are about to produce a plan. The plan file lives at `.lattice/plans/<task_id>.md` — it's scaffolded on task creation, but the scaffold is empty. `in_planning` is when you fill it in.
+
+**When you move a task to `in_planning`:**
+1. Open the plan file (`.lattice/plans/<task_id>.md`).
+2. Write the plan — scope, approach, key files, acceptance criteria. For trivial tasks, a single sentence is fine. For substantial work, be thorough.
+3. Move to `planned` only when the plan file reflects what you intend to build.
+
+**The test:** If you moved from `in_planning` to `planned` and the plan file is still empty scaffold, you didn't plan. Either write the plan or skip `in_planning` honestly with `--force --reason "trivial task, no planning needed"`.
 
 ### The Review Gate
 
@@ -390,6 +402,17 @@ backlog → in_planning → planned → in_progress → review → done
                                        ↕            ↕
                                     blocked      needs_human
 ```
+
+### The Planning Gate
+
+Moving a task to `in_planning` means you are about to produce a plan. The plan file lives at `.lattice/plans/<task_id>.md` — it's scaffolded on task creation, but the scaffold is empty. `in_planning` is when you fill it in.
+
+**When you move a task to `in_planning`:**
+1. Open the plan file (`.lattice/plans/<task_id>.md`).
+2. Write the plan — scope, approach, key files, acceptance criteria. For trivial tasks, a single sentence is fine. For substantial work, be thorough.
+3. Move to `planned` only when the plan file reflects what you intend to build.
+
+**The test:** If you moved from `in_planning` to `planned` and the plan file is still empty scaffold, you didn't plan. Either write the plan or skip `in_planning` honestly with `--force --reason "trivial task, no planning needed"`.
 
 ### The Review Gate
 
