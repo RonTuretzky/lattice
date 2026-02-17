@@ -252,6 +252,7 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                     compact = compact_snapshot(snap)
                     compact["updated_at"] = snap.get("updated_at")
                     compact["created_at"] = snap.get("created_at")
+                    compact["done_at"] = snap.get("done_at")
                     snapshots.append(compact)
             # Sort by ID
             snapshots.sort(key=lambda s: s.get("id", ""))
@@ -367,6 +368,7 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                     compact = compact_snapshot(snap)
                     compact["updated_at"] = snap.get("updated_at")
                     compact["created_at"] = snap.get("created_at")
+                    compact["done_at"] = snap.get("done_at")
                     compact["archived"] = True
                     snapshots.append(compact)
             snapshots.sort(key=lambda s: s.get("id", ""))

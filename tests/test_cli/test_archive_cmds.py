@@ -470,6 +470,90 @@ class TestBulkArchive:
         assert len(lines) == 2
 
 
+class TestArchiveStale:
+    """Tests for `lattice archive --stale`."""
+
+    def test_stale_archives_old_done_tasks(self, create_task, invoke, initialized_root):
+        """--stale should archive done tasks older than yesterday."""
+        import json
+        from datetime import datetime, timedelta, timezone
+
+        t1 = create_task("Old done task")
+        task_id = t1["id"]
+
+        # Move to done
+        invoke("status", task_id, "done", "--actor", "human:test", "--force", "--reason", "test")
+
+        # Manually backdate the done_at in the snapshot to 3 days ago
+        lattice = initialized_root / ".lattice"
+        snap_path = lattice / "tasks" / f"{task_id}.json"
+        snap = json.loads(snap_path.read_text())
+        old_ts = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
+        snap["done_at"] = old_ts
+        snap["updated_at"] = old_ts
+        snap_path.write_text(json.dumps(snap, sort_keys=True, indent=2) + "\n")
+
+        # Create a recently-done task that should NOT be archived
+        t2 = create_task("Recent done task")
+        invoke("status", t2["id"], "done", "--actor", "human:test", "--force", "--reason", "test")
+
+        result = invoke("archive", "--stale", "--actor", "human:test")
+        assert result.exit_code == 0
+        assert task_id in result.output or t1.get("short_id", task_id) in result.output
+
+        # Old task should be archived
+        assert not (lattice / "tasks" / f"{task_id}.json").exists()
+        assert (lattice / "archive" / "tasks" / f"{task_id}.json").exists()
+
+        # Recent task should still be active
+        assert (lattice / "tasks" / f"{t2['id']}.json").exists()
+
+    def test_stale_no_tasks(self, invoke):
+        """--stale with no done tasks should report nothing to archive."""
+        result = invoke("archive", "--stale", "--actor", "human:test")
+        assert result.exit_code == 0
+        assert "No stale" in result.output
+
+    def test_stale_json_output(self, create_task, invoke, initialized_root):
+        """--stale --json should return structured envelope."""
+        import json
+        from datetime import datetime, timedelta, timezone
+
+        t1 = create_task("JSON stale task")
+        task_id = t1["id"]
+
+        invoke("status", task_id, "done", "--actor", "human:test", "--force", "--reason", "test")
+
+        # Backdate the snapshot
+        lattice = initialized_root / ".lattice"
+        snap_path = lattice / "tasks" / f"{task_id}.json"
+        snap = json.loads(snap_path.read_text())
+        old_ts = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
+        snap["done_at"] = old_ts
+        snap["updated_at"] = old_ts
+        snap_path.write_text(json.dumps(snap, sort_keys=True, indent=2) + "\n")
+
+        result = invoke("archive", "--stale", "--actor", "human:test", "--json")
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["ok"] is True
+        assert len(parsed["data"]["archived"]) == 1
+        assert task_id in parsed["data"]["archived"]
+
+    def test_stale_leaves_non_done_tasks(self, create_task, invoke, initialized_root):
+        """--stale should not archive tasks that are not in done status."""
+        t1 = create_task("In progress task")
+        invoke("status", t1["id"], "in_progress", "--actor", "human:test", "--force", "--reason", "test")
+
+        result = invoke("archive", "--stale", "--actor", "human:test")
+        assert result.exit_code == 0
+        assert "No stale" in result.output
+
+        # Task should still be active
+        lattice = initialized_root / ".lattice"
+        assert (lattice / "tasks" / f"{t1['id']}.json").exists()
+
+
 class TestBulkUnarchive:
     """Tests for bulk unarchive (multiple task IDs)."""
 

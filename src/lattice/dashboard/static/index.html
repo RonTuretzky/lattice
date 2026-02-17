@@ -470,6 +470,9 @@ a:hover{text-decoration:underline}
 .board-col-header .lane-color-btn{position:absolute;right:4px;top:4px;width:20px;height:20px;border:2px solid var(--lane-btn-border);border-radius:50%;cursor:pointer;padding:0;background:transparent;opacity:0;transition:opacity .2s}
 .board-col-header:hover .lane-color-btn{opacity:1}
 .board-col-body{padding:8px}
+.board-sub-header{font-size:.75rem;font-weight:600;color:var(--text-muted);padding:6px 4px 4px;margin-top:4px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.board-sub-header:first-child{margin-top:0;border-top:none}
+.board-sub-header .count{font-weight:400;font-size:.7rem;opacity:.7}
 
 /* Drag and drop states */
 .board-col.drag-over{border-color:var(--accent-primary);box-shadow:0 0 0 2px var(--accent-glow)}
@@ -5494,6 +5497,20 @@ function populateLaneColorSettings() {
   container.innerHTML = html;
 }
 
+// --- Board Card Helper ---
+function renderBoardCard(t) {
+  var html = '<div class="card" draggable="true" data-task-id="' + esc(t.id) + '" data-task-status="' + esc(t.status || "") + '"';
+  html += ' ondragstart="window._boardDragStart(event)" ondragend="window._boardDragEnd(event)">';
+  if (t.short_id) html += '<div style="font-size:.7rem;font-weight:600;color:var(--accent-primary);margin-bottom:2px">' + esc(t.short_id) + '</div>';
+  html += '<div class="card-title">' + esc(t.title || "Untitled") + "</div>";
+  html += '<div class="card-meta">';
+  if (t.priority) html += '<span class="badge pri-' + esc(t.priority) + '">' + esc(t.priority) + "</span>";
+  if (t.type) html += '<span class="badge type-badge">' + esc(t.type) + "</span>";
+  if (t.assigned_to) html += '<span style="color:var(--text-muted);font-size:.8rem">' + esc(t.assigned_to) + "</span>";
+  html += "</div></div>";
+  return html;
+}
+
 // --- Board View ---
 function renderBoard() {
   var app = document.getElementById("app");
@@ -5530,18 +5547,41 @@ function renderBoard() {
     html += '<span class="count">' + items.length + '</span>';
     html += '</div>';
     html += '<div class="board-col-body">';
-    items.forEach(function(t) {
-      html += '<div class="card" draggable="true" data-task-id="' + esc(t.id) + '" data-task-status="' + esc(t.status || "") + '"';
-      html += ' ondragstart="window._boardDragStart(event)" ondragend="window._boardDragEnd(event)">';
-      if (t.short_id) html += '<div style="font-size:.7rem;font-weight:600;color:var(--accent-primary);margin-bottom:2px">' + esc(t.short_id) + '</div>';
-      html += '<div class="card-title">' + esc(t.title || "Untitled") + "</div>";
-      html += '<div class="card-meta">';
-      if (t.priority) html += '<span class="badge pri-' + esc(t.priority) + '">' + esc(t.priority) + "</span>";
-      if (t.type) html += '<span class="badge type-badge">' + esc(t.type) + "</span>";
-      if (t.assigned_to) html += '<span style="color:var(--text-muted);font-size:.8rem">' + esc(t.assigned_to) + "</span>";
-      html += "</div></div>";
-    });
-    if (items.length === 0) html += '<div style="color:var(--text-muted);font-size:.8rem;padding:8px;text-align:center">' + esc(t("empty.lane")) + '</div>';
+    if (status === "done" && items.length > 0) {
+      // Sub-group done tasks by done_at into "Done Today" and "Done Yesterday"
+      var now = new Date();
+      var todayStr = now.toISOString().slice(0, 10);
+      var yesterday = new Date(now);
+      yesterday.setDate(yesterday.getDate() - 1);
+      var yesterdayStr = yesterday.toISOString().slice(0, 10);
+      var doneToday = [];
+      var doneYesterday = [];
+      items.forEach(function(item) {
+        var doneAt = item.done_at;
+        if (doneAt && doneAt.slice(0, 10) === todayStr) {
+          doneToday.push(item);
+        } else if (doneAt && doneAt.slice(0, 10) === yesterdayStr) {
+          doneYesterday.push(item);
+        } else {
+          // Legacy tasks or older — put in yesterday bucket
+          doneYesterday.push(item);
+        }
+      });
+      if (doneToday.length > 0) {
+        html += '<div class="board-sub-header">Done Today <span class="count">' + doneToday.length + '</span></div>';
+        doneToday.forEach(function(t) { html += renderBoardCard(t); });
+      }
+      if (doneYesterday.length > 0) {
+        html += '<div class="board-sub-header">Done Yesterday <span class="count">' + doneYesterday.length + '</span></div>';
+        doneYesterday.forEach(function(t) { html += renderBoardCard(t); });
+      }
+      if (doneToday.length === 0 && doneYesterday.length === 0) {
+        html += '<div style="color:var(--text-muted);font-size:.8rem;padding:8px;text-align:center">' + esc(t("empty.lane")) + '</div>';
+      }
+    } else {
+      items.forEach(function(t) { html += renderBoardCard(t); });
+      if (items.length === 0) html += '<div style="color:var(--text-muted);font-size:.8rem;padding:8px;text-align:center">' + esc(t("empty.lane")) + '</div>';
+    }
     html += "</div></div>";
   });
   html += "</div>";

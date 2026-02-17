@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import shutil
 import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import click
@@ -109,10 +110,12 @@ def _archive_one(
 
 
 @cli.command()
-@click.argument("task_ids", nargs=-1, required=True)
+@click.argument("task_ids", nargs=-1, required=False)
+@click.option("--stale", is_flag=True, help="Archive all done tasks older than yesterday.")
 @common_options
 def archive(
     task_ids: tuple[str, ...],
+    stale: bool,
     actor: str,
     model: str | None,
     session: str | None,
@@ -129,6 +132,10 @@ def archive(
       lattice archive LAT-1 LAT-2 LAT-3 --actor human:atin
 
       lattice archive LAT-1,LAT-2,LAT-3 --actor human:atin
+
+    Use --stale to auto-archive done tasks older than yesterday:
+
+      lattice archive --stale --actor human:atin
     """
     is_json = output_json
 
@@ -137,6 +144,28 @@ def archive(
     validate_actor_or_exit(actor, is_json)
     if on_behalf_of is not None:
         validate_actor_or_exit(on_behalf_of, is_json)
+
+    if stale:
+        _archive_stale(
+            lattice_dir=lattice_dir,
+            config=config,
+            actor=actor,
+            model=model,
+            session=session,
+            triggered_by=triggered_by,
+            on_behalf_of=on_behalf_of,
+            provenance_reason=provenance_reason,
+            is_json=is_json,
+            is_quiet=quiet,
+        )
+        return
+
+    if not task_ids:
+        output_error(
+            "No task IDs provided. Use --stale to auto-archive old done tasks.",
+            "VALIDATION_ERROR",
+            is_json,
+        )
 
     parsed_ids = _parse_task_ids(task_ids)
 
@@ -220,6 +249,113 @@ def archive(
     # Human-friendly output
     if succeeded:
         click.echo(f"Archived {len(succeeded)} task(s): {', '.join(succeeded)}")
+    for fid, msg in failed:
+        click.echo(f"  Failed {fid}: {msg}", err=True)
+    if failed:
+        sys.exit(1)
+
+
+def _archive_stale(
+    *,
+    lattice_dir: Path,
+    config: dict,
+    actor: str,
+    model: str | None,
+    session: str | None,
+    triggered_by: str | None,
+    on_behalf_of: str | None,
+    provenance_reason: str | None,
+    is_json: bool,
+    is_quiet: bool,
+) -> None:
+    """Archive all done tasks where done_at (or updated_at) is before yesterday."""
+    import json
+
+    now = datetime.now(timezone.utc)
+    # "Before yesterday" means done_at date < today - 1 day (i.e., 2+ days ago)
+    cutoff = (now - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    tasks_dir = lattice_dir / "tasks"
+    if not tasks_dir.is_dir():
+        if is_json:
+            click.echo(json.dumps({"ok": True, "data": {"archived": [], "failed": []}}, sort_keys=True, indent=2))
+        elif not is_quiet:
+            click.echo("No stale done tasks found.")
+        return
+
+    candidates: list[str] = []
+    for task_file in sorted(tasks_dir.glob("*.json")):
+        try:
+            snap = json.loads(task_file.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        if snap.get("status") != "done":
+            continue
+        # Use done_at if available, fall back to updated_at
+        ts_str = snap.get("done_at") or snap.get("updated_at")
+        if not ts_str:
+            continue
+        try:
+            # Parse ISO timestamp (handles both Z suffix and +00:00)
+            ts_str_clean = ts_str.replace("Z", "+00:00")
+            done_dt = datetime.fromisoformat(ts_str_clean)
+        except (ValueError, TypeError):
+            continue
+        if done_dt < cutoff:
+            candidates.append(snap["id"])
+
+    if not candidates:
+        if is_json:
+            click.echo(json.dumps({"ok": True, "data": {"archived": [], "failed": []}}, sort_keys=True, indent=2))
+        elif not is_quiet:
+            click.echo("No stale done tasks found.")
+        return
+
+    succeeded: list[str] = []
+    failed: list[tuple[str, str]] = []
+
+    for task_id in candidates:
+        result = _archive_one(
+            task_id,
+            lattice_dir=lattice_dir,
+            config=config,
+            actor=actor,
+            model=model,
+            session=session,
+            triggered_by=triggered_by,
+            on_behalf_of=on_behalf_of,
+            provenance_reason=provenance_reason,
+            is_json=False,
+        )
+        if isinstance(result, str):
+            failed.append((task_id, result))
+        else:
+            succeeded.append(task_id)
+
+    if is_json:
+        envelope = {
+            "ok": len(failed) == 0,
+            "data": {
+                "archived": succeeded,
+                "failed": [{"id": fid, "error": msg} for fid, msg in failed],
+            },
+        }
+        click.echo(json.dumps(envelope, sort_keys=True, indent=2))
+        if failed:
+            sys.exit(1)
+        return
+
+    if is_quiet:
+        for tid in succeeded:
+            click.echo(tid)
+        if failed:
+            sys.exit(1)
+        return
+
+    if succeeded:
+        click.echo(f"Archived {len(succeeded)} stale done task(s): {', '.join(succeeded)}")
+    else:
+        click.echo("No stale done tasks found.")
     for fid, msg in failed:
         click.echo(f"  Failed {fid}: {msg}", err=True)
     if failed:

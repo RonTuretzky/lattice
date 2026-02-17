@@ -112,6 +112,15 @@ class TestTaskCreated:
         assert snap["priority"] is None
         assert snap["custom_fields"] == {}
 
+    def test_done_at_none_by_default(self) -> None:
+        snap = _make_snapshot()
+        assert snap["done_at"] is None
+
+    def test_done_at_set_if_created_as_done(self) -> None:
+        ev = _created_event(data={"title": "Already done", "status": "done"})
+        snap = apply_event_to_snapshot(None, ev)
+        assert snap["done_at"] == _TS_1
+
 
 # ---------------------------------------------------------------------------
 # apply_event_to_snapshot: status_changed
@@ -134,6 +143,64 @@ class TestStatusChanged:
         assert snap["status"] == "in_planning"
         assert snap["last_event_id"] == _EV_2
         assert snap["updated_at"] == _TS_2
+
+    def test_done_at_set_when_transitioning_to_done(self) -> None:
+        snap = _make_snapshot()
+        assert snap["done_at"] is None
+        ev = {
+            "schema_version": 1,
+            "id": _EV_2,
+            "ts": _TS_2,
+            "type": "status_changed",
+            "task_id": _TASK_ID,
+            "actor": _ACTOR,
+            "data": {"from": "backlog", "to": "done"},
+        }
+        snap = apply_event_to_snapshot(snap, ev)
+        assert snap["status"] == "done"
+        assert snap["done_at"] == _TS_2
+
+    def test_done_at_cleared_when_leaving_done(self) -> None:
+        snap = _make_snapshot()
+        # First move to done
+        ev1 = {
+            "schema_version": 1,
+            "id": _EV_2,
+            "ts": _TS_2,
+            "type": "status_changed",
+            "task_id": _TASK_ID,
+            "actor": _ACTOR,
+            "data": {"from": "backlog", "to": "done"},
+        }
+        snap = apply_event_to_snapshot(snap, ev1)
+        assert snap["done_at"] == _TS_2
+        # Now reopen — move back to in_progress
+        ev2 = {
+            "schema_version": 1,
+            "id": _EV_3,
+            "ts": _TS_3,
+            "type": "status_changed",
+            "task_id": _TASK_ID,
+            "actor": _ACTOR,
+            "data": {"from": "done", "to": "in_progress"},
+        }
+        snap = apply_event_to_snapshot(snap, ev2)
+        assert snap["status"] == "in_progress"
+        assert snap["done_at"] is None
+
+    def test_done_at_not_set_for_non_done_transitions(self) -> None:
+        snap = _make_snapshot()
+        ev = {
+            "schema_version": 1,
+            "id": _EV_2,
+            "ts": _TS_2,
+            "type": "status_changed",
+            "task_id": _TASK_ID,
+            "actor": _ACTOR,
+            "data": {"from": "backlog", "to": "in_progress"},
+        }
+        snap = apply_event_to_snapshot(snap, ev)
+        assert snap["done_at"] is None
 
 
 # ---------------------------------------------------------------------------
@@ -801,6 +868,7 @@ class TestCompactSnapshot:
             "type",
             "assigned_to",
             "tags",
+            "done_at",
             "relationships_out_count",
             "artifact_ref_count",
             "branch_link_count",
@@ -847,6 +915,12 @@ class TestCompactSnapshot:
         assert compact["relationships_out_count"] == 0
         assert compact["artifact_ref_count"] == 0
         assert compact["branch_link_count"] == 0
+
+    def test_done_at_included(self) -> None:
+        snap = _make_snapshot()
+        compact = compact_snapshot(snap)
+        assert "done_at" in compact
+        assert compact["done_at"] is None
 
     def test_excludes_large_fields(self) -> None:
         snap = _make_snapshot()

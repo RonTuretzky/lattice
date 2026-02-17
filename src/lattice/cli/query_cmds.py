@@ -370,8 +370,17 @@ def list_cmd(
     if is_json:
         if compact:
             data = [compact_snapshot(s) for s in filtered]
+            for i, snap in enumerate(filtered):
+                if snap.get("_archived"):
+                    data[i]["archived"] = True
         else:
-            data = filtered
+            data = []
+            for snap in filtered:
+                item = dict(snap)
+                is_archived = item.pop("_archived", False)
+                if is_archived:
+                    item["archived"] = True
+                data.append(item)
         result: dict = {"ok": True, "data": data}
         if status_warning:
             result["warnings"] = [status_warning]
@@ -395,7 +404,8 @@ def list_cmd(
             title = snap.get("title", "?")
             assigned_to = snap.get("assigned_to") or "unassigned"
             prefix = ">>> " if s == "needs_human" else ""
-            click.echo(f'{prefix}{display_id}  {s}  {p}  {t}  "{title}"  {assigned_to}')
+            archived_marker = " [A]" if snap.get("_archived") else ""
+            click.echo(f'{prefix}{display_id}  {s}  {p}  {t}  "{title}"  {assigned_to}{archived_marker}')
 
 
 # ---------------------------------------------------------------------------

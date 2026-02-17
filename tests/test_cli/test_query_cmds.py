@@ -433,6 +433,53 @@ class TestList:
         assert result.exit_code == 0
         assert result.output.strip() == ""
 
+    def test_include_archived_shows_archived_tasks(self, invoke, create_task):
+        """--include-archived includes archived tasks in output."""
+        create_task("Active task")
+        t2 = create_task("Archived task")
+        invoke("archive", t2["id"], "--actor", "human:test")
+
+        # Without --include-archived, only active task shown
+        result = invoke("list")
+        assert "Active task" in result.output
+        assert "Archived task" not in result.output
+
+        # With --include-archived, both shown
+        result = invoke("list", "--include-archived")
+        assert "Active task" in result.output
+        assert "Archived task" in result.output
+        assert "[A]" in result.output  # archived marker
+
+    def test_include_archived_json(self, invoke, create_task):
+        """--include-archived --json marks archived tasks with archived=true."""
+        t1 = create_task("Active")
+        t2 = create_task("Archived")
+        invoke("archive", t2["id"], "--actor", "human:test")
+
+        result = invoke("list", "--include-archived", "--json")
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["ok"] is True
+        assert len(parsed["data"]) == 2
+
+        active = [t for t in parsed["data"] if t["id"] == t1["id"]][0]
+        archived = [t for t in parsed["data"] if t["id"] == t2["id"]][0]
+        assert "archived" not in active or active.get("archived") is not True
+        assert archived.get("archived") is True
+
+    def test_include_archived_with_filter(self, invoke, create_task):
+        """--include-archived respects other filters."""
+        create_task("Active bug", "--type", "bug")
+        t2 = create_task("Archived bug", "--type", "bug")
+        t3 = create_task("Archived task", "--type", "task")
+        invoke("archive", t2["id"], "--actor", "human:test")
+        invoke("archive", t3["id"], "--actor", "human:test")
+
+        result = invoke("list", "--include-archived", "--type", "bug")
+        assert "Active bug" in result.output
+        assert "Archived bug" in result.output
+        assert "Archived task" not in result.output
+
 
 # ---------------------------------------------------------------------------
 # TestShow

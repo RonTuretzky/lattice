@@ -16,6 +16,7 @@ PROTECTED_FIELDS: frozenset[str] = frozenset(
         "created_at",
         "created_by",
         "updated_at",
+        "done_at",
         "last_event_id",
         "status",
         "assigned_to",
@@ -89,6 +90,7 @@ def compact_snapshot(snapshot: dict) -> dict:
         "type": snapshot.get("type"),
         "assigned_to": snapshot.get("assigned_to"),
         "tags": snapshot.get("tags"),
+        "done_at": snapshot.get("done_at"),
         "relationships_out_count": len(snapshot.get("relationships_out", [])),
         "artifact_ref_count": len(snapshot.get("artifact_refs", [])),
         "branch_link_count": len(snapshot.get("branch_links", [])),
@@ -123,6 +125,7 @@ def _init_snapshot(event: dict) -> dict:
         "created_by": event["actor"],
         "created_at": event["ts"],
         "updated_at": event["ts"],
+        "done_at": event["ts"] if data.get("status") == "done" else None,
         "relationships_out": [],
         "artifact_refs": [],
         "branch_links": [],
@@ -173,7 +176,13 @@ _NOOP_EVENT_TYPES: frozenset[str] = frozenset(
 
 @_register_mutation("status_changed")
 def _mut_status_changed(snap: dict, event: dict) -> None:
-    snap["status"] = event["data"]["to"]
+    new_status = event["data"]["to"]
+    snap["status"] = new_status
+    if new_status == "done":
+        snap["done_at"] = event["ts"]
+    elif snap.get("done_at") is not None:
+        # Transitioning away from done (reopened task) — clear done_at
+        snap["done_at"] = None
 
 
 @_register_mutation("assignment_changed")
