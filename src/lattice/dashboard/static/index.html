@@ -3807,6 +3807,7 @@ function openTriggerModal(status) {
   ]).then(function(results) {
     var hooks = results[0];
     var workers = results[1];
+    _cachedWorkers = Array.isArray(workers) ? workers : [];
     _renderTriggerModalContent(status, hooks, workers);
   }).catch(function(err) {
     overlay.innerHTML = '<div class="trigger-modal"><p style="color:var(--color-danger)">' + esc(err.message) + '</p><div class="trigger-modal-actions"><button class="btn" onclick="closeTriggerModal()">Close</button></div></div>';
@@ -3833,6 +3834,38 @@ function _renderTriggerModalContent(status, hooks, workers) {
     }
   });
 
+  // Helper: render a list of commands for a trigger
+  function _renderTriggerCommands(trig, hooksCfg, workers) {
+    var html = '';
+    var val = trig.config;
+    var cmds = typeof val === 'string' ? [val] : (Array.isArray(val) ? val : []);
+    if (cmds.length === 0) {
+      html += '<div class="trigger-card">';
+      html += '<div class="trigger-desc" style="flex:1">' + esc(trig.pattern) + ' (empty)</div>';
+      html += '</div>';
+      return html;
+    }
+    cmds.forEach(function(cmd) {
+      // Try to match to a known worker name
+      var workerName = null;
+      workers.forEach(function(w) {
+        if (cmd.indexOf(w.name) !== -1) workerName = w.name;
+      });
+      html += '<div class="trigger-card">';
+      html += '<div style="flex:1;min-width:0">';
+      if (workerName) {
+        html += '<div class="trigger-name">' + esc(workerName) + '</div>';
+        html += '<div class="trigger-desc" style="font-size:.75rem;opacity:.6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(cmd) + '</div>';
+      } else {
+        html += '<div class="trigger-name" style="font-size:.85rem;word-break:break-all">' + esc(cmd) + '</div>';
+      }
+      html += '</div>';
+      html += '<button class="trigger-remove" title="Remove" onclick="_removeTriggerCmd(\'' + esc(trig.pattern) + '\',\'' + esc(cmd).replace(/'/g, "\\'") + '\')">&times;</button>';
+      html += '</div>';
+    });
+    return html;
+  }
+
   var html = '<div class="trigger-modal">';
   html += '<h3>\u2699 Triggers for <strong>' + esc(status) + '</strong>';
   html += '<button class="close-btn" onclick="closeTriggerModal()">&times;</button></h3>';
@@ -3841,54 +3874,24 @@ function _renderTriggerModalContent(status, hooks, workers) {
   html += '<div class="trigger-section">';
   html += '<div class="trigger-section-label">ON ENTER</div>';
   if (enterTriggers.length > 0) {
-    enterTriggers.forEach(function(trig) {
-      var cfg = trig.config;
-      var workerList = cfg.workers || cfg.commands || [];
-      if (typeof workerList === 'string') workerList = [workerList];
-      workerList.forEach(function(w) {
-        html += '<div class="trigger-card">';
-        html += '<div class="trigger-name">' + esc(typeof w === 'object' ? (w.name || w.command || JSON.stringify(w)) : w) + '</div>';
-        html += '<div class="trigger-desc">' + esc(trig.pattern) + '</div>';
-        html += '<button class="trigger-remove" title="Remove" data-pattern="' + esc(trig.pattern) + '">&times;</button>';
-        html += '</div>';
-      });
-      if (workerList.length === 0) {
-        html += '<div class="trigger-card">';
-        html += '<div class="trigger-desc" style="flex:1">' + esc(trig.pattern) + ' (no workers configured)</div>';
-        html += '</div>';
-      }
-    });
+    enterTriggers.forEach(function(trig) { html += _renderTriggerCommands(trig, hooksCfg, workers); });
   } else {
     html += '<div style="color:var(--text-muted);font-size:.85rem;margin-bottom:8px">No enter triggers configured</div>';
   }
-  html += '<button class="trigger-add-btn" onclick="_addTrigger(\'' + esc(status) + '\',\'enter\')">+ Add enter trigger</button>';
+  html += '<button class="trigger-add-btn" onclick="_showAddForm(\'' + esc(status) + '\',\'enter\')">+ Add enter trigger</button>';
+  html += '<div id="add-form-enter" style="display:none"></div>';
   html += '</div>';
 
   // ON EXIT section
   html += '<div class="trigger-section">';
   html += '<div class="trigger-section-label">ON EXIT</div>';
   if (exitTriggers.length > 0) {
-    exitTriggers.forEach(function(trig) {
-      var cfg = trig.config;
-      var workerList = cfg.workers || cfg.commands || [];
-      if (typeof workerList === 'string') workerList = [workerList];
-      workerList.forEach(function(w) {
-        html += '<div class="trigger-card">';
-        html += '<div class="trigger-name">' + esc(typeof w === 'object' ? (w.name || w.command || JSON.stringify(w)) : w) + '</div>';
-        html += '<div class="trigger-desc">' + esc(trig.pattern) + '</div>';
-        html += '<button class="trigger-remove" title="Remove" data-pattern="' + esc(trig.pattern) + '">&times;</button>';
-        html += '</div>';
-      });
-      if (workerList.length === 0) {
-        html += '<div class="trigger-card">';
-        html += '<div class="trigger-desc" style="flex:1">' + esc(trig.pattern) + ' (no workers configured)</div>';
-        html += '</div>';
-      }
-    });
+    exitTriggers.forEach(function(trig) { html += _renderTriggerCommands(trig, hooksCfg, workers); });
   } else {
     html += '<div style="color:var(--text-muted);font-size:.85rem;margin-bottom:8px">No exit triggers configured</div>';
   }
-  html += '<button class="trigger-add-btn" onclick="_addTrigger(\'' + esc(status) + '\',\'exit\')">+ Add exit trigger</button>';
+  html += '<button class="trigger-add-btn" onclick="_showAddForm(\'' + esc(status) + '\',\'exit\')">+ Add exit trigger</button>';
+  html += '<div id="add-form-exit" style="display:none"></div>';
   html += '</div>';
 
   // Advanced: raw JSON
@@ -3906,32 +3909,104 @@ function _renderTriggerModalContent(status, hooks, workers) {
   overlay.innerHTML = html;
 }
 
-function _addTrigger(status, direction) {
-  var pattern;
-  if (direction === 'enter') {
-    pattern = '* -> ' + status;
-  } else {
-    pattern = status + ' -> *';
-  }
-  var worker = prompt('Enter worker command or name for pattern "' + pattern + '":');
-  if (!worker || !worker.trim()) return;
+// --- Trigger inline add form ---
+var _cachedWorkers = [];
 
+function _showAddForm(status, direction) {
+  var formEl = document.getElementById("add-form-" + direction);
+  if (!formEl) return;
+  if (formEl.style.display !== "none") { formEl.style.display = "none"; return; }
+
+  var pattern = direction === 'enter' ? ('* -> ' + status) : (status + ' -> *');
+  var html = '<div style="border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px;background:var(--bg-secondary,rgba(255,255,255,.03))">';
+  html += '<div style="font-size:.8rem;color:var(--text-muted);margin-bottom:8px">Pattern: <code>' + esc(pattern) + '</code></div>';
+
+  // Worker picker
+  if (_cachedWorkers.length > 0) {
+    html += '<div style="margin-bottom:8px">';
+    _cachedWorkers.forEach(function(w) {
+      html += '<button class="btn" style="margin:2px;font-size:.8rem" onclick="_addWorkerTrigger(\'' + esc(status) + '\',\'' + esc(direction) + '\',\'' + esc(w.name) + '\')">';
+      html += '\u2699 ' + esc(w.name);
+      html += '</button>';
+    });
+    html += '</div>';
+    html += '<div style="font-size:.75rem;color:var(--text-muted);margin-bottom:6px">Or enter a custom command:</div>';
+  }
+
+  // Custom command input
+  html += '<div style="display:flex;gap:6px">';
+  html += '<input id="custom-cmd-' + direction + '" type="text" placeholder="e.g. uv run lattice worker run MyWorker $LATTICE_TASK_ID" style="flex:1;font-size:.8rem;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:4px;color:var(--text-primary)">';
+  html += '<button class="btn btn-primary" style="font-size:.8rem;white-space:nowrap" onclick="_addCustomTrigger(\'' + esc(status) + '\',\'' + esc(direction) + '\')">Add</button>';
+  html += '</div>';
+  html += '</div>';
+
+  formEl.innerHTML = html;
+  formEl.style.display = "block";
+}
+
+function _addWorkerTrigger(status, direction, workerName) {
+  var cmd = "uv run lattice worker run " + workerName + " $LATTICE_TASK_ID";
+  _saveTriggerCmd(status, direction, cmd);
+}
+
+function _addCustomTrigger(status, direction) {
+  var input = document.getElementById("custom-cmd-" + direction);
+  if (!input || !input.value.trim()) { showToast("Enter a command", "error"); return; }
+  _saveTriggerCmd(status, direction, input.value.trim());
+}
+
+function _saveTriggerCmd(status, direction, cmd) {
+  var pattern = direction === 'enter' ? ('* -> ' + status) : (status + ' -> *');
+  // Read current config from raw textarea
   var rawEl = document.getElementById("trigger-raw-json");
   var hooksCfg = {};
   if (rawEl) {
     try { hooksCfg = JSON.parse(rawEl.value); } catch(e) { hooksCfg = {}; }
   }
-  if (!hooksCfg[pattern]) hooksCfg[pattern] = { workers: [] };
-  if (!hooksCfg[pattern].workers) hooksCfg[pattern].workers = [];
-  hooksCfg[pattern].workers.push(worker.trim());
+  // Append command to the pattern
+  var existing = hooksCfg[pattern];
+  if (!existing) {
+    hooksCfg[pattern] = cmd;
+  } else if (typeof existing === 'string') {
+    hooksCfg[pattern] = [existing, cmd];
+  } else if (Array.isArray(existing)) {
+    existing.push(cmd);
+  }
 
   apiPost("/api/config/hooks/transitions", hooksCfg).then(function() {
-    showToast("Trigger saved", "success");
+    showToast("Trigger added", "success");
     openTriggerModal(status);
   }).catch(function(e) {
     showToast(e.message || "Failed to save trigger", "error");
   });
 }
+
+function _removeTriggerCmd(pattern, cmd) {
+  var rawEl = document.getElementById("trigger-raw-json");
+  var hooksCfg = {};
+  if (rawEl) {
+    try { hooksCfg = JSON.parse(rawEl.value); } catch(e) { hooksCfg = {}; }
+  }
+  var existing = hooksCfg[pattern];
+  if (typeof existing === 'string') {
+    delete hooksCfg[pattern];
+  } else if (Array.isArray(existing)) {
+    hooksCfg[pattern] = existing.filter(function(c) { return c !== cmd; });
+    if (hooksCfg[pattern].length === 0) delete hooksCfg[pattern];
+    else if (hooksCfg[pattern].length === 1) hooksCfg[pattern] = hooksCfg[pattern][0];
+  }
+
+  var status = _triggerModalStatus;
+  apiPost("/api/config/hooks/transitions", hooksCfg).then(function() {
+    showToast("Trigger removed", "success");
+    if (status) openTriggerModal(status);
+  }).catch(function(e) {
+    showToast(e.message || "Failed to remove trigger", "error");
+  });
+}
+
+// Legacy compat — replaced by inline form
+function _addTrigger(status, direction) { _showAddForm(status, direction); }
 
 function _saveTriggerRaw() {
   var rawEl = document.getElementById("trigger-raw-json");
@@ -3957,6 +4032,10 @@ window.openTriggerModal = openTriggerModal;
 window.closeTriggerModal = closeTriggerModal;
 window._addTrigger = _addTrigger;
 window._saveTriggerRaw = _saveTriggerRaw;
+window._showAddForm = _showAddForm;
+window._addWorkerTrigger = _addWorkerTrigger;
+window._addCustomTrigger = _addCustomTrigger;
+window._removeTriggerCmd = _removeTriggerCmd;
 window.toggleWorkersPanel = toggleWorkersPanel;
 
 // --- Cube (graph view) ---
