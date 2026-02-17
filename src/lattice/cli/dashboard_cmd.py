@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import errno
+import socket
 import sys
 
 import click
@@ -11,6 +12,18 @@ from lattice.cli.helpers import json_envelope, json_error_obj, require_root
 from lattice.cli.main import cli
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
+
+
+def _find_free_port(host: str, near: int) -> int | None:
+    """Return an available port close to *near*, or ``None`` on failure."""
+    for candidate in range(near + 1, near + 20):
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind((host, candidate))
+                return candidate
+        except OSError:
+            continue
+    return None
 
 
 @cli.command("dashboard")
@@ -36,10 +49,16 @@ def dashboard_cmd(host: str, port: int, output_json: bool) -> None:
         server = create_server(lattice_dir, host, port, readonly=readonly)
     except OSError as exc:
         if exc.errno == errno.EADDRINUSE:
+            alt = _find_free_port(host, port)
+            hint = (
+                f"  lattice dashboard --port {alt}"
+                if alt
+                else "  lattice dashboard --port <PORT>"
+            )
             msg = (
                 f"Port {port} is already in use — is another dashboard running?\n"
-                f"Stop the other process or choose a different port with: "
-                f"lattice dashboard --port <PORT>"
+                f"You can stop the other process, or start on a free port:\n\n"
+                f"{hint}"
             )
             code = "PORT_IN_USE"
         else:
