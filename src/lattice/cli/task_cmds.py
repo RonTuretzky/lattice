@@ -69,7 +69,7 @@ _CREATE_COMPARE_FIELDS = (
 
 @cli.command()
 @click.argument("title")
-@click.option("--type", "task_type", default=None, help="Task type (task, ticket, epic, bug, spike, chore).")
+@click.option("--type", "task_type", default=None, help="Task type (task, epic, bug, spike, chore).")
 @click.option("--priority", default=None, help="Priority (critical, high, medium, low).")
 @click.option("--urgency", default=None, help="Urgency (immediate, high, normal, low).")
 @click.option("--complexity", default=None, help="Agentic complexity (low, medium, high).")

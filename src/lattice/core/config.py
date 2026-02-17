@@ -98,7 +98,6 @@ def default_config() -> LatticeConfig:
         "default_priority": "medium",
         "task_types": [
             "task",
-            "ticket",
             "epic",
             "bug",
             "spike",

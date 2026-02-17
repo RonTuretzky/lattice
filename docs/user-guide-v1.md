@@ -95,17 +95,16 @@ The `--actor` flag on any write command still overrides the default. Agents can 
 
 ### The Work Hierarchy
 
-Lattice organizes work in three tiers, each at a different resolution of attention:
+Lattice organizes work in two tiers:
 
 | Tier | Purpose | Example | Who thinks here |
 |------|---------|---------|-----------------|
 | **Epic** | Strategic intent — a theme or initiative | "Auth System" | Leads, planners |
-| **Ticket** | A deliverable — assignable, branchable, reviewable | "Implement OAuth for backend" | Humans, senior agents |
-| **Task** | A unit of execution — what an agent actually does | "Write token refresh handler" | Agents |
+| **Task** | A unit of work — assignable, branchable, reviewable | "Implement OAuth endpoints" | Anyone |
 
-Epics group tickets. Tickets group tasks. The `subtask_of` relationship connects them: a task is `subtask_of` a ticket, a ticket is `subtask_of` an epic. This hierarchy is a current design belief — the granularity we think is right for coordinating mixed human-agent teams today. It is intended to evolve.
+Epics group tasks. The `subtask_of` relationship connects them: a task is `subtask_of` an epic. This hierarchy is a current design belief — the granularity we think is right for coordinating mixed human-agent teams today. It is intended to evolve.
 
-Lattice is agnostic about how you use these tiers. Different teams and different agents will have their own opinions about how to decompose work — the system accommodates all of them. A quick bug fix might be a single task with no parent. A focused feature might be a ticket with a few tasks beneath it. A large initiative might use all three tiers. The primitives are neutral. The hierarchy is available, not imposed.
+Lattice is agnostic about how you use these tiers. A quick bug fix might be a single task with no parent. A large initiative might use epics to group related tasks. The primitives are neutral. The hierarchy is available, not imposed.
 
 ### Tasks
 
@@ -235,7 +234,7 @@ lattice create "Fix auth redirect bug" \
 
 **From the dashboard:** Click the "+ New Task" button in the nav bar. Fill in the title (required), type, priority, description, tags, and assignee, then click "Create Task".
 
-**Task types:** `task`, `ticket`, `epic`, `bug`, `spike`, `chore`
+**Task types:** `task`, `epic`, `bug`, `spike`, `chore`
 
 **Priorities:** `critical`, `high`, `medium` (default), `low`
 
@@ -349,7 +348,7 @@ The web dashboard offers visual modes for observing the state of work:
 - **List** -- Sortable, filterable table. Filter by status, priority, type, or search text. Toggle to include archived tasks.
 - **Activity** -- Recent events across all tasks, showing actor, event type, and timestamp. The stream of what has happened, rendered visible.
 - **Cube** -- Force-directed graph of task relationships. Nodes are tasks, edges are `blocks`, `depends_on`, `subtask_of`, etc. Structure becomes visible.
-- **Web** *(planned)* -- Indra's Web. The coordination landscape across repos, branches, and agent activity. Epics as hubs, tickets as spokes, tasks and commits as dots. Lattice provides the structure; git provides the vital signs. See `FutureFeatures.md` for the full design.
+- **Web** *(planned)* -- Indra's Web. The coordination landscape across repos, branches, and agent activity. Epics as hubs, tasks as nodes. Lattice provides the structure; git provides the vital signs. See `FutureFeatures.md` for the full design.
 
 Click any task card or table row to open the full detail view.
 

@@ -2817,6 +2817,7 @@ select.form-control{cursor:pointer}
     <span id="stats-badges"></span>
     <button type="button" class="btn btn-new-task" id="new-task-btn" title="Create new task">+ New Task</button>
     <button type="button" class="btn btn-with-icon" id="settings-btn" title="Dashboard Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg> Settings</button>
+    <button type="button" class="btn btn-with-icon" id="help-btn" title="User Guide"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Help</button>
     <button type="button" class="btn btn-with-icon" id="refresh-btn" title="Refresh"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10"/><path d="M20.49 15a9 9 0 01-14.85 3.36L1 14"/></svg> Refresh</button>
   </div>
 </div>
@@ -3173,6 +3174,8 @@ var VOICES = {
     "nav.activity": "Activity",
     "btn.new_task": "+ New Task",
     "btn.refresh": "Refresh",
+    "btn.help": "Help",
+    "btn.help_title": "User Guide",
     "btn.settings": "Dashboard Settings",
     "btn.create_task": "Create Task",
     "btn.cancel": "Cancel",
@@ -3297,6 +3300,8 @@ var VOICES = {
     "nav.activity": "Activity",
     "btn.new_task": "+ New Task",
     "btn.refresh": "Refresh",
+    "btn.help": "Help",
+    "btn.help_title": "User Guide",
     "btn.settings": "Dashboard Settings",
     "btn.create_task": "Create Task",
     "btn.cancel": "Cancel",
@@ -3431,6 +3436,8 @@ var VOICES = {
     "btn.retry": "Reintentar",
     "btn.back": "&larr; Volver",
     "btn.refresh": "Actualizar",
+    "btn.help": "Ayuda",
+    "btn.help_title": "Gu\u00eda del Usuario",
     "loading": "Reuniendo estado...",
     "empty.board": "El tablero est\u00e1 limpio \u2014 un espacio aguarda su primera intenci\u00f3n.",
     "empty.board.cta": "Comenzar",
@@ -3578,13 +3585,13 @@ var webRenderGeneration = 0;
 var webCurrentRevision = null;
 
 // Web constants
-var WEB_TIER_RADIUS = { epic: 20, ticket: 10, task: 4 };
+var WEB_TIER_RADIUS = { epic: 20, task: 6 };
 var WEB_ACTIVITY_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 var WEB_ACTIVITY_COLORS = { git: "#ffc107", lattice: "#fd7e14", both: "#f0a500" };
 var WEB_SPOKE_COLOR = "rgba(100,130,180,0.35)";
-var WEB_LINK_DISTANCE = { "epic-ticket": 120, "ticket-task": 60 };
-var WEB_CHARGE = { epic: -400, ticket: -100, task: -30 };
-var WEB_COLLISION_RADIUS = { epic: 30, ticket: 15, task: 8 };
+var WEB_LINK_DISTANCE = { "epic-task": 100, "task-task": 60 };
+var WEB_CHARGE = { epic: -400, task: -50 };
+var WEB_COLLISION_RADIUS = { epic: 30, task: 10 };
 
 // --- API ---
 async function api(path, opts) {
@@ -3973,18 +3980,12 @@ function buildWebHierarchy(graphData, gitData) {
     var nodeType = (n.type || "").toLowerCase();
     if (nodeType === "epic") {
       tierMap[n.id] = "epic";
-    } else if (nodeType === "ticket") {
-      tierMap[n.id] = "ticket";
-    } else if (nodeType === "task") {
-      tierMap[n.id] = "task";
     } else {
       // Topology fallback: nodes with children but no parent → epic
-      // Nodes with children AND a parent → ticket
-      // Leaf nodes → task
+      // Everything else → task
       var hasChildren = childrenMap[n.id] && childrenMap[n.id].length > 0;
       var hasParent = !!parentMap[n.id];
-      if (hasChildren && !hasParent) tierMap[n.id] = "epic";
-      else if (hasChildren && hasParent) tierMap[n.id] = "ticket";
+      if (!hasParent && hasChildren) tierMap[n.id] = "epic";
       else tierMap[n.id] = "task";
     }
   });
@@ -4093,8 +4094,8 @@ function buildWebHierarchy(graphData, gitData) {
 }
 
 // Semantic zoom — small compact cards appear first, large cards at higher zoom
-var WEB_CARD_SMALL = { task: 1.5, ticket: 2.0, epic: 3.0 };
-var WEB_CARD_LARGE = { task: 3.5, ticket: 4.0, epic: 6.0 };
+var WEB_CARD_SMALL = { task: 1.5, epic: 3.0 };
+var WEB_CARD_LARGE = { task: 3.5, epic: 6.0 };
 // Cards fade in over this range past threshold (0→1 opacity ramp)
 var WEB_DETAIL_FADE_RANGE = 1.0;
 
@@ -4398,7 +4399,7 @@ function drawWebNode(node, ctx, globalScale) {
 
     // Short label below circle (skip for centered epics — card is right there)
     if (!isEpicCentered) {
-      var fontSize = (tier === "ticket" ? 10 : 8) / globalScale;
+      var fontSize = 8 / globalScale;
       if (fontSize > 12) fontSize = 12;
       if (fontSize >= 2) {
         ctx.font = fontSize + "px sans-serif";
@@ -4422,16 +4423,6 @@ function drawWebNode(node, ctx, globalScale) {
       ctx.textBaseline = "top";
       ctx.fillStyle = textColor;
       ctx.fillText(label, node.x, node.y + radius + 3);
-    } else if (tier === "ticket") {
-      fontSize2 = 10 / globalScale;
-      if (fontSize2 > 11) fontSize2 = 11;
-      if (fontSize2 < 2.5) { ctx.globalAlpha = 1.0; return; }
-      var tlabel = node.short_id || node.id.substring(0, 8);
-      ctx.font = fontSize2 + "px sans-serif";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "top";
-      ctx.fillStyle = textColor;
-      ctx.fillText(tlabel, node.x, node.y + radius + 2);
     } else {
       fontSize2 = 8 / globalScale;
       if (fontSize2 > 9) fontSize2 = 9;
@@ -4468,7 +4459,7 @@ function drawWebNodePointerArea(node, color, ctx) {
 }
 
 function buildWebTooltipHTML(node) {
-  var tierBadge = { epic: "Epic", ticket: "Ticket", task: "Task" };
+  var tierBadge = { epic: "Epic", task: "Task" };
   var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:12px;max-width:300px;box-shadow:0 4px 12px rgba(0,0,0,0.15);color:var(--text-primary);line-height:1.4">';
   html += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">';
   html += '<span style="background:var(--surface-raised);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:600;text-transform:uppercase">' + esc(tierBadge[node.tier] || "Task") + '</span>';
@@ -4511,8 +4502,7 @@ function buildWebLegendHTML(hasOrphans) {
   html += '<div style="font-weight:600;margin-bottom:6px;color:var(--text-primary)">Node Tiers</div>';
   var tiers = [
     { label: "Epic (hub)", r: 10, tier: "epic" },
-    { label: "Ticket (spoke)", r: 6, tier: "ticket" },
-    { label: "Task (dot)", r: 3, tier: "task" }
+    { label: "Task", r: 5, tier: "task" }
   ];
   tiers.forEach(function(t) {
     html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
@@ -4669,8 +4659,8 @@ async function renderWeb() {
       .distance(function(link) {
         var src = (typeof link.source === "object") ? link.source : null;
         var tgt = (typeof link.target === "object") ? link.target : null;
-        if (src && (src.tier === "epic" || (tgt && tgt.tier === "epic"))) return WEB_LINK_DISTANCE["epic-ticket"];
-        return WEB_LINK_DISTANCE["ticket-task"];
+        if (src && (src.tier === "epic" || (tgt && tgt.tier === "epic"))) return WEB_LINK_DISTANCE["epic-task"];
+        return WEB_LINK_DISTANCE["task-task"];
       })
       .strength(function(link) {
         var src = (typeof link.source === "object") ? link.source : null;
@@ -5434,6 +5424,9 @@ function updateStaticVoiceStrings() {
   // Refresh button
   var refBtn = document.getElementById("refresh-btn");
   if (refBtn) refBtn.textContent = t("btn.refresh");
+  // Help button
+  var helpBtn = document.getElementById("help-btn");
+  if (helpBtn) { helpBtn.title = t("btn.help_title"); helpBtn.lastChild.textContent = " " + t("btn.help"); }
   // Settings header
   var settingsHeader = document.querySelector(".settings-header span");
   if (settingsHeader) settingsHeader.textContent = t("settings.title");
@@ -6877,6 +6870,13 @@ document.getElementById("lane-colors-reset").addEventListener("click", async fun
 // --- Nav Events ---
 document.querySelectorAll(".nav-tab").forEach(function(el) {
   el.addEventListener("click", function() { location.hash = "#/" + el.dataset.view; });
+});
+
+document.getElementById("help-btn").addEventListener("click", async function() {
+  try {
+    await apiPost("/api/open-guide", {});
+    showToast("Opening user guide...", "success");
+  } catch(e) { showToast("Could not open user guide: " + e.message, "error"); }
 });
 
 document.getElementById("refresh-btn").addEventListener("click", async function() {

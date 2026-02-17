@@ -177,8 +177,8 @@ When work is large enough, split it across agents running simultaneously. Each c
 ```bash
 # Define the work graph
 lattice create "Auth feature" --type epic --actor human:you
-lattice create "Backend: OAuth endpoints" --type ticket --actor human:you
-lattice create "Frontend: login flow" --type ticket --actor human:you
+lattice create "Backend: OAuth endpoints" --actor human:you
+lattice create "Frontend: login flow" --actor human:you
 lattice link PROJ-3 subtask_of PROJ-2 --actor human:you
 lattice link PROJ-4 subtask_of PROJ-2 --actor human:you
 
@@ -346,7 +346,7 @@ Every command supports `--json` for structured output and `--quiet` for minimal 
 
 - `--json` -- structured output (all commands)
 - `--quiet` -- just the ID (all commands)
-- `--type` -- task, ticket, epic, bug, spike, chore (create/list)
+- `--type` -- task, epic, bug, spike, chore (create/list)
 - `--priority` -- critical, high, medium, low (create/list)
 - `--assigned` / `--assigned-to` -- filter/set assignee (list/create)
 - `--tag` / `--tags` -- filter/set tags (list/create)

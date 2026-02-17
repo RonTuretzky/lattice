@@ -13,7 +13,7 @@ Lattice is a file-based, event-sourced task tracker. It stores everything in a `
 
 Use Lattice when the user or the conversation involves:
 
-- Creating, tracking, or managing tasks and tickets
+- Creating, tracking, or managing tasks
 - Coordinating work across multiple agents
 - Maintaining an audit trail of decisions and changes
 - Planning sprints, releases, or project milestones

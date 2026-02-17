@@ -455,6 +455,27 @@ Additional review findings that shaped this decision:
 
 ---
 
+## 2026-02-17: Remove ticket-task dichotomy — simplify to just tasks
+
+**Decision:** Remove `ticket` as a task type. The board shows tasks. Epics remain as a grouping level. The three-tier hierarchy (epic → ticket → task) is replaced by a simpler two-tier model (epic → task).
+
+**Context:** The three-tier hierarchy was introduced on 2026-02-16 as a convention. In practice, the distinction between "ticket" (deliverable) and "task" (execution unit) added conceptual overhead without clear value at the current scale. The core system was already type-agnostic — "ticket" was just another value of the `type` field with no special behavior in business logic. The dashboard rendered tickets as a distinct visual tier, but this complexity wasn't earning its keep.
+
+**Rationale:**
+- Simpler mental model: it's a board with tasks on it. That's the whole thing.
+- Removes a layer of abstraction that hadn't proven necessary.
+- Epics still provide grouping for strategic initiatives.
+- The `subtask_of` relationship still supports hierarchy when needed — tasks can be subtasks of other tasks or of epics.
+
+**Consequences:**
+- `ticket` removed from default `task_types` in config.
+- Dashboard web view simplified from 3-tier to 2-tier rendering.
+- Docs, user guide, philosophy updated.
+- Existing tasks with `type: "ticket"` in other Lattice instances will still render (type field is preserved), but new instances won't offer it as a default option.
+- Supersedes the 2026-02-16 three-tier hierarchy decision.
+
+---
+
 ## 2026-02-16: Indra's Web — coordination visualization and branch-to-task linking
 
 **Decision:** Add a **Web** tab to the Lattice dashboard that visualizes the cross-repo coordination landscape. Lattice owns the link between branches and tasks via new `branch_linked` / `branch_unlinked` event types. The relationship is many-to-many.
