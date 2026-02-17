@@ -1,6 +1,6 @@
 # Lattice
 
-*Linear for human-agent e/acc centaurs.*
+<p align="center"><b><i>Linear for human-agent e/acc centaurs.</i></b></p>
 
 ---
 
