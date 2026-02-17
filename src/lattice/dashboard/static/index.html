@@ -2794,6 +2794,46 @@ select.form-control{cursor:pointer}
 .dp-event{font-size:.8rem;padding:3px 0;display:flex;gap:6px;color:var(--text-secondary)}
 .dp-event .ev-type{font-weight:600;color:var(--text-primary)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* --- Phase 2: Trigger UI --- */
+.column-trigger-icon{background:none;border:none;cursor:pointer;opacity:0.4;padding:2px;margin-left:auto;transition:opacity 0.2s;display:flex;align-items:center}
+.column-trigger-icon:hover,.column-trigger-icon.has-triggers{opacity:1}
+.column-trigger-icon.has-triggers svg{stroke:var(--accent-primary)}
+.trigger-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:200;display:flex;align-items:center;justify-content:center}
+.trigger-modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.3);width:520px;max-width:90vw;max-height:80vh;overflow-y:auto;padding:24px}
+.trigger-modal h3{margin:0 0 16px;font-size:1.1rem;display:flex;align-items:center;gap:8px}
+.trigger-modal h3 .close-btn{margin-left:auto;background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--text-muted);padding:4px}
+.trigger-section{margin-bottom:20px}
+.trigger-section-label{font-weight:600;font-size:.85rem;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px}
+.trigger-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.trigger-card .trigger-name{font-weight:600;font-size:.9rem}
+.trigger-card .trigger-desc{font-size:.8rem;color:var(--text-muted);flex:1}
+.trigger-card .trigger-remove{background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1rem;padding:2px 6px;border-radius:4px}
+.trigger-card .trigger-remove:hover{background:rgba(220,53,69,0.1);color:#dc3545}
+.trigger-add-btn{background:none;border:1px dashed var(--border);border-radius:8px;padding:8px 12px;cursor:pointer;color:var(--text-muted);font-size:.85rem;width:100%;text-align:left}
+.trigger-add-btn:hover{border-color:var(--accent-primary);color:var(--accent-primary)}
+.trigger-raw{margin-top:16px;padding-top:16px;border-top:1px dashed var(--border)}
+.trigger-raw label{font-size:.8rem;color:var(--text-muted);display:block;margin-bottom:4px}
+.trigger-raw textarea{width:100%;min-height:60px;font-family:var(--font-mono);font-size:.8rem;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;color:var(--text-primary);resize:vertical;box-sizing:border-box}
+.trigger-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+/* --- Phase 4: Workers Badge + Panel --- */
+.workers-badge{display:inline-flex;align-items:center;gap:4px;background:var(--accent-primary);color:#fff;padding:3px 10px;border-radius:12px;font-size:.8rem;font-weight:600;cursor:pointer;transition:background 0.2s}
+.workers-badge:hover{background:var(--accent-hover,#0056b3)}
+.workers-badge .worker-icon{display:inline-block;animation:worker-spin 2s linear infinite}
+@keyframes worker-spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+.workers-panel{position:absolute;top:100%;right:0;width:380px;max-height:400px;overflow-y:auto;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.2);z-index:1000;margin-top:4px}
+.workers-panel-item{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background 0.15s}
+.workers-panel-item:hover{background:var(--bg)}
+.workers-panel-item:last-child{border-bottom:none}
+.workers-panel-item .wp-task{font-weight:600;font-size:.85rem;margin-bottom:2px}
+.workers-panel-item .wp-type{font-size:.8rem;color:var(--text-muted)}
+.workers-panel-item .wp-time{font-size:.75rem;color:var(--accent-primary);float:right}
+/* --- Phase 5: Per-Task Worker Animation --- */
+.worker-active{position:relative;animation:worker-pulse 2s ease-in-out infinite}
+@keyframes worker-pulse{0%,100%{box-shadow:0 0 0 0 rgba(13,110,253,0.3)}50%{box-shadow:0 0 0 4px rgba(13,110,253,0.15)}}
+.card-worker-indicator{position:absolute;top:6px;right:6px;font-size:.7rem;animation:worker-spin 2s linear infinite}
+.worker-active-row{border-left:3px solid var(--accent-primary) !important;animation:row-pulse 2s ease-in-out infinite}
+@keyframes row-pulse{0%,100%{background:transparent}50%{background:rgba(13,110,253,0.04)}}
+.activity-worker-active{border-left:3px solid var(--accent-primary);animation:row-pulse 2s ease-in-out infinite}
 </style>
 </head>
 <body>
@@ -2813,7 +2853,9 @@ select.form-control{cursor:pointer}
   <span class="nav-tab" data-view="stats">Stats</span>
   <span class="nav-tab" data-view="cube" onclick="location.hash='#/cube'">Cube</span>
   <span class="nav-tab" data-view="web" onclick="location.hash='#/web'">Web</span>
-  <div class="nav-right">
+  <div class="nav-right" style="position:relative">
+    <span id="workers-badge" class="workers-badge" style="display:none" onclick="toggleWorkersPanel()"></span>
+    <div id="workers-panel" class="workers-panel" style="display:none"></div>
     <span id="stats-badges"></span>
     <button type="button" class="btn btn-new-task" id="new-task-btn" title="Create new task">+ New Task</button>
     <button type="button" class="btn btn-with-icon" id="settings-btn" title="Dashboard Settings"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg> Settings</button>
@@ -2838,6 +2880,9 @@ select.form-control{cursor:pointer}
     <div class="loading"><div class="spinner"></div></div>
   </div>
 </div>
+
+<!-- Trigger configuration modal -->
+<div id="trigger-modal-overlay" class="trigger-modal-overlay" style="display:none" onclick="if(event.target===this)closeTriggerModal()"></div>
 
 <!-- Floating detail panel (slides from right, overlays Board/List) -->
 <div class="detail-panel-overlay" id="detail-panel-overlay"></div>
@@ -3614,7 +3659,7 @@ async function init() {
     if (dc.voice && VOICES[dc.voice]) {
       currentVoice = dc.voice;
     }
-    updateStatsBadges();
+    updateAllBadges();
     applyTheme(getTheme());
     populateThemeSelector();
     populateVoiceSelector();
@@ -3637,6 +3682,274 @@ function updateStatsBadges() {
   var el = document.getElementById("stats-badges");
   var total = tasks.length;
   el.innerHTML = '<span class="badge badge-stat">' + total + " " + t("stats.tasks") + "</span>";
+}
+
+// --- Workers Badge + Panel (Phase 4) ---
+var _workersPanelOpen = false;
+var _workerAnimFrameId = null;
+
+function updateWorkersBadge() {
+  var badge = document.getElementById("workers-badge");
+  if (!badge) return;
+  var activeCount = 0;
+  tasks.forEach(function(t) {
+    if (t.active_processes && t.active_processes.length > 0) activeCount++;
+  });
+  if (activeCount > 0) {
+    badge.style.display = "";
+    badge.innerHTML = '<span class="worker-icon">\u2699</span> ' + activeCount + ' active';
+    _startWorkerAnimationLoop();
+  } else {
+    badge.style.display = "none";
+    _stopWorkerAnimationLoop();
+    if (_workersPanelOpen) toggleWorkersPanel();
+  }
+  if (_workersPanelOpen) _renderWorkersPanel();
+}
+
+function toggleWorkersPanel() {
+  var panel = document.getElementById("workers-panel");
+  if (!panel) return;
+  _workersPanelOpen = !_workersPanelOpen;
+  if (_workersPanelOpen) {
+    _renderWorkersPanel();
+    panel.style.display = "block";
+    // Close on outside click
+    setTimeout(function() {
+      document.addEventListener("click", _closeWorkersPanelOutside);
+    }, 0);
+  } else {
+    panel.style.display = "none";
+    document.removeEventListener("click", _closeWorkersPanelOutside);
+  }
+}
+
+function _closeWorkersPanelOutside(e) {
+  var panel = document.getElementById("workers-panel");
+  var badge = document.getElementById("workers-badge");
+  if (panel && !panel.contains(e.target) && badge && !badge.contains(e.target)) {
+    _workersPanelOpen = false;
+    panel.style.display = "none";
+    document.removeEventListener("click", _closeWorkersPanelOutside);
+  }
+}
+
+function _renderWorkersPanel() {
+  var panel = document.getElementById("workers-panel");
+  if (!panel) return;
+  var html = '';
+  var hasAny = false;
+  tasks.forEach(function(task) {
+    if (!task.active_processes || task.active_processes.length === 0) return;
+    task.active_processes.forEach(function(proc) {
+      hasAny = true;
+      var elapsed = Math.floor((Date.now() - new Date(proc.started_at).getTime()) / 1000);
+      var m = Math.floor(elapsed / 60);
+      var s = elapsed % 60;
+      var timeStr = m > 0 ? m + 'm ' + s + 's' : s + 's';
+      var sid = task.short_id || (task.id ? task.id.slice(0, 12) : '?');
+      html += '<div class="workers-panel-item" onclick="openDetailPanel(\'' + esc(task.id) + '\')">';
+      html += '<span class="wp-time">' + esc(timeStr) + '</span>';
+      html += '<div class="wp-task">' + esc(sid) + ' — ' + esc(task.title || 'Untitled') + '</div>';
+      html += '<div class="wp-type">' + esc(proc.process_type || 'worker') + (proc.actor ? ' \u00b7 ' + esc(proc.actor) : '') + '</div>';
+      html += '</div>';
+    });
+  });
+  if (!hasAny) {
+    html = '<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:.85rem">No active workers</div>';
+  }
+  panel.innerHTML = html;
+}
+
+function _startWorkerAnimationLoop() {
+  if (_workerAnimFrameId) return;
+  function tick() {
+    // Re-render canvas graphs for worker pulse animation
+    if (currentView === "cube" && cubeGraph) cubeGraph.refresh();
+    else if (currentView === "web" && webGraph) webGraph.refresh();
+    // Check if still needed
+    var hasWorkers = false;
+    tasks.forEach(function(t) { if (t.active_processes && t.active_processes.length > 0) hasWorkers = true; });
+    if (hasWorkers) {
+      _workerAnimFrameId = requestAnimationFrame(tick);
+    } else {
+      _workerAnimFrameId = null;
+    }
+  }
+  _workerAnimFrameId = requestAnimationFrame(tick);
+}
+
+function _stopWorkerAnimationLoop() {
+  if (_workerAnimFrameId) {
+    cancelAnimationFrame(_workerAnimFrameId);
+    _workerAnimFrameId = null;
+  }
+}
+
+function updateAllBadges() {
+  updateStatsBadges();
+  updateWorkersBadge();
+}
+
+// --- Trigger Configuration Modal (Phase 2) ---
+var _triggerModalStatus = null;
+
+function openTriggerModal(status) {
+  _triggerModalStatus = status;
+  var overlay = document.getElementById("trigger-modal-overlay");
+  overlay.style.display = "flex";
+  overlay.innerHTML = '<div class="trigger-modal"><div class="loading"><div class="spinner"></div></div></div>';
+
+  // Fetch hooks config and workers
+  Promise.all([
+    api("/api/config/hooks").catch(function() { return { transitions: {} }; }),
+    api("/api/workers").catch(function() { return []; })
+  ]).then(function(results) {
+    var hooks = results[0];
+    var workers = results[1];
+    _renderTriggerModalContent(status, hooks, workers);
+  }).catch(function(err) {
+    overlay.innerHTML = '<div class="trigger-modal"><p style="color:var(--color-danger)">' + esc(err.message) + '</p><div class="trigger-modal-actions"><button class="btn" onclick="closeTriggerModal()">Close</button></div></div>';
+  });
+}
+
+function _renderTriggerModalContent(status, hooks, workers) {
+  var overlay = document.getElementById("trigger-modal-overlay");
+  var hooksCfg = (hooks && hooks.transitions) || {};
+
+  // Find enter triggers: patterns matching "* -> status"
+  var enterTriggers = [];
+  var exitTriggers = [];
+  Object.keys(hooksCfg).forEach(function(pattern) {
+    var parts = pattern.split("->");
+    if (parts.length !== 2) return;
+    var from = parts[0].trim();
+    var to = parts[1].trim();
+    if (to === status || to === "*") {
+      enterTriggers.push({ pattern: pattern, config: hooksCfg[pattern] });
+    }
+    if (from === status || from === "*") {
+      exitTriggers.push({ pattern: pattern, config: hooksCfg[pattern] });
+    }
+  });
+
+  var html = '<div class="trigger-modal">';
+  html += '<h3>\u2699 Triggers for <strong>' + esc(status) + '</strong>';
+  html += '<button class="close-btn" onclick="closeTriggerModal()">&times;</button></h3>';
+
+  // ON ENTER section
+  html += '<div class="trigger-section">';
+  html += '<div class="trigger-section-label">ON ENTER</div>';
+  if (enterTriggers.length > 0) {
+    enterTriggers.forEach(function(trig) {
+      var cfg = trig.config;
+      var workerList = cfg.workers || cfg.commands || [];
+      if (typeof workerList === 'string') workerList = [workerList];
+      workerList.forEach(function(w) {
+        html += '<div class="trigger-card">';
+        html += '<div class="trigger-name">' + esc(typeof w === 'object' ? (w.name || w.command || JSON.stringify(w)) : w) + '</div>';
+        html += '<div class="trigger-desc">' + esc(trig.pattern) + '</div>';
+        html += '<button class="trigger-remove" title="Remove" data-pattern="' + esc(trig.pattern) + '">&times;</button>';
+        html += '</div>';
+      });
+      if (workerList.length === 0) {
+        html += '<div class="trigger-card">';
+        html += '<div class="trigger-desc" style="flex:1">' + esc(trig.pattern) + ' (no workers configured)</div>';
+        html += '</div>';
+      }
+    });
+  } else {
+    html += '<div style="color:var(--text-muted);font-size:.85rem;margin-bottom:8px">No enter triggers configured</div>';
+  }
+  html += '<button class="trigger-add-btn" onclick="_addTrigger(\'' + esc(status) + '\',\'enter\')">+ Add enter trigger</button>';
+  html += '</div>';
+
+  // ON EXIT section
+  html += '<div class="trigger-section">';
+  html += '<div class="trigger-section-label">ON EXIT</div>';
+  if (exitTriggers.length > 0) {
+    exitTriggers.forEach(function(trig) {
+      var cfg = trig.config;
+      var workerList = cfg.workers || cfg.commands || [];
+      if (typeof workerList === 'string') workerList = [workerList];
+      workerList.forEach(function(w) {
+        html += '<div class="trigger-card">';
+        html += '<div class="trigger-name">' + esc(typeof w === 'object' ? (w.name || w.command || JSON.stringify(w)) : w) + '</div>';
+        html += '<div class="trigger-desc">' + esc(trig.pattern) + '</div>';
+        html += '<button class="trigger-remove" title="Remove" data-pattern="' + esc(trig.pattern) + '">&times;</button>';
+        html += '</div>';
+      });
+      if (workerList.length === 0) {
+        html += '<div class="trigger-card">';
+        html += '<div class="trigger-desc" style="flex:1">' + esc(trig.pattern) + ' (no workers configured)</div>';
+        html += '</div>';
+      }
+    });
+  } else {
+    html += '<div style="color:var(--text-muted);font-size:.85rem;margin-bottom:8px">No exit triggers configured</div>';
+  }
+  html += '<button class="trigger-add-btn" onclick="_addTrigger(\'' + esc(status) + '\',\'exit\')">+ Add exit trigger</button>';
+  html += '</div>';
+
+  // Advanced: raw JSON
+  html += '<details class="trigger-raw"><summary style="cursor:pointer;font-size:.8rem;color:var(--text-muted)">Advanced: raw configuration</summary>';
+  html += '<label>Transition hooks JSON</label>';
+  html += '<textarea id="trigger-raw-json">' + esc(JSON.stringify(hooksCfg, null, 2)) + '</textarea>';
+  html += '</details>';
+
+  html += '<div class="trigger-modal-actions">';
+  html += '<button class="btn" onclick="closeTriggerModal()">Close</button>';
+  html += '<button class="btn btn-primary" onclick="_saveTriggerRaw()">Save raw config</button>';
+  html += '</div>';
+  html += '</div>';
+
+  overlay.innerHTML = html;
+}
+
+function _addTrigger(status, direction) {
+  var pattern;
+  if (direction === 'enter') {
+    pattern = '* -> ' + status;
+  } else {
+    pattern = status + ' -> *';
+  }
+  var worker = prompt('Enter worker command or name for pattern "' + pattern + '":');
+  if (!worker || !worker.trim()) return;
+
+  var rawEl = document.getElementById("trigger-raw-json");
+  var hooksCfg = {};
+  if (rawEl) {
+    try { hooksCfg = JSON.parse(rawEl.value); } catch(e) { hooksCfg = {}; }
+  }
+  if (!hooksCfg[pattern]) hooksCfg[pattern] = { workers: [] };
+  if (!hooksCfg[pattern].workers) hooksCfg[pattern].workers = [];
+  hooksCfg[pattern].workers.push(worker.trim());
+
+  apiPost("/api/config/hooks/transitions", hooksCfg).then(function() {
+    showToast("Trigger saved", "success");
+    openTriggerModal(status);
+  }).catch(function(e) {
+    showToast(e.message || "Failed to save trigger", "error");
+  });
+}
+
+function _saveTriggerRaw() {
+  var rawEl = document.getElementById("trigger-raw-json");
+  if (!rawEl) return;
+  var hooksCfg;
+  try { hooksCfg = JSON.parse(rawEl.value); } catch(e) { showToast("Invalid JSON", "error"); return; }
+  apiPost("/api/config/hooks/transitions", hooksCfg).then(function() {
+    showToast("Hooks configuration saved", "success");
+    closeTriggerModal();
+  }).catch(function(e) {
+    showToast(e.message || "Failed to save", "error");
+  });
+}
+
+function closeTriggerModal() {
+  var overlay = document.getElementById("trigger-modal-overlay");
+  if (overlay) overlay.style.display = "none";
+  _triggerModalStatus = null;
 }
 
 // --- Cube (graph view) ---
@@ -3791,6 +4104,16 @@ async function renderCube() {
         ctx.strokeStyle = "rgba(0,0,0,0.15)";
         ctx.lineWidth = 0.5;
         ctx.stroke();
+        // Worker active pulsing ring
+        if (node.active_process_count > 0) {
+          var pulseT = (Date.now() % 2000) / 2000;
+          var pulseR = radius + 3 + Math.sin(pulseT * Math.PI * 2) * 3;
+          ctx.beginPath();
+          ctx.arc(node.x, node.y, pulseR, 0, 2 * Math.PI);
+          ctx.strokeStyle = 'rgba(13,110,253,' + (0.3 + 0.4 * Math.sin(pulseT * Math.PI * 2)) + ')';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
         var fontSize = 10 / globalScale;
         if (fontSize < 2) return;
         if (fontSize > 10) fontSize = 10;
@@ -4286,6 +4609,19 @@ function drawWebNode(node, ctx, globalScale) {
   ctx.strokeStyle = "rgba(0,0,0,0.15)";
   ctx.lineWidth = 0.5;
   ctx.stroke();
+
+  // Worker active dashed spinning stroke
+  if (node.active_process_count > 0) {
+    var wt = Date.now();
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius + 4, 0, 2 * Math.PI);
+    ctx.setLineDash([4, 4]);
+    ctx.lineDashOffset = -wt / 100;
+    ctx.strokeStyle = 'rgba(13,110,253,0.6)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
   // Inner white ring for epics (hub indicator)
   if (tier === "epic") {
@@ -4976,6 +5312,26 @@ function _renderPanelContent(taskId, task, events) {
   }
   html += '</div>';
 
+  // Active Workers section
+  if (task.active_processes && task.active_processes.length > 0) {
+    html += '<div class="dp-section"><h3>\u2699 Active Workers (' + task.active_processes.length + ')</h3>';
+    task.active_processes.forEach(function(proc) {
+      var elapsed = Math.floor((Date.now() - new Date(proc.started_at).getTime()) / 1000);
+      var m = Math.floor(elapsed / 60);
+      var s = elapsed % 60;
+      var timeStr = m > 0 ? m + 'm ' + s + 's' : s + 's';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">';
+      html += '<span style="animation:worker-spin 2s linear infinite;display:inline-block">\u2699</span>';
+      html += '<div style="flex:1">';
+      html += '<div style="font-weight:600;font-size:.85rem">' + esc(proc.process_type || 'worker') + '</div>';
+      if (proc.actor) html += '<div style="font-size:.8rem;color:var(--text-muted)">' + esc(proc.actor) + '</div>';
+      html += '</div>';
+      html += '<span style="font-size:.8rem;color:var(--accent-primary);font-weight:600">' + esc(timeStr) + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+
   // Comments
   var comments = (events || []).filter(function(ev) { return ev.type === "comment_added"; });
   html += '<div class="dp-section"><h3>Comments (' + comments.length + ')</h3>';
@@ -5214,7 +5570,7 @@ function _wirePanelActions(taskId, task) {
         showToast(t("toast.task_archived"), "success");
         closeDetailPanel();
         tasks = await api("/api/tasks");
-        updateStatsBadges();
+        updateAllBadges();
         if (currentView === "board") renderBoard();
         else if (currentView === "list") { renderList(); }
       } catch(e) {
@@ -5227,7 +5583,7 @@ function _wirePanelActions(taskId, task) {
 async function _refreshAfterPanelEdit(taskId) {
   // Re-fetch tasks to update board/list behind the panel
   tasks = await api("/api/tasks");
-  updateStatsBadges();
+  updateAllBadges();
 
   // Re-render the underlying view
   if (currentView === "board") renderBoard();
@@ -5499,8 +5855,10 @@ function populateLaneColorSettings() {
 
 // --- Board Card Helper ---
 function renderBoardCard(t) {
-  var html = '<div class="card" draggable="true" data-task-id="' + esc(t.id) + '" data-task-status="' + esc(t.status || "") + '"';
+  var _hasWorkers = t.active_processes && t.active_processes.length > 0;
+  var html = '<div class="card' + (_hasWorkers ? ' worker-active' : '') + '" draggable="true" data-task-id="' + esc(t.id) + '" data-task-status="' + esc(t.status || "") + '"';
   html += ' ondragstart="window._boardDragStart(event)" ondragend="window._boardDragEnd(event)">';
+  if (_hasWorkers) html += '<span class="card-worker-indicator">\u2699</span>';
   if (t.short_id) html += '<div style="font-size:.7rem;font-weight:600;color:var(--accent-primary);margin-bottom:2px">' + esc(t.short_id) + '</div>';
   html += '<div class="card-title">' + esc(t.title || "Untitled") + "</div>";
   html += '<div class="card-meta">';
@@ -5545,6 +5903,16 @@ function renderBoard() {
     html += '<div class="board-col-header" style="background:' + esc(laneColor) + ';color:var(--text-on-lane)">';
     html += '<span>' + esc(status) + '</span>';
     html += '<span class="count">' + items.length + '</span>';
+    // Wrench icon for trigger configuration
+    var _hooksCfg = (config.hooks && config.hooks.transitions) || {};
+    var _hasTriggers = Object.keys(_hooksCfg).some(function(k) {
+      var parts = k.split("->"); if (parts.length !== 2) return false;
+      var from = parts[0].trim(), to = parts[1].trim();
+      return to === status || from === status || to === "*" || from === "*";
+    });
+    html += '<button class="column-trigger-icon' + (_hasTriggers ? ' has-triggers' : '') + '" data-status="' + esc(status) + '" title="Configure triggers">'
+      + '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>'
+      + '</button>';
     html += '</div>';
     html += '<div class="board-col-body">';
     if (status === "done" && items.length > 0) {
@@ -5595,6 +5963,14 @@ function renderBoard() {
         openDetailPanel(card.dataset.taskId);
       }
       card.classList.remove("was-dragged");
+    });
+  });
+
+  // Wrench icon click handlers for trigger configuration
+  app.querySelectorAll(".column-trigger-icon").forEach(function(btn) {
+    btn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      openTriggerModal(btn.dataset.status);
     });
   });
 }
@@ -5693,7 +6069,7 @@ window._boardDrop = async function(e) {
     showToast(tf("toast.moved_to", {status: targetStatus}), "success");
     // Refresh tasks and re-render
     tasks = await api("/api/tasks");
-    updateStatsBadges();
+    updateAllBadges();
     renderBoard();
   } catch(err) {
     showToast(err.message, "error");
@@ -5780,12 +6156,16 @@ function applyListFilters() {
   }
 
   var html = "<table><thead><tr>";
-  html += "<th>" + esc(t("table.id")) + "</th><th>" + esc(t("table.title")) + "</th><th>" + esc(t("table.status")) + "</th><th>" + esc(t("table.priority")) + "</th><th>" + esc(t("table.type")) + "</th><th>" + esc(t("table.assigned")) + "</th><th>" + esc(t("table.updated")) + "</th>";
+  var _listHooksCfg = (config.hooks && config.hooks.transitions) || {};
+  var _listHasAnyTriggers = Object.keys(_listHooksCfg).length > 0;
+  var _statusThIcon = _listHasAnyTriggers ? ' <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;opacity:0.5"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>' : '';
+  html += "<th>" + esc(t("table.id")) + "</th><th>" + esc(t("table.title")) + "</th><th>" + esc(t("table.status")) + _statusThIcon + "</th><th>" + esc(t("table.priority")) + "</th><th>" + esc(t("table.type")) + "</th><th>" + esc(t("table.assigned")) + "</th><th>" + esc(t("table.updated")) + "</th>";
   html += "</tr></thead><tbody>";
   items.forEach(function(t) {
     var displayId = t.short_id || (t.id ? t.id.slice(0,18) + "..." : "?");
     var updated = t.updated_at ? t.updated_at.slice(0,16).replace("T"," ") : "";
-    html += '<tr style="cursor:pointer" onclick="openDetailPanel(\'' + esc(t.id) + '\')">';
+    var _rowWorkerCls = (t.active_processes && t.active_processes.length > 0) ? ' class="worker-active-row"' : '';
+    html += '<tr' + _rowWorkerCls + ' style="cursor:pointer" onclick="openDetailPanel(\'' + esc(t.id) + '\')">';
     html += '<td class="id-cell" title="' + esc(t.id) + '">' + (t.short_id ? '<span style="font-weight:600;color:var(--accent-primary)">' + esc(t.short_id) + '</span>' : esc(displayId)) + "</td>";
     html += "<td>" + esc(t.title || "Untitled") + (t.archived ? ' <span class="archived-badge">archived</span>' : "") + "</td>";
     html += "<td>" + esc(t.status || "") + "</td>";
@@ -6016,7 +6396,7 @@ function _wireDetailActions(taskId, task) {
         await apiPost("/api/tasks/" + taskId + "/status", { status: newStatus });
         showToast(tf("toast.status_changed", {status: newStatus}), "success");
         tasks = await api("/api/tasks");
-        updateStatsBadges();
+        updateAllBadges();
         renderDetail(taskId);
       } catch(e) {
         showToast(e.message, "error");
@@ -6035,7 +6415,7 @@ function _wireDetailActions(taskId, task) {
         await apiPost("/api/tasks/" + taskId + "/update", { fields: { priority: newPri } });
         showToast(tf("toast.priority_changed", {value: newPri}), "success");
         tasks = await api("/api/tasks");
-        updateStatsBadges();
+        updateAllBadges();
         renderDetail(taskId);
       } catch(e) {
         showToast(e.message, "error");
@@ -6054,7 +6434,7 @@ function _wireDetailActions(taskId, task) {
         await apiPost("/api/tasks/" + taskId + "/update", { fields: { type: newType } });
         showToast(tf("toast.type_changed", {value: newType}), "success");
         tasks = await api("/api/tasks");
-        updateStatsBadges();
+        updateAllBadges();
         renderDetail(taskId);
       } catch(e) {
         showToast(e.message, "error");
@@ -6072,7 +6452,7 @@ function _wireDetailActions(taskId, task) {
         return apiPost("/api/tasks/" + taskId + "/update", { fields: { title: newVal.trim() } })
           .then(function() {
             showToast(t("toast.title_updated"), "success");
-            api("/api/tasks").then(function(t) { tasks = t; updateStatsBadges(); });
+            api("/api/tasks").then(function(t) { tasks = t; updateAllBadges(); });
             renderDetail(taskId);
           });
       });
@@ -6141,7 +6521,7 @@ function _wireDetailActions(taskId, task) {
         apiPost("/api/tasks/" + taskId + "/assign", { assigned_to: assignedTo })
           .then(function() {
             showToast(assignedTo ? tf("toast.assigned", {value: assignedTo}) : t("toast.unassigned"), "success");
-            api("/api/tasks").then(function(t) { tasks = t; updateStatsBadges(); });
+            api("/api/tasks").then(function(t) { tasks = t; updateAllBadges(); });
             renderDetail(taskId);
           })
           .catch(function(e) {
@@ -6162,7 +6542,7 @@ function _wireDetailActions(taskId, task) {
         return apiPost("/api/tasks/" + taskId + "/update", { fields: { tags: newTags } })
           .then(function() {
             showToast(t("toast.tags_updated"), "success");
-            api("/api/tasks").then(function(t) { tasks = t; updateStatsBadges(); });
+            api("/api/tasks").then(function(t) { tasks = t; updateAllBadges(); });
             renderDetail(taskId);
           });
       });
@@ -6203,7 +6583,7 @@ function _wireDetailActions(taskId, task) {
         await apiPost("/api/tasks/" + taskId + "/archive", {});
         showToast(t("toast.task_archived"), "success");
         tasks = await api("/api/tasks");
-        updateStatsBadges();
+        updateAllBadges();
         location.hash = "#/" + currentView;
       } catch(e) {
         showToast(e.message, "error");
@@ -6346,13 +6726,18 @@ async function renderActivity() {
       return;
     }
     var html = '<div class="activity-list">';
-    // Build a task_id -> short_id lookup from loaded tasks
+    // Build task_id lookups from loaded tasks
     var taskIdMap = {};
-    tasks.forEach(function(t) { if (t.short_id) taskIdMap[t.id] = t.short_id; });
+    var taskWorkerMap = {};
+    tasks.forEach(function(t) {
+      if (t.short_id) taskIdMap[t.id] = t.short_id;
+      if (t.active_processes && t.active_processes.length > 0) taskWorkerMap[t.id] = true;
+    });
 
     events.forEach(function(ev) {
       var taskLabel = taskIdMap[ev.task_id] || (ev.task_id ? ev.task_id.slice(0,18)+"..." : "");
-      html += '<div class="activity-item">';
+      var _actWorkerCls = taskWorkerMap[ev.task_id] ? ' activity-worker-active' : '';
+      html += '<div class="activity-item' + _actWorkerCls + '">';
       html += '<span class="event-ts">' + esc(ev.ts || "") + "</span>";
       html += '<span class="badge badge-stat">' + esc(ev.type || "") + "</span>";
       html += '<a href="#/task/' + esc(ev.task_id || "") + '"' + (taskIdMap[ev.task_id] ? ' style="font-weight:600;color:var(--accent-primary)"' : '') + '>' + esc(taskLabel) + "</a>";
@@ -6686,7 +7071,7 @@ document.getElementById("create-task-submit").addEventListener("click", async fu
     hideCreateTaskModal();
     showToast(tf("toast.task_created", {title: title}), "success");
     tasks = await api("/api/tasks");
-    updateStatsBadges();
+    updateAllBadges();
     // Navigate to the new task's detail
     location.hash = "#/task/" + created.id;
   } catch(e) {
@@ -6810,7 +7195,7 @@ document.getElementById("refresh-btn").addEventListener("click", async function(
     archivedTasks = null;
     var dc = (config && config.dashboard) || {};
     if (dc.voice && VOICES[dc.voice]) currentVoice = dc.voice;
-    updateStatsBadges();
+    updateAllBadges();
     applyTheme(getTheme());
     populateThemeSelector();
     populateVoiceSelector();
@@ -6871,7 +7256,7 @@ function startAutoRefresh() {
       if (tasksChanged || configChanged) {
         tasks = newTasks;
         config = newConfig;
-        updateStatsBadges();
+        updateAllBadges();
         if (configChanged) {
           var dca = (config && config.dashboard) || {};
           if (dca.voice && VOICES[dca.voice]) currentVoice = dca.voice;
