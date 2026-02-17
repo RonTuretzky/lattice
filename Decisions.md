@@ -536,3 +536,17 @@ Additional review findings that shaped this decision:
 - Context: The Workers design doc (LAT-93) described three tiers: Hooks (lightweight reactions), Workers (task-scoped heavyweight automation), and a "Lattice Agent" (board-scoped orchestrator). The Agent row was aspirational — describing what an intelligent consumer of the Lattice CLI looks like, not a feature to build into Lattice itself.
 - Rationale: Lattice is coordination infrastructure, not the coordinator. The board-level intelligence that decides what to work on, who to assign, and when to escalate is fundamentally an LLM-powered judgment call — it belongs in the orchestration layer (a Claude Code session, a sweep skill, a custom script) that drives the CLI. Different teams want radically different orchestration logic; baking one into Lattice would either be too opinionated or too generic. Keeping the boundary clean means Lattice stays a shippable, portable primitive.
 - Consequence: No `lattice agent` command. Workers (`lattice worker run/list/ps`) are the highest-level automation Lattice owns. The dispatcher (`lattice worker watch`, Phase 3 of Workers) is mechanical rule-matching, not intelligent orchestration. Board-level intelligence lives at the Stage 11 Agentics / consumer layer — e.g., `/lattice-sweep`, custom orchestrator scripts, or future products built on top of Lattice.
+
+## 2026-02-17: Epics as derived-status bottom-lane containers
+
+**Decision:** Epics should not flow through the Kanban workflow like leaf tasks. Their status is derived from subtask completion, and they display as a persistent bottom lane on the dashboard rather than in status columns.
+
+**Context:** LAT-26 (Open Source Launch epic) exposed the mismatch: manually setting an epic to `in_progress` doesn't mean the same thing as a leaf task in `in_progress`. Epics are grouping containers whose "status" is really a progress ratio. Forcing them through the same workflow transitions as leaf tasks (including needing `--force` to skip steps) is friction without value.
+
+**Design:**
+- Epics display as a bottom lane on the board view, not in Kanban columns
+- Epic status is computed from subtask completion (e.g., 6/9 done)
+- Rich information across all surfaces: dashboard board (progress bars, health), CLI output (progress ratio, subtask breakdown, assignees), dashboard detail views (timeline, bottleneck visibility)
+- Epics reflect — they don't move. The board above answers "what do I do next"; the bottom lane answers "how are my initiatives going"
+
+**Consequence:** Requires dashboard changes (bottom lane rendering), CLI changes (`lattice show` for epics renders differently), and possibly core changes (derived status computation). Tracked as LAT-103.
