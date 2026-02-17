@@ -474,7 +474,7 @@ class TestInitClaudeMd:
 
         config = json.loads((tmp_path / ".lattice" / "config.json").read_text())
         assert config["heartbeat"]["enabled"] is True
-        assert config["heartbeat"]["max_advances"] == 5
+        assert config["heartbeat"]["max_advances"] == 10
 
     def test_init_no_heartbeat_no_config(self, tmp_path: Path) -> None:
         """Init with --no-heartbeat -> config.json has no heartbeat section."""

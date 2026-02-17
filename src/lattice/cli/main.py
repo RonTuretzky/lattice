@@ -180,7 +180,7 @@ def init(
         if instance_name:
             config["instance_name"] = instance_name
         if heartbeat:
-            config["heartbeat"] = {"enabled": True, "max_advances": 5}
+            config["heartbeat"] = {"enabled": True, "max_advances": 10}
         config_content = serialize_config(config)
         atomic_write(lattice_dir / "config.json", config_content)
 
@@ -207,7 +207,7 @@ def init(
     if instance_name:
         click.echo(f"Instance name: {instance_name}")
     if heartbeat:
-        click.echo("Heartbeat: enabled (agents auto-advance, max 5 per session)")
+        click.echo("Heartbeat: enabled (agents auto-advance, max 10 per session)")
 
     # CLAUDE.md integration
     _offer_claude_md(root)

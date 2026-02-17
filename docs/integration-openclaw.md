@@ -246,7 +246,7 @@ With heartbeat enabled, the agent loops:
 2. Transitions the task (`review`, `done`, `needs_human`, `blocked`)
 3. If the task needs you (`needs_human` or `blocked`), **stops and reports**
 4. Otherwise, claims the next task and keeps going
-5. Stops after 5 tasks (configurable) or when the backlog is empty
+5. Stops after 10 tasks (configurable) or when the backlog is empty
 
 This is the heartbeat — the steady pulse of forward progress. You fill the backlog, walk away, come back to a sorted inbox with work completed, decisions queued, and blockers identified.
 
@@ -257,7 +257,7 @@ To enable heartbeat on an existing project, add this to `.lattice/config.json`:
 ```json
 "heartbeat": {
   "enabled": true,
-  "max_advances": 5
+  "max_advances": 10
 }
 ```
 

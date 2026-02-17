@@ -196,7 +196,7 @@ If `"heartbeat": {"enabled": true, ...}` is present, **keep advancing after each
 3. Otherwise, run `lattice next --actor agent:openclaw --claim --json`.
 4. If a task is returned, work it. Full commitment — implement, test, commit, comment, transition.
 5. Repeat from step 1.
-6. Stop after the number of advances specified in `max_advances` (default 5), or when the backlog is empty.
+6. Stop after the number of advances specified in `max_advances` (default 10), or when the backlog is empty.
 
 The human fills the backlog and makes decisions. You sweep it. This is the heartbeat.
 
