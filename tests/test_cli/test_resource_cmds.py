@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pytest
@@ -389,3 +390,112 @@ class TestResourceLifecycle:
         result = res_invoke("resource", "acquire", "browser", "--actor", "agent:codex")
         assert result.exit_code == 0
         assert "Acquired" in result.output
+
+
+# ---------------------------------------------------------------------------
+# Heartbeat on expired holder
+# ---------------------------------------------------------------------------
+
+
+class TestHeartbeatExpired:
+    """Heartbeat must fail on expired holders instead of silently reviving."""
+
+    def test_heartbeat_rejects_expired_holder(self, res_invoke, initialized_root: Path) -> None:
+        res_invoke("resource", "create", "browser", "--actor", "human:atin")
+        res_invoke("resource", "acquire", "browser", "--actor", "agent:claude")
+
+        # Force-expire the holder by rewriting snapshot with past expires_at
+        snap_path = initialized_root / ".lattice" / "resources" / "browser" / "resource.json"
+        snap = json.loads(snap_path.read_text())
+        for h in snap["holders"]:
+            h["expires_at"] = "2020-01-01T00:00:00Z"
+        snap_path.write_text(json.dumps(snap, sort_keys=True, indent=2) + "\n")
+
+        result = res_invoke("resource", "heartbeat", "browser", "--actor", "agent:claude")
+        assert result.exit_code == 1
+        assert "expired" in result.output.lower()
+
+
+# ---------------------------------------------------------------------------
+# ID uniqueness
+# ---------------------------------------------------------------------------
+
+
+class TestIdUniqueness:
+    """Caller-supplied --id must be checked for cross-resource collisions."""
+
+    def test_duplicate_id_different_name_fails(self, res_invoke) -> None:
+        from lattice.core.ids import generate_resource_id
+
+        shared_id = generate_resource_id()
+        result1 = res_invoke(
+            "resource", "create", "browser",
+            "--id", shared_id,
+            "--actor", "human:atin",
+        )
+        assert result1.exit_code == 0
+
+        result2 = res_invoke(
+            "resource", "create", "simulator",
+            "--id", shared_id,
+            "--actor", "human:atin",
+        )
+        assert result2.exit_code == 1
+        assert "already used" in result2.output
+
+
+# ---------------------------------------------------------------------------
+# Concurrent acquire (TOCTOU fix verification)
+# ---------------------------------------------------------------------------
+
+
+class TestConcurrentAcquire:
+    """Verify only one of two concurrent acquires succeeds on a singleton."""
+
+    def test_concurrent_acquire_singleton(self, initialized_root: Path) -> None:
+        import subprocess
+        import sys
+        from concurrent.futures import ThreadPoolExecutor
+
+        env = {**os.environ, "LATTICE_ROOT": str(initialized_root)}
+
+        # Create via CliRunner (single-threaded, safe)
+        CliRunner().invoke(
+            cli,
+            ["resource", "create", "mutex", "--actor", "human:atin"],
+            env={"LATTICE_ROOT": str(initialized_root)},
+        )
+
+        # Use subprocess for concurrent acquires — CliRunner is NOT
+        # thread-safe (leaks env vars and closes shared output streams).
+        acquire_script = (
+            "import sys; "
+            "from click.testing import CliRunner; "
+            "from lattice.cli.main import cli; "
+            "r = CliRunner().invoke(cli, "
+            "['resource', 'acquire', 'mutex', '--actor', sys.argv[1], '--json']); "
+            "sys.exit(r.exit_code)"
+        )
+
+        def acquire(actor: str) -> int:
+            result = subprocess.run(
+                [sys.executable, "-c", acquire_script, actor],
+                env=env,
+                capture_output=True,
+            )
+            return result.returncode
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = [
+                pool.submit(acquire, "agent:a"),
+                pool.submit(acquire, "agent:b"),
+            ]
+            results = [f.result() for f in futures]
+
+        # Exactly one should succeed (exit 0), one should fail (exit 1)
+        assert sorted(results) == [0, 1], f"Expected one success + one failure, got {results}"
+
+        # Verify snapshot has exactly one holder
+        snap_path = initialized_root / ".lattice" / "resources" / "mutex" / "resource.json"
+        snap = json.loads(snap_path.read_text())
+        assert len(snap["holders"]) == 1

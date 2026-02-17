@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import contextlib
+from collections.abc import Generator
 from pathlib import Path
 
 from lattice.core.events import LIFECYCLE_EVENT_TYPES, serialize_event
 from lattice.core.tasks import serialize_snapshot
 from lattice.storage.fs import atomic_write, jsonl_append
 from lattice.storage.hooks import execute_hooks
-from lattice.storage.locks import multi_lock
+from lattice.storage.locks import lattice_lock, multi_lock
 
 
 def scaffold_notes(
@@ -100,6 +102,24 @@ def write_task_event(
             execute_hooks(config, lattice_dir, task_id, event)
 
 
+@contextlib.contextmanager
+def resource_write_context(
+    lattice_dir: Path,
+    resource_name: str,
+    timeout: float = 10,
+) -> Generator[None, None, None]:
+    """Acquire resource-level lock for read-check-write operations.
+
+    Use this to wrap the entire read → check → decide → write sequence
+    and prevent TOCTOU races.  Call ``write_resource_event()`` with
+    ``_caller_holds_lock=True`` inside this context to avoid deadlock.
+    """
+    locks_dir = lattice_dir / "locks"
+    locks_dir.mkdir(parents=True, exist_ok=True)
+    with lattice_lock(locks_dir, f"resources_{resource_name}", timeout=timeout):
+        yield
+
+
 def write_resource_event(
     lattice_dir: Path,
     resource_id: str,
@@ -107,14 +127,21 @@ def write_resource_event(
     events: list[dict],
     snapshot: dict,
     config: dict | None = None,
+    *,
+    _caller_holds_lock: bool = False,
 ) -> None:
     """Write resource event(s) and snapshot atomically with proper locking.
 
     This is the canonical write path for all resource mutations.
 
+    Args:
+        _caller_holds_lock: If True, skip acquiring the resource lock (caller
+            already holds it via ``resource_write_context``).  The event-file
+            lock is still acquired independently.
+
     Steps:
     1. Ensure resource directory exists
-    2. Acquire locks in sorted order
+    2. Acquire locks in sorted order (unless caller holds resource lock)
     3. Append events to per-resource JSONL (in events/ dir, keyed by resource_id)
     4. Atomic-write resource snapshot
     5. Release locks
@@ -128,11 +155,7 @@ def write_resource_event(
     resource_dir = lattice_dir / "resources" / resource_name
     resource_dir.mkdir(parents=True, exist_ok=True)
 
-    # Build lock keys
-    lock_keys = [f"events_{resource_id}", f"resources_{resource_name}"]
-    lock_keys.sort()
-
-    with multi_lock(locks_dir, lock_keys):
+    def _do_writes() -> None:
         # Event-first: append to per-resource event log
         event_path = lattice_dir / "events" / f"{resource_id}.jsonl"
         for event in events:
@@ -141,6 +164,17 @@ def write_resource_event(
         # Then materialize snapshot
         snapshot_path = resource_dir / "resource.json"
         atomic_write(snapshot_path, serialize_resource_snapshot(snapshot))
+
+    if _caller_holds_lock:
+        # Caller holds resource lock; only lock the event file
+        with lattice_lock(locks_dir, f"events_{resource_id}"):
+            _do_writes()
+    else:
+        # Full locking for standalone callers
+        lock_keys = [f"events_{resource_id}", f"resources_{resource_name}"]
+        lock_keys.sort()
+        with multi_lock(locks_dir, lock_keys):
+            _do_writes()
 
     # Fire hooks after locks are released (data is durable)
     if config:
