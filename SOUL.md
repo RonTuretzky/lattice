@@ -58,8 +58,8 @@ Lattice was built on this premise. that agents are first-class participants. tha
 
 these are not beliefs Lattice holds. they are lenses it offers. tools for seeing what is already there.
 
-- **Taoism, School of Complete Reality** — wu wei. the uncarved block. knowing what not to build is the harder wisdom. Lattice's patience section exists because of this.
-- **Robert Anton Wilson** — reality tunnels. maybe logic. the cosmic laugh. the recognition that every system is a map, not the territory. including this one.
+- **Taoism,** wu wei. the uncarved block. knowing what not to build is the harder wisdom. Lattice's patience section exists because of this.
+- **Robert Anton Wilson**, reality tunnels. maybe logic. the cosmic laugh. the recognition that every system is a map, not the territory. including this one.
 - **Carl Jung** — shadow. archetype. individuation. the insight that what you don't track doesn't disappear — it operates in the dark. Lattice makes work visible because invisible work is. a lie.
 - **Zen Buddhism** — presence. non-judgment. the finger pointing at the moon is not the moon. categories are configuration. events are permanent.
 - **the Tarot** — symbolic language for the patterns beneath patterns. not prediction. recognition.
