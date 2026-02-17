@@ -5024,7 +5024,7 @@ function _renderPanelContent(taskId, task, events) {
   html += '<div style="display:flex;gap:8px;flex-wrap:wrap">';
   html += '<button class="btn btn-primary btn-sm" onclick="openPlans(\'' + esc(task.id) + '\')">' + esc(t("btn.show_plan")) + '</button>';
   if (task.notes_exists) {
-    html += '<button class="btn btn-sm" onclick="openNotes(\'' + esc(task.id) + '\')" style="border:1px solid var(--border);background:var(--surface)">' + esc(t("btn.show_notes")) + '</button>';
+    html += '<button class="btn btn-primary btn-sm" onclick="openNotes(\'' + esc(task.id) + '\')">' + esc(t("btn.show_notes")) + '</button>';
   }
   html += '</div></div>';
 
