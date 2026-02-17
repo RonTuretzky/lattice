@@ -414,6 +414,66 @@ def setup_claude(target_path: str, force: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
+# lattice setup-openclaw
+# ---------------------------------------------------------------------------
+
+
+@cli.command("setup-openclaw")
+@click.option(
+    "--path",
+    "target_path",
+    type=click.Path(exists=True, file_okay=False, resolve_path=True),
+    default=".",
+    help="Project root directory (defaults to current directory).",
+)
+@click.option(
+    "--global",
+    "install_global",
+    is_flag=True,
+    help="Install to ~/.openclaw/skills/ (user-level) instead of project-level.",
+)
+@click.option("--force", is_flag=True, help="Overwrite existing skill if present.")
+def setup_openclaw(target_path: str, install_global: bool, force: bool) -> None:
+    """Install the Lattice skill for OpenClaw."""
+    import shutil
+
+    # Locate bundled skill files
+    skill_src = Path(__file__).resolve().parent.parent / "skills" / "lattice"
+    if not skill_src.exists() or not (skill_src / "SKILL.md").exists():
+        click.echo("Error: Bundled OpenClaw skill files not found.", err=True)
+        raise SystemExit(1)
+
+    # Determine destination
+    if install_global:
+        dest = Path.home() / ".openclaw" / "skills" / "lattice"
+    else:
+        dest = Path(target_path) / "skills" / "lattice"
+
+    if dest.exists():
+        if not force:
+            click.echo(
+                f"Lattice skill already exists at {dest}. Use --force to overwrite."
+            )
+            return
+        shutil.rmtree(dest)
+
+    # Copy the skill directory tree (exclude Python packaging artifacts)
+    shutil.copytree(
+        skill_src,
+        dest,
+        ignore=shutil.ignore_patterns("__init__.py", "__pycache__"),
+    )
+
+    # Make the check script executable
+    check_script = dest / "scripts" / "lattice-check.sh"
+    if check_script.exists():
+        check_script.chmod(0o755)
+
+    location = "~/.openclaw/skills/lattice" if install_global else str(dest)
+    click.echo(f"Installed Lattice skill for OpenClaw at {location}.")
+
+
+# ---------------------------------------------------------------------------
 # lattice plugins
 # ---------------------------------------------------------------------------
 

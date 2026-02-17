@@ -155,7 +155,14 @@ Injects a block into `CLAUDE.md` that teaches agents the workflow: create tasks 
 }
 ```
 
-**OpenClaw:** Install the Lattice skill from the OpenClaw registry.
+**OpenClaw:**
+
+```bash
+lattice setup-openclaw           # project-level
+lattice setup-openclaw --global  # user-level (all projects)
+```
+
+Copies the Lattice skill into your OpenClaw skills directory. The skill teaches your agent to use `lattice` CLI commands for task tracking.
 
 ---
 
@@ -333,6 +340,7 @@ Every command supports `--json` for structured output and `--quiet` for minimal 
 | `lattice doctor` | Check project integrity |
 | `lattice rebuild <id\|--all>` | Rebuild snapshots from events |
 | `lattice setup-claude` | Add/update CLAUDE.md integration block |
+| `lattice setup-openclaw` | Install Lattice skill for OpenClaw |
 
 ### Useful flags
 

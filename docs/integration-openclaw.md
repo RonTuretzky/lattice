@@ -6,23 +6,20 @@ Two ways to use Lattice with OpenClaw: the **Agent Skill** (CLI-based) and the *
 
 The Lattice skill teaches your OpenClaw agent to use the `lattice` CLI directly. This is the most natural integration — OpenClaw's skill system was designed for exactly this pattern.
 
-### Install from ClawHub
+### Install with the CLI
 
 ```bash
-npx clawhub install lattice
-```
-
-### Or install locally
-
-Copy the `skills/lattice/` directory into your workspace or managed skills:
-
-```bash
-# Workspace-level (this project only)
-cp -r skills/lattice/ ./skills/lattice/
+# Project-level (this project only)
+lattice setup-openclaw
 
 # User-level (all projects)
-cp -r skills/lattice/ ~/.openclaw/skills/lattice/
+lattice setup-openclaw --global
+
+# Update an existing install
+lattice setup-openclaw --force
 ```
+
+This copies the skill files (SKILL.md, references, scripts) into the right location.
 
 ### Prerequisites
 
