@@ -90,6 +90,7 @@ def compact_snapshot(snapshot: dict) -> dict:
         "assigned_to": snapshot.get("assigned_to"),
         "tags": snapshot.get("tags"),
         "done_at": snapshot.get("done_at"),
+        "comment_count": snapshot.get("comment_count", 0),
         "relationships_out_count": len(snapshot.get("relationships_out", [])),
         "artifact_ref_count": len(snapshot.get("artifact_refs", [])),
         "branch_link_count": len(snapshot.get("branch_links", [])),
@@ -127,6 +128,7 @@ def _init_snapshot(event: dict) -> dict:
         "relationships_out": [],
         "artifact_refs": [],
         "branch_links": [],
+        "comment_count": 0,
         "custom_fields": data.get("custom_fields") or {},
         "last_event_id": event["id"],
     }
@@ -159,9 +161,7 @@ def _register_mutation(etype: str):  # noqa: ANN202
 # bookkeeping (last_event_id, updated_at) handled by the caller.
 _NOOP_EVENT_TYPES: frozenset[str] = frozenset(
     {
-        "comment_added",
         "comment_edited",
-        "comment_deleted",
         "reaction_added",
         "reaction_removed",
         "git_event",
@@ -276,6 +276,16 @@ def _mut_branch_unlinked(snap: dict, event: dict) -> None:
     snap["branch_links"] = links
 
 
+@_register_mutation("comment_added")
+def _mut_comment_added(snap: dict, event: dict) -> None:
+    snap["comment_count"] = snap.get("comment_count", 0) + 1
+
+
+@_register_mutation("comment_deleted")
+def _mut_comment_deleted(snap: dict, event: dict) -> None:
+    snap["comment_count"] = max(0, snap.get("comment_count", 0) - 1)
+
+
 def get_artifact_roles(snapshot: dict) -> dict[str, str | None]:
     """Return ``{artifact_id: role}`` from a snapshot's ``artifact_refs``.
 
@@ -296,7 +306,7 @@ def _apply_mutation(snap: dict, etype: str, event: dict) -> None:
 
     ``last_event_id`` and ``updated_at`` are handled by the caller so that
     they are applied uniformly for **all** event types, including no-op ones
-    like ``comment_added``.
+    like ``comment_edited``.
     """
     handler = _MUTATION_HANDLERS.get(etype)
     if handler is not None:

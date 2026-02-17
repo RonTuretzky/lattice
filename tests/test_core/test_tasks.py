@@ -338,8 +338,9 @@ class TestFieldUpdated:
 
 
 class TestCommentAdded:
-    def test_only_bookkeeping_changes(self) -> None:
+    def test_increments_comment_count(self) -> None:
         snap = _make_snapshot()
+        assert snap.get("comment_count", 0) == 0
         original_status = snap["status"]
         original_title = snap["title"]
         ev = {
@@ -352,10 +353,70 @@ class TestCommentAdded:
             "data": {"body": "Starting work now"},
         }
         snap = apply_event_to_snapshot(snap, ev)
+        assert snap["comment_count"] == 1
         assert snap["status"] == original_status
         assert snap["title"] == original_title
         assert snap["last_event_id"] == _EV_2
         assert snap["updated_at"] == _TS_2
+
+    def test_multiple_comments_increment(self) -> None:
+        snap = _make_snapshot()
+        for i in range(3):
+            ev = {
+                "schema_version": 1,
+                "id": f"ev_0000000000000000000000000{i + 2}",
+                "ts": _TS_2,
+                "type": "comment_added",
+                "task_id": _TASK_ID,
+                "actor": "agent:claude",
+                "data": {"body": f"Comment {i + 1}"},
+            }
+            snap = apply_event_to_snapshot(snap, ev)
+        assert snap["comment_count"] == 3
+
+    def test_comment_deleted_decrements(self) -> None:
+        snap = _make_snapshot()
+        # Add two comments
+        for i in range(2):
+            ev = {
+                "schema_version": 1,
+                "id": f"ev_0000000000000000000000000{i + 2}",
+                "ts": _TS_2,
+                "type": "comment_added",
+                "task_id": _TASK_ID,
+                "actor": "agent:claude",
+                "data": {"body": f"Comment {i + 1}"},
+            }
+            snap = apply_event_to_snapshot(snap, ev)
+        assert snap["comment_count"] == 2
+
+        # Delete one
+        del_ev = {
+            "schema_version": 1,
+            "id": "ev_00000000000000000000000005",
+            "ts": _TS_2,
+            "type": "comment_deleted",
+            "task_id": _TASK_ID,
+            "actor": "agent:claude",
+            "data": {"comment_id": "ev_00000000000000000000000002"},
+        }
+        snap = apply_event_to_snapshot(snap, del_ev)
+        assert snap["comment_count"] == 1
+
+    def test_comment_deleted_floors_at_zero(self) -> None:
+        snap = _make_snapshot()
+        assert snap.get("comment_count", 0) == 0
+        del_ev = {
+            "schema_version": 1,
+            "id": _EV_2,
+            "ts": _TS_2,
+            "type": "comment_deleted",
+            "task_id": _TASK_ID,
+            "actor": "agent:claude",
+            "data": {"comment_id": "ev_doesnotexist"},
+        }
+        snap = apply_event_to_snapshot(snap, del_ev)
+        assert snap["comment_count"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -869,6 +930,7 @@ class TestCompactSnapshot:
             "assigned_to",
             "tags",
             "done_at",
+            "comment_count",
             "relationships_out_count",
             "artifact_ref_count",
             "branch_link_count",
@@ -911,6 +973,7 @@ class TestCompactSnapshot:
     def test_empty_collections(self) -> None:
         snap = _make_snapshot()
         compact = compact_snapshot(snap)
+        assert compact["comment_count"] == 0
         assert compact["relationships_out_count"] == 0
         assert compact["artifact_ref_count"] == 0
         assert compact["branch_link_count"] == 0

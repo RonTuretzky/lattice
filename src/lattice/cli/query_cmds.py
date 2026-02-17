@@ -824,8 +824,11 @@ def _print_human_show(
     click.echo(f"Status: {status}  Priority: {priority}  Type: {task_type}")
     if valid_transitions:
         click.echo(f"  Next: {' | '.join(valid_transitions)}")
+    comment_count = snapshot.get("comment_count", 0)
     click.echo(f"Assigned: {assigned_to}  Created by: {created_by}")
     click.echo(f"Created: {created_at}  Updated: {updated_at}")
+    if comment_count:
+        click.echo(f"Comments: {comment_count}")
 
     if description:
         click.echo("")
