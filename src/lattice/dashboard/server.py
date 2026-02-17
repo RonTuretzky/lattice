@@ -218,6 +218,8 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                         self._send_json(404, _err("NOT_FOUND", f"Not found: {path}"))
                 else:
                     self._send_json(404, _err("NOT_FOUND", f"Not found: {path}"))
+            elif path == "/api/open-guide":
+                self._handle_post_open_guide(ld)
             else:
                 self._send_json(404, _err("NOT_FOUND", f"Unknown API endpoint: {path}"))
 
@@ -1726,6 +1728,46 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 return
 
             # Open in system default editor
+            system = platform.system()
+            try:
+                if system == "Darwin":
+                    subprocess.Popen(["open", str(resolved)])
+                elif system == "Linux":
+                    subprocess.Popen(["xdg-open", str(resolved)])
+                elif system == "Windows":
+                    subprocess.Popen(["start", "", str(resolved)], shell=True)
+                else:
+                    self._send_json(500, _err("UNSUPPORTED", f"Unsupported platform: {system}"))
+                    return
+            except OSError as exc:
+                self._send_json(500, _err("OPEN_ERROR", f"Failed to open file: {exc}"))
+                return
+
+            self._send_json(200, _ok({"opened": str(resolved)}))
+
+        # ---------------------------------------------------------------
+        # POST /api/open-guide — Open user guide in default viewer
+        # ---------------------------------------------------------------
+
+        def _handle_post_open_guide(self, ld: Path) -> None:
+            """Handle POST /api/open-guide — open the user guide in the system default viewer."""
+            # The guide lives at docs/user-guide.md relative to the project root.
+            # ld is the .lattice/ directory, so ld.parent is the project root.
+            project_root = ld.parent
+            guide_path = project_root / "docs" / "user-guide.md"
+
+            if not guide_path.is_file():
+                self._send_json(404, _err("NOT_FOUND", "User guide not found at docs/user-guide.md"))
+                return
+
+            resolved = guide_path.resolve()
+
+            # Security: ensure resolved path is within project root
+            root_resolved = project_root.resolve()
+            if not str(resolved).startswith(str(root_resolved)):
+                self._send_json(403, _err("FORBIDDEN", "Path traversal not allowed"))
+                return
+
             system = platform.system()
             try:
                 if system == "Darwin":
