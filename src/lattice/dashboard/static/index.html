@@ -2814,6 +2814,39 @@ select.form-control{cursor:pointer}
 .dp-event{font-size:.8rem;padding:3px 0;display:flex;gap:6px;color:var(--text-secondary)}
 .dp-event .ev-type{font-weight:600;color:var(--text-primary)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* === Epics Tree View === */
+.epics-container{max-width:960px;margin:0 auto;padding:24px 16px}
+.epics-header{margin-bottom:20px}
+.epics-header h2{font-size:1.25rem;font-weight:700;margin:0 0 4px}
+.epics-header .epics-summary{font-size:.85rem;color:var(--text-muted)}
+.epics-empty{text-align:center;padding:60px 20px;color:var(--text-muted)}
+.epics-empty p:first-child{font-size:1.1rem;margin-bottom:8px;color:var(--text-secondary)}
+.epic-tree{margin-bottom:24px}
+.epic-node{position:relative}
+.epic-row{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:var(--radius-sm);cursor:pointer;transition:background .15s}
+.epic-row:hover{background:var(--surface-hover)}
+.epic-indent{display:inline-block;width:24px;flex-shrink:0}
+.epic-toggle{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--text-muted);cursor:pointer;flex-shrink:0;border:none;background:none;padding:0;border-radius:var(--radius-sm);transition:background .15s,transform .15s}
+.epic-toggle:hover{background:var(--surface-raised);color:var(--text-primary)}
+.epic-toggle.collapsed{transform:rotate(-90deg)}
+.epic-toggle-placeholder{width:20px;flex-shrink:0}
+.epic-id{font-family:var(--font-mono);font-size:.75rem;color:var(--text-muted);min-width:60px;flex-shrink:0}
+.epic-status{font-size:.7rem;font-weight:600;padding:2px 8px;border-radius:10px;color:#fff;text-transform:uppercase;letter-spacing:.3px;flex-shrink:0}
+.epic-title{font-size:.875rem;color:var(--text-primary);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.epic-row[data-has-children="true"] .epic-title{font-weight:600}
+.epic-priority{font-size:.7rem;padding:1px 6px;border-radius:8px;color:#fff;flex-shrink:0}
+.epic-assignee{font-size:.75rem;color:var(--text-muted);flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.epic-progress{display:flex;align-items:center;gap:6px;flex-shrink:0;min-width:100px}
+.epic-progress-bar{width:60px;height:6px;background:var(--surface-raised);border-radius:3px;overflow:hidden;flex-shrink:0}
+.epic-progress-fill{height:100%;border-radius:3px;transition:width .3s}
+.epic-progress-text{font-size:.7rem;color:var(--text-muted);white-space:nowrap}
+.epic-health{display:flex;gap:4px;flex-shrink:0}
+.epic-health-badge{font-size:.65rem;padding:1px 6px;border-radius:8px;font-weight:600}
+.epic-health-blocked{background:rgba(220,53,69,.15);color:var(--color-danger)}
+.epic-health-human{background:rgba(255,193,7,.15);color:var(--color-warning)}
+.epic-children{overflow:hidden;transition:max-height .25s ease}
+.epic-children.collapsed{max-height:0 !important}
+.epic-section-title{font-size:.8rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;padding:16px 8px 6px;border-bottom:1px solid var(--border);margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -5139,6 +5172,7 @@ async function route(hash) {
   else if (view === "stats") await renderStats();
   else if (view === "cube") await renderCube();
   else if (view === "web") await renderWeb();
+  else if (view === "epics") await renderEpics();
   else if (view === "task" && parts[1]) await renderDetail(parts[1]);
   else renderBoard();
 }
@@ -6398,6 +6432,135 @@ function eventSummary(ev) {
   }
 }
 
+// --- Epics Tree View ---
+var _epicsCollapsed = {};
+
+function _epicsPriorityBg(p) {
+  var map = { critical: "var(--pri-critical-bg)", high: "var(--pri-high-bg)", medium: "var(--pri-medium-bg)", low: "var(--pri-low-bg)" };
+  return map[p] || "var(--pri-low-bg)";
+}
+
+function _epicsRenderNode(node) {
+  var hasChildren = node.children && node.children.length > 0;
+  var isCollapsed = _epicsCollapsed[node.id];
+  var indent = '';
+  for (var i = 0; i < node.depth; i++) indent += '<span class="epic-indent"></span>';
+
+  var html = '<div class="epic-node">';
+  html += '<div class="epic-row" data-has-children="' + hasChildren + '" data-task-id="' + esc(node.id) + '">';
+  html += indent;
+
+  if (hasChildren) {
+    html += '<button class="epic-toggle' + (isCollapsed ? ' collapsed' : '') + '" data-toggle-id="' + esc(node.id) + '" title="Toggle children">\u25BE</button>';
+  } else {
+    html += '<span class="epic-toggle-placeholder"></span>';
+  }
+
+  html += '<span class="epic-id">' + esc(node.short_id || node.id.slice(0, 12)) + '</span>';
+  html += '<span class="epic-status" style="background:' + esc(getLaneColor(node.status)) + '">' + esc((node.status || "").replace(/_/g, " ")) + '</span>';
+  html += '<span class="epic-title">' + esc(node.title || "") + '</span>';
+
+  if (node.priority && node.priority !== "none") {
+    html += '<span class="epic-priority" style="background:' + _epicsPriorityBg(node.priority) + '">' + esc(node.priority) + '</span>';
+  }
+
+  if (node.assigned_to) {
+    html += '<span class="epic-assignee" title="' + esc(node.assigned_to) + '">' + esc(node.assigned_to) + '</span>';
+  }
+
+  if (hasChildren && node.derived) {
+    var prog = node.derived.progress || {};
+    var pct = prog.total > 0 ? Math.round((prog.done / prog.total) * 100) : 0;
+    var barColor = pct === 100 ? "var(--color-success)" : "var(--accent-primary)";
+    html += '<span class="epic-progress">';
+    html += '<span class="epic-progress-bar"><span class="epic-progress-fill" style="width:' + pct + '%;background:' + barColor + '"></span></span>';
+    html += '<span class="epic-progress-text">' + prog.done + '/' + prog.total + '</span>';
+    html += '</span>';
+
+    var health = node.derived.health || {};
+    if (health.blocked > 0 || health.needs_human > 0) {
+      html += '<span class="epic-health">';
+      if (health.blocked > 0) html += '<span class="epic-health-badge epic-health-blocked">' + health.blocked + ' blocked</span>';
+      if (health.needs_human > 0) html += '<span class="epic-health-badge epic-health-human">' + health.needs_human + ' human</span>';
+      html += '</span>';
+    }
+  }
+
+  html += '</div>';
+
+  if (hasChildren) {
+    html += '<div class="epic-children' + (isCollapsed ? ' collapsed' : '') + '" data-children-of="' + esc(node.id) + '">';
+    node.children.forEach(function(child) {
+      html += _epicsRenderNode(child);
+    });
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+async function renderEpics() {
+  var app = document.getElementById("app");
+  app.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    var data = await api("/api/epics");
+    var trees = data.trees || [];
+    var orphans = data.orphans || [];
+
+    if (trees.length === 0 && orphans.length === 0) {
+      app.innerHTML = '<div class="epics-empty"><p>No tasks to display.</p><p style="font-size:.85rem">Create tasks with subtask_of relationships to see the hierarchy.</p></div>';
+      return;
+    }
+
+    var html = '<div class="epics-container">';
+    html += '<div class="epics-header"><h2>Epic Hierarchy</h2>';
+    html += '<span class="epics-summary">' + esc(data.total_epics + ' epic' + (data.total_epics !== 1 ? 's' : '') + ', ' + data.total_tasks + ' total tasks') + '</span>';
+    html += '</div>';
+
+    if (trees.length > 0) {
+      trees.forEach(function(tree) {
+        html += '<div class="epic-tree">';
+        html += _epicsRenderNode(tree);
+        html += '</div>';
+      });
+    }
+
+    if (orphans.length > 0) {
+      html += '<div class="epic-section-title">Standalone Tasks (' + orphans.length + ')</div>';
+      orphans.forEach(function(o) {
+        html += _epicsRenderNode(o);
+      });
+    }
+
+    html += '</div>';
+    app.innerHTML = html;
+
+    // Wire up toggle buttons
+    app.querySelectorAll(".epic-toggle").forEach(function(btn) {
+      btn.addEventListener("click", function(e) {
+        e.stopPropagation();
+        var id = btn.dataset.toggleId;
+        _epicsCollapsed[id] = !_epicsCollapsed[id];
+        btn.classList.toggle("collapsed");
+        var children = app.querySelector('[data-children-of="' + id + '"]');
+        if (children) children.classList.toggle("collapsed");
+      });
+    });
+
+    // Wire up row clicks to open detail
+    app.querySelectorAll(".epic-row").forEach(function(row) {
+      row.addEventListener("click", function() {
+        var tid = row.dataset.taskId;
+        if (tid) location.hash = "#/task/" + tid;
+      });
+    });
+
+  } catch(e) {
+    app.innerHTML = '<div class="error-box"><p>' + esc(e.message) + '</p><button class="btn" onclick="renderEpics()">Retry</button></div>';
+  }
+}
+
 // --- Activity View ---
 async function renderActivity() {
   var app = document.getElementById("app");
@@ -6901,7 +7064,7 @@ var AUTO_REFRESH_MS = 5000;
 function startAutoRefresh() {
   stopAutoRefresh();
   autoRefreshInterval = setInterval(async function() {
-    if (currentView !== "board" && currentView !== "list" && currentView !== "activity" && currentView !== "stats" && currentView !== "cube" && currentView !== "web") return;
+    if (currentView !== "board" && currentView !== "list" && currentView !== "activity" && currentView !== "stats" && currentView !== "cube" && currentView !== "web" && currentView !== "epics") return;
 
     // Cube: revision-based refresh (independent data path)
     if (currentView === "cube") {
