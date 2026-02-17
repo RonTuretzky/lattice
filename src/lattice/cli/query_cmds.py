@@ -1,4 +1,4 @@
-"""Query and display commands: event, list, next, show."""
+"""Query and display commands: comments, event, list, next, show."""
 
 from __future__ import annotations
 
@@ -21,6 +21,7 @@ from lattice.cli.helpers import (
     write_task_event,
 )
 from lattice.cli.main import cli
+from lattice.core.comments import materialize_comments
 from lattice.core.events import (
     BUILTIN_EVENT_TYPES,
     create_event,
@@ -31,6 +32,84 @@ from lattice.core.next import compute_claim_transitions, select_next
 from lattice.core.stats import load_all_snapshots
 from lattice.core.tasks import apply_event_to_snapshot, compact_snapshot
 from lattice.storage.locks import multi_lock
+from lattice.storage.readers import read_task_events
+
+
+# ---------------------------------------------------------------------------
+# lattice comments
+# ---------------------------------------------------------------------------
+
+
+@cli.command("comments")
+@click.argument("task_id")
+@click.option("--json", "output_json", is_flag=True, help="Output structured JSON.")
+@click.option("--quiet", is_flag=True, help="Print one comment ID per line (top-level only).")
+def comments_cmd(
+    task_id: str,
+    output_json: bool,
+    quiet: bool,
+) -> None:
+    """Display threaded comments for a task."""
+    is_json = output_json
+
+    lattice_dir = require_root(is_json)
+
+    task_id = resolve_task_id(lattice_dir, task_id, is_json, allow_archived=True)
+
+    # Try active first, then archive
+    events = read_task_events(lattice_dir, task_id, is_archived=False)
+    if not events:
+        events = read_task_events(lattice_dir, task_id, is_archived=True)
+
+    comments = materialize_comments(events)
+
+    if is_json:
+        click.echo(json_envelope(True, data=comments))
+    elif quiet:
+        for comment in comments:
+            click.echo(comment["id"])
+    else:
+        if not comments:
+            click.echo("No comments.")
+            return
+        for i, comment in enumerate(comments):
+            _print_comment(comment, indent=0)
+            if i < len(comments) - 1:
+                click.echo("")
+
+
+def _print_comment(comment: dict, indent: int) -> None:
+    """Render a single comment with optional indentation for threading."""
+    prefix = "  " * indent
+    comment_id = comment["id"]
+    author = comment.get("author", "?")
+    created_at = comment.get("created_at", "?")
+
+    badges = ""
+    if comment.get("deleted"):
+        badges += " [deleted]"
+    if comment.get("edited"):
+        badges += " [edited]"
+
+    click.echo(f"{prefix}[{comment_id}] {author} ({created_at}){badges}")
+
+    if comment.get("deleted"):
+        # Don't show body for deleted comments
+        pass
+    else:
+        body = comment.get("body", "")
+        for line in body.splitlines():
+            click.echo(f"{prefix}  {line}")
+
+        # Reactions
+        reactions = comment.get("reactions", {})
+        for emoji, actors in reactions.items():
+            click.echo(f"{prefix}  :{emoji}: {', '.join(actors)}")
+
+    # Replies
+    for j, reply in enumerate(comment.get("replies", [])):
+        click.echo("")
+        _print_comment(reply, indent=indent + 1)
 
 
 # ---------------------------------------------------------------------------
@@ -592,11 +671,21 @@ def _find_incoming_relationships(lattice_dir: Path, task_id: str) -> list[dict]:
 
 
 def _read_artifact_info(lattice_dir: Path, snapshot: dict) -> list[dict]:
-    """Read artifact metadata for each artifact ref (best effort)."""
+    """Read artifact metadata for each artifact ref (best effort).
+
+    Handles both old format (bare string IDs) and new enriched format
+    (``{"id": ..., "role": ...}``).
+    """
     artifacts: list[dict] = []
-    for art_id in snapshot.get("artifact_refs", []):
+    for ref in snapshot.get("artifact_refs", []):
+        if isinstance(ref, dict):
+            art_id = ref["id"]
+            role = ref.get("role")
+        else:
+            art_id = ref
+            role = None
         meta_path = lattice_dir / "artifacts" / "meta" / f"{art_id}.json"
-        info: dict = {"id": art_id}
+        info: dict = {"id": art_id, "role": role}
         if meta_path.exists():
             try:
                 meta = json.loads(meta_path.read_text())
@@ -692,12 +781,17 @@ def _print_human_show(
             art_id = art.get("id", "?")
             art_title = art.get("title")
             art_type = art.get("type")
-            if art_title and art_type:
-                click.echo(f'  {art_id} "{art_title}" ({art_type})')
-            elif art_title:
-                click.echo(f'  {art_id} "{art_title}"')
+            art_role = art.get("role")
+            parts: list[str] = []
+            if art_type:
+                parts.append(art_type)
+            if art_role:
+                parts.append(f"role: {art_role}")
+            suffix = f" ({', '.join(parts)})" if parts else ""
+            if art_title:
+                click.echo(f'  {art_id} "{art_title}"{suffix}')
             else:
-                click.echo(f"  {art_id}")
+                click.echo(f"  {art_id}{suffix}")
 
     branch_links = snapshot.get("branch_links", [])
     if branch_links:
@@ -760,6 +854,14 @@ def _event_summary(event: dict, full: bool) -> str:
         if len(body) > 60:
             body = body[:57] + "..."
         return f'"{body}"'
+    elif etype == "comment_edited":
+        return f'edited comment {data["comment_id"][:20]}...'
+    elif etype == "comment_deleted":
+        return f'deleted comment {data["comment_id"][:20]}...'
+    elif etype == "reaction_added":
+        return f':{data["emoji"]}: on {data["comment_id"][:20]}...'
+    elif etype == "reaction_removed":
+        return f'removed :{data["emoji"]}: from {data["comment_id"][:20]}...'
     elif etype == "task_created":
         return ""
     elif etype == "task_short_id_assigned":

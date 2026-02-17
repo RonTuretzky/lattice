@@ -10,6 +10,14 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+from lattice.core.comments import (
+    materialize_comments,
+    validate_comment_for_delete,
+    validate_comment_for_edit,
+    validate_comment_for_react,
+    validate_comment_for_reply,
+    validate_emoji,
+)
 from lattice.core.config import (
     VALID_PRIORITIES,
     VALID_URGENCIES,
@@ -25,6 +33,7 @@ from lattice.storage.fs import atomic_write, jsonl_append
 from lattice.storage.locks import multi_lock
 from lattice.storage.hooks import execute_hooks
 from lattice.storage.operations import scaffold_notes, write_task_event
+from lattice.storage.readers import read_task_events
 from lattice.storage.short_ids import allocate_short_id
 
 STATIC_DIR = Path(__file__).parent / "static"
@@ -160,6 +169,8 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                     task_id, sub = remainder.rsplit("/", 1)
                     if sub == "events":
                         self._handle_task_events(ld, task_id)
+                    elif sub == "comments":
+                        self._handle_task_comments(ld, task_id)
                     else:
                         self._send_json(404, _err("NOT_FOUND", f"Not found: {path}"))
                 else:
@@ -188,6 +199,14 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                         self._handle_post_task_update(ld, task_id)
                     elif sub == "archive":
                         self._handle_post_task_archive(ld, task_id)
+                    elif sub == "comment-edit":
+                        self._handle_post_task_comment_edit(ld, task_id)
+                    elif sub == "comment-delete":
+                        self._handle_post_task_comment_delete(ld, task_id)
+                    elif sub == "react":
+                        self._handle_post_task_react(ld, task_id)
+                    elif sub == "unreact":
+                        self._handle_post_task_unreact(ld, task_id)
                     else:
                         self._send_json(404, _err("NOT_FOUND", f"Not found: {path}"))
                 else:
@@ -285,6 +304,20 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
             # Return newest first
             events.reverse()
             self._send_json(200, _ok(events))
+
+        def _handle_task_comments(self, ld: Path, task_id: str) -> None:
+            """Handle GET /api/tasks/<id>/comments — materialized comment tree."""
+            if not validate_id(task_id, "task"):
+                self._send_json(400, _err("INVALID_ID", "Invalid task ID format"))
+                return
+
+            # Try active events first, then archive
+            events = read_task_events(ld, task_id)
+            if not events:
+                events = read_task_events(ld, task_id, is_archived=True)
+
+            comments = materialize_comments(events)
+            self._send_json(200, _ok(comments))
 
         def _handle_activity(self, ld: Path) -> None:
             all_events: list[dict] = []
@@ -960,7 +993,7 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
         # ---------------------------------------------------------------
 
         def _handle_post_task_comment(self, ld: Path, task_id: str) -> None:
-            """Handle POST /api/tasks/<id>/comment — add a comment."""
+            """Handle POST /api/tasks/<id>/comment — add a comment (optionally threaded)."""
             if not validate_id(task_id, "task"):
                 self._send_json(400, _err("INVALID_ID", "Invalid task ID format"))
                 return
@@ -971,6 +1004,7 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
 
             comment_body = body.get("body")
             actor = body.get("actor", "dashboard:web")
+            parent_id = body.get("parent_id")
 
             if not comment_body or not isinstance(comment_body, str) or not comment_body.strip():
                 self._send_json(400, _err("VALIDATION_ERROR", "Missing or empty 'body' field"))
@@ -993,11 +1027,24 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 self._send_json(404, _err("NOT_FOUND", f"Task {task_id} not found"))
                 return
 
+            # Validate parent_id for threaded replies
+            if parent_id is not None:
+                events = read_task_events(ld, task_id)
+                try:
+                    validate_comment_for_reply(events, parent_id)
+                except ValueError as exc:
+                    self._send_json(400, _err("VALIDATION_ERROR", str(exc)))
+                    return
+
+            event_data: dict = {"body": comment_body.strip()}
+            if parent_id is not None:
+                event_data["parent_id"] = parent_id
+
             event = create_event(
                 type="comment_added",
                 task_id=task_id,
                 actor=actor,
-                data={"body": comment_body.strip()},
+                data=event_data,
             )
             updated_snapshot = apply_event_to_snapshot(snapshot, event)
 
@@ -1248,6 +1295,301 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 execute_hooks(config, ld, task_id, event)
 
             self._send_json(200, _ok({"message": f"Task {task_id} archived"}))
+
+        # ---------------------------------------------------------------
+        # POST /api/tasks/<id>/comment-edit — Edit Comment
+        # ---------------------------------------------------------------
+
+        def _handle_post_task_comment_edit(self, ld: Path, task_id: str) -> None:
+            """Handle POST /api/tasks/<id>/comment-edit — edit a comment's body."""
+            if not validate_id(task_id, "task"):
+                self._send_json(400, _err("INVALID_ID", "Invalid task ID format"))
+                return
+
+            body = self._read_request_body()
+            if body is None:
+                return
+
+            comment_id = body.get("comment_id")
+            new_body = body.get("body")
+            actor = body.get("actor", "dashboard:web")
+
+            if not comment_id or not isinstance(comment_id, str):
+                self._send_json(
+                    400, _err("VALIDATION_ERROR", "Missing or invalid 'comment_id' field")
+                )
+                return
+
+            if not new_body or not isinstance(new_body, str) or not new_body.strip():
+                self._send_json(400, _err("VALIDATION_ERROR", "Missing or empty 'body' field"))
+                return
+
+            if not validate_actor(actor):
+                self._send_json(400, _err("VALIDATION_ERROR", f"Invalid actor format: '{actor}'"))
+                return
+
+            # Read config for hooks
+            config_path = ld / "config.json"
+            try:
+                config = json.loads(config_path.read_text())
+            except (json.JSONDecodeError, OSError) as exc:
+                self._send_json(500, _err("READ_ERROR", f"Failed to read config: {exc}"))
+                return
+
+            snapshot = _read_snapshot(ld, task_id)
+            if snapshot is None:
+                self._send_json(404, _err("NOT_FOUND", f"Task {task_id} not found"))
+                return
+
+            events = read_task_events(ld, task_id)
+            try:
+                previous_body = validate_comment_for_edit(events, comment_id)
+            except ValueError as exc:
+                self._send_json(400, _err("VALIDATION_ERROR", str(exc)))
+                return
+
+            event = create_event(
+                type="comment_edited",
+                task_id=task_id,
+                actor=actor,
+                data={
+                    "comment_id": comment_id,
+                    "body": new_body.strip(),
+                    "previous_body": previous_body,
+                },
+            )
+            updated_snapshot = apply_event_to_snapshot(snapshot, event)
+
+            try:
+                write_task_event(ld, task_id, [event], updated_snapshot, config)
+            except Exception as exc:
+                self._send_json(500, _err("WRITE_ERROR", f"Failed to edit comment: {exc}"))
+                return
+
+            self._send_json(200, _ok(updated_snapshot))
+
+        # ---------------------------------------------------------------
+        # POST /api/tasks/<id>/comment-delete — Delete Comment
+        # ---------------------------------------------------------------
+
+        def _handle_post_task_comment_delete(self, ld: Path, task_id: str) -> None:
+            """Handle POST /api/tasks/<id>/comment-delete — soft-delete a comment."""
+            if not validate_id(task_id, "task"):
+                self._send_json(400, _err("INVALID_ID", "Invalid task ID format"))
+                return
+
+            body = self._read_request_body()
+            if body is None:
+                return
+
+            comment_id = body.get("comment_id")
+            actor = body.get("actor", "dashboard:web")
+
+            if not comment_id or not isinstance(comment_id, str):
+                self._send_json(
+                    400, _err("VALIDATION_ERROR", "Missing or invalid 'comment_id' field")
+                )
+                return
+
+            if not validate_actor(actor):
+                self._send_json(400, _err("VALIDATION_ERROR", f"Invalid actor format: '{actor}'"))
+                return
+
+            # Read config for hooks
+            config_path = ld / "config.json"
+            try:
+                config = json.loads(config_path.read_text())
+            except (json.JSONDecodeError, OSError) as exc:
+                self._send_json(500, _err("READ_ERROR", f"Failed to read config: {exc}"))
+                return
+
+            snapshot = _read_snapshot(ld, task_id)
+            if snapshot is None:
+                self._send_json(404, _err("NOT_FOUND", f"Task {task_id} not found"))
+                return
+
+            events = read_task_events(ld, task_id)
+            try:
+                validate_comment_for_delete(events, comment_id)
+            except ValueError as exc:
+                self._send_json(400, _err("VALIDATION_ERROR", str(exc)))
+                return
+
+            event = create_event(
+                type="comment_deleted",
+                task_id=task_id,
+                actor=actor,
+                data={"comment_id": comment_id},
+            )
+            updated_snapshot = apply_event_to_snapshot(snapshot, event)
+
+            try:
+                write_task_event(ld, task_id, [event], updated_snapshot, config)
+            except Exception as exc:
+                self._send_json(500, _err("WRITE_ERROR", f"Failed to delete comment: {exc}"))
+                return
+
+            self._send_json(200, _ok(updated_snapshot))
+
+        # ---------------------------------------------------------------
+        # POST /api/tasks/<id>/react — Add Reaction
+        # ---------------------------------------------------------------
+
+        def _handle_post_task_react(self, ld: Path, task_id: str) -> None:
+            """Handle POST /api/tasks/<id>/react — add an emoji reaction to a comment."""
+            if not validate_id(task_id, "task"):
+                self._send_json(400, _err("INVALID_ID", "Invalid task ID format"))
+                return
+
+            body = self._read_request_body()
+            if body is None:
+                return
+
+            comment_id = body.get("comment_id")
+            emoji = body.get("emoji")
+            actor = body.get("actor", "dashboard:web")
+
+            if not comment_id or not isinstance(comment_id, str):
+                self._send_json(
+                    400, _err("VALIDATION_ERROR", "Missing or invalid 'comment_id' field")
+                )
+                return
+
+            if not emoji or not isinstance(emoji, str):
+                self._send_json(
+                    400, _err("VALIDATION_ERROR", "Missing or invalid 'emoji' field")
+                )
+                return
+
+            if not validate_emoji(emoji):
+                self._send_json(
+                    400,
+                    _err(
+                        "VALIDATION_ERROR",
+                        f"Invalid emoji: '{emoji}'. Must be 1-50 alphanumeric/underscore/hyphen chars.",
+                    ),
+                )
+                return
+
+            if not validate_actor(actor):
+                self._send_json(400, _err("VALIDATION_ERROR", f"Invalid actor format: '{actor}'"))
+                return
+
+            # Read config for hooks
+            config_path = ld / "config.json"
+            try:
+                config = json.loads(config_path.read_text())
+            except (json.JSONDecodeError, OSError) as exc:
+                self._send_json(500, _err("READ_ERROR", f"Failed to read config: {exc}"))
+                return
+
+            snapshot = _read_snapshot(ld, task_id)
+            if snapshot is None:
+                self._send_json(404, _err("NOT_FOUND", f"Task {task_id} not found"))
+                return
+
+            events = read_task_events(ld, task_id)
+            try:
+                validate_comment_for_react(events, comment_id)
+            except ValueError as exc:
+                self._send_json(400, _err("VALIDATION_ERROR", str(exc)))
+                return
+
+            event = create_event(
+                type="reaction_added",
+                task_id=task_id,
+                actor=actor,
+                data={"comment_id": comment_id, "emoji": emoji},
+            )
+            updated_snapshot = apply_event_to_snapshot(snapshot, event)
+
+            try:
+                write_task_event(ld, task_id, [event], updated_snapshot, config)
+            except Exception as exc:
+                self._send_json(500, _err("WRITE_ERROR", f"Failed to add reaction: {exc}"))
+                return
+
+            self._send_json(200, _ok(updated_snapshot))
+
+        # ---------------------------------------------------------------
+        # POST /api/tasks/<id>/unreact — Remove Reaction
+        # ---------------------------------------------------------------
+
+        def _handle_post_task_unreact(self, ld: Path, task_id: str) -> None:
+            """Handle POST /api/tasks/<id>/unreact — remove an emoji reaction from a comment."""
+            if not validate_id(task_id, "task"):
+                self._send_json(400, _err("INVALID_ID", "Invalid task ID format"))
+                return
+
+            body = self._read_request_body()
+            if body is None:
+                return
+
+            comment_id = body.get("comment_id")
+            emoji = body.get("emoji")
+            actor = body.get("actor", "dashboard:web")
+
+            if not comment_id or not isinstance(comment_id, str):
+                self._send_json(
+                    400, _err("VALIDATION_ERROR", "Missing or invalid 'comment_id' field")
+                )
+                return
+
+            if not emoji or not isinstance(emoji, str):
+                self._send_json(
+                    400, _err("VALIDATION_ERROR", "Missing or invalid 'emoji' field")
+                )
+                return
+
+            if not validate_emoji(emoji):
+                self._send_json(
+                    400,
+                    _err(
+                        "VALIDATION_ERROR",
+                        f"Invalid emoji: '{emoji}'. Must be 1-50 alphanumeric/underscore/hyphen chars.",
+                    ),
+                )
+                return
+
+            if not validate_actor(actor):
+                self._send_json(400, _err("VALIDATION_ERROR", f"Invalid actor format: '{actor}'"))
+                return
+
+            # Read config for hooks
+            config_path = ld / "config.json"
+            try:
+                config = json.loads(config_path.read_text())
+            except (json.JSONDecodeError, OSError) as exc:
+                self._send_json(500, _err("READ_ERROR", f"Failed to read config: {exc}"))
+                return
+
+            snapshot = _read_snapshot(ld, task_id)
+            if snapshot is None:
+                self._send_json(404, _err("NOT_FOUND", f"Task {task_id} not found"))
+                return
+
+            events = read_task_events(ld, task_id)
+            try:
+                validate_comment_for_react(events, comment_id)
+            except ValueError as exc:
+                self._send_json(400, _err("VALIDATION_ERROR", str(exc)))
+                return
+
+            event = create_event(
+                type="reaction_removed",
+                task_id=task_id,
+                actor=actor,
+                data={"comment_id": comment_id, "emoji": emoji},
+            )
+            updated_snapshot = apply_event_to_snapshot(snapshot, event)
+
+            try:
+                write_task_event(ld, task_id, [event], updated_snapshot, config)
+            except Exception as exc:
+                self._send_json(500, _err("WRITE_ERROR", f"Failed to remove reaction: {exc}"))
+                return
+
+            self._send_json(200, _ok(updated_snapshot))
 
     return LatticeHandler
 

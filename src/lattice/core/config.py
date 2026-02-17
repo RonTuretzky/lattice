@@ -27,6 +27,10 @@ class HooksOnConfig(TypedDict, total=False):
     assignment_changed: str
     field_updated: str
     comment_added: str
+    comment_edited: str
+    comment_deleted: str
+    reaction_added: str
+    reaction_removed: str
     relationship_added: str
     relationship_removed: str
     artifact_attached: str
@@ -38,6 +42,12 @@ class HooksConfig(TypedDict, total=False):
     post_event: str
     on: HooksOnConfig
     transitions: dict[str, str]
+
+
+class ResourceDef(TypedDict, total=False):
+    description: str
+    max_holders: int
+    ttl_seconds: int
 
 
 class ModelTier(TypedDict, total=False):
@@ -66,6 +76,7 @@ class LatticeConfig(TypedDict, total=False):
     hooks: HooksConfig
     members: dict[str, list[str]]
     model_tiers: ModelTiers
+    resources: dict[str, ResourceDef]
 
 
 def default_config() -> LatticeConfig:

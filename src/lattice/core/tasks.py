@@ -157,6 +157,10 @@ def _register_mutation(etype: str):  # noqa: ANN202
 _NOOP_EVENT_TYPES: frozenset[str] = frozenset(
     {
         "comment_added",
+        "comment_edited",
+        "comment_deleted",
+        "reaction_added",
+        "reaction_removed",
         "git_event",
         "task_archived",
         "task_unarchived",
@@ -221,7 +225,16 @@ def _mut_relationship_removed(snap: dict, event: dict) -> None:
 
 @_register_mutation("artifact_attached")
 def _mut_artifact_attached(snap: dict, event: dict) -> None:
-    snap.setdefault("artifact_refs", []).append(event["data"]["artifact_id"])
+    data = event["data"]
+    art_id = data["artifact_id"]
+    role = data.get("role")
+    refs = snap.setdefault("artifact_refs", [])
+    # Deduplicate by artifact ID
+    for ref in refs:
+        existing_id = ref["id"] if isinstance(ref, dict) else ref
+        if existing_id == art_id:
+            return
+    refs.append({"id": art_id, "role": role})
 
 
 @_register_mutation("task_short_id_assigned")
@@ -252,6 +265,21 @@ def _mut_branch_unlinked(snap: dict, event: dict) -> None:
         if not (bl["branch"] == rm_branch and bl.get("repo") == rm_repo)
     ]
     snap["branch_links"] = links
+
+
+def get_artifact_roles(snapshot: dict) -> dict[str, str | None]:
+    """Return ``{artifact_id: role}`` from a snapshot's ``artifact_refs``.
+
+    Handles both the old format (bare string IDs) and the new enriched
+    format (``{"id": ..., "role": ...}``).
+    """
+    result: dict[str, str | None] = {}
+    for ref in snapshot.get("artifact_refs", []):
+        if isinstance(ref, dict):
+            result[ref["id"]] = ref.get("role")
+        else:
+            result[ref] = None
+    return result
 
 
 def _apply_mutation(snap: dict, etype: str, event: dict) -> None:

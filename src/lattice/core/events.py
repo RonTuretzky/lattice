@@ -21,12 +21,33 @@ BUILTIN_EVENT_TYPES: frozenset[str] = frozenset(
         "assignment_changed",
         "field_updated",
         "comment_added",
+        "comment_edited",
+        "comment_deleted",
+        "reaction_added",
+        "reaction_removed",
         "relationship_added",
         "relationship_removed",
         "artifact_attached",
         "git_event",
         "branch_linked",
         "branch_unlinked",
+        "resource_created",
+        "resource_acquired",
+        "resource_released",
+        "resource_heartbeat",
+        "resource_expired",
+        "resource_updated",
+    }
+)
+
+RESOURCE_EVENT_TYPES: frozenset[str] = frozenset(
+    {
+        "resource_created",
+        "resource_acquired",
+        "resource_released",
+        "resource_heartbeat",
+        "resource_expired",
+        "resource_updated",
     }
 )
 
@@ -72,6 +93,52 @@ def create_event(
         "ts": ts if ts is not None else utc_now(),
         "type": type,
         "task_id": task_id,
+        "actor": actor,
+        "data": data,
+    }
+
+    if model is not None or session is not None:
+        event["agent_meta"] = {"model": model, "session": session}
+
+    if triggered_by is not None or on_behalf_of is not None or reason is not None:
+        prov: dict = {}
+        if triggered_by is not None:
+            prov["triggered_by"] = triggered_by
+        if on_behalf_of is not None:
+            prov["on_behalf_of"] = on_behalf_of
+        if reason is not None:
+            prov["reason"] = reason
+        event["provenance"] = prov
+
+    return event
+
+
+def create_resource_event(
+    type: str,
+    resource_id: str,
+    actor: str,
+    data: dict,
+    *,
+    event_id: str | None = None,
+    ts: str | None = None,
+    model: str | None = None,
+    session: str | None = None,
+    triggered_by: str | None = None,
+    on_behalf_of: str | None = None,
+    reason: str | None = None,
+) -> dict:
+    """Build a complete resource event dict.
+
+    Parallels ``create_event()`` but uses ``resource_id`` instead of
+    ``task_id``.  The ``agent_meta`` and ``provenance`` objects follow the
+    same sparse-inclusion rules.
+    """
+    event: dict = {
+        "schema_version": 1,
+        "id": event_id if event_id is not None else generate_event_id(),
+        "ts": ts if ts is not None else utc_now(),
+        "type": type,
+        "resource_id": resource_id,
         "actor": actor,
         "data": data,
     }

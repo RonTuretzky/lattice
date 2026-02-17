@@ -1,4 +1,4 @@
-"""Task write commands: create, update, status, assign, comment."""
+"""Task write commands: create, update, status, assign, comment, react."""
 
 from __future__ import annotations
 
@@ -19,6 +19,14 @@ from lattice.cli.helpers import (
 )
 from lattice.storage.operations import scaffold_notes
 from lattice.cli.main import cli
+from lattice.core.comments import (
+    materialize_comments,
+    validate_comment_for_delete,
+    validate_comment_for_edit,
+    validate_comment_for_react,
+    validate_comment_for_reply,
+    validate_emoji,
+)
 from lattice.core.config import (
     VALID_COMPLEXITIES,
     VALID_PRIORITIES,
@@ -30,6 +38,7 @@ from lattice.core.config import (
 from lattice.core.events import create_event, utc_now
 from lattice.core.ids import generate_task_id, validate_actor, validate_id
 from lattice.core.tasks import apply_event_to_snapshot
+from lattice.storage.readers import read_task_events
 from lattice.storage.short_ids import allocate_short_id
 
 
@@ -645,10 +654,12 @@ def assign(
 @cli.command()
 @click.argument("task_id")
 @click.argument("text")
+@click.option("--reply-to", default=None, help="Event ID of the comment to reply to.")
 @common_options
 def comment(
     task_id: str,
     text: str,
+    reply_to: str | None,
     actor: str,
     model: str | None,
     session: str | None,
@@ -671,11 +682,94 @@ def comment(
 
     snapshot = read_snapshot_or_exit(lattice_dir, task_id, is_json)
 
+    # Validate reply-to if provided
+    if reply_to is not None:
+        events = read_task_events(lattice_dir, task_id)
+        try:
+            validate_comment_for_reply(events, reply_to)
+        except ValueError as exc:
+            output_error(str(exc), "VALIDATION_ERROR", is_json)
+
+    event_data: dict = {"body": text}
+    if reply_to is not None:
+        event_data["parent_id"] = reply_to
+
     event = create_event(
         type="comment_added",
         task_id=task_id,
         actor=actor,
-        data={"body": text},
+        data=event_data,
+        model=model,
+        session=session,
+        triggered_by=triggered_by,
+        on_behalf_of=on_behalf_of,
+        reason=provenance_reason,
+    )
+    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+    write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
+
+    msg = f"Reply added to {task_id}" if reply_to else f"Comment added to {task_id}"
+    output_result(
+        data=updated_snapshot,
+        human_message=msg,
+        quiet_value="ok",
+        is_json=is_json,
+        is_quiet=quiet,
+    )
+
+
+# ---------------------------------------------------------------------------
+# lattice comment-edit
+# ---------------------------------------------------------------------------
+
+
+@cli.command("comment-edit")
+@click.argument("task_id")
+@click.argument("comment_id")
+@click.argument("new_text")
+@common_options
+def comment_edit(
+    task_id: str,
+    comment_id: str,
+    new_text: str,
+    actor: str,
+    model: str | None,
+    session: str | None,
+    output_json: bool,
+    quiet: bool,
+    triggered_by: str | None,
+    on_behalf_of: str | None,
+    provenance_reason: str | None,
+) -> None:
+    """Edit an existing comment on a task."""
+    is_json = output_json
+
+    lattice_dir = require_root(is_json)
+    config = load_project_config(lattice_dir)
+    validate_actor_or_exit(actor, is_json)
+    if on_behalf_of is not None:
+        validate_actor_or_exit(on_behalf_of, is_json)
+
+    task_id = resolve_task_id(lattice_dir, task_id, is_json)
+
+    snapshot = read_snapshot_or_exit(lattice_dir, task_id, is_json)
+
+    events = read_task_events(lattice_dir, task_id)
+    try:
+        previous_body = validate_comment_for_edit(events, comment_id)
+    except ValueError as exc:
+        output_error(str(exc), "VALIDATION_ERROR", is_json)
+        return  # unreachable — output_error exits, but keeps type checker happy
+
+    event = create_event(
+        type="comment_edited",
+        task_id=task_id,
+        actor=actor,
+        data={
+            "comment_id": comment_id,
+            "body": new_text,
+            "previous_body": previous_body,
+        },
         model=model,
         session=session,
         triggered_by=triggered_by,
@@ -687,8 +781,253 @@ def comment(
 
     output_result(
         data=updated_snapshot,
-        human_message=f"Comment added to {task_id}",
+        human_message=f"Comment {comment_id} edited on {task_id}",
         quiet_value="ok",
         is_json=is_json,
         is_quiet=quiet,
     )
+
+
+# ---------------------------------------------------------------------------
+# lattice comment-delete
+# ---------------------------------------------------------------------------
+
+
+@cli.command("comment-delete")
+@click.argument("task_id")
+@click.argument("comment_id")
+@common_options
+def comment_delete(
+    task_id: str,
+    comment_id: str,
+    actor: str,
+    model: str | None,
+    session: str | None,
+    output_json: bool,
+    quiet: bool,
+    triggered_by: str | None,
+    on_behalf_of: str | None,
+    provenance_reason: str | None,
+) -> None:
+    """Delete a comment from a task."""
+    is_json = output_json
+
+    lattice_dir = require_root(is_json)
+    config = load_project_config(lattice_dir)
+    validate_actor_or_exit(actor, is_json)
+    if on_behalf_of is not None:
+        validate_actor_or_exit(on_behalf_of, is_json)
+
+    task_id = resolve_task_id(lattice_dir, task_id, is_json)
+
+    snapshot = read_snapshot_or_exit(lattice_dir, task_id, is_json)
+
+    events = read_task_events(lattice_dir, task_id)
+    try:
+        validate_comment_for_delete(events, comment_id)
+    except ValueError as exc:
+        output_error(str(exc), "VALIDATION_ERROR", is_json)
+
+    event = create_event(
+        type="comment_deleted",
+        task_id=task_id,
+        actor=actor,
+        data={"comment_id": comment_id},
+        model=model,
+        session=session,
+        triggered_by=triggered_by,
+        on_behalf_of=on_behalf_of,
+        reason=provenance_reason,
+    )
+    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+    write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
+
+    output_result(
+        data=updated_snapshot,
+        human_message=f"Comment {comment_id} deleted from {task_id}",
+        quiet_value="ok",
+        is_json=is_json,
+        is_quiet=quiet,
+    )
+
+
+# ---------------------------------------------------------------------------
+# lattice react
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.argument("task_id")
+@click.argument("comment_id")
+@click.argument("emoji")
+@common_options
+def react(
+    task_id: str,
+    comment_id: str,
+    emoji: str,
+    actor: str,
+    model: str | None,
+    session: str | None,
+    output_json: bool,
+    quiet: bool,
+    triggered_by: str | None,
+    on_behalf_of: str | None,
+    provenance_reason: str | None,
+) -> None:
+    """Add a reaction to a comment."""
+    is_json = output_json
+
+    lattice_dir = require_root(is_json)
+    config = load_project_config(lattice_dir)
+    validate_actor_or_exit(actor, is_json)
+    if on_behalf_of is not None:
+        validate_actor_or_exit(on_behalf_of, is_json)
+
+    task_id = resolve_task_id(lattice_dir, task_id, is_json)
+
+    snapshot = read_snapshot_or_exit(lattice_dir, task_id, is_json)
+
+    if not validate_emoji(emoji):
+        output_error(
+            f"Invalid emoji: '{emoji}'. Must be 1-50 alphanumeric, underscore, or hyphen characters.",
+            "VALIDATION_ERROR",
+            is_json,
+        )
+
+    events = read_task_events(lattice_dir, task_id)
+    try:
+        validate_comment_for_react(events, comment_id)
+    except ValueError as exc:
+        output_error(str(exc), "VALIDATION_ERROR", is_json)
+
+    # Idempotency: check if actor already has this reaction
+    comments = materialize_comments(events)
+    _all_comments = _flatten_comments(comments)
+    for c in _all_comments:
+        if c["id"] == comment_id:
+            if actor in c.get("reactions", {}).get(emoji, []):
+                output_result(
+                    data=snapshot,
+                    human_message=f"Reaction :{emoji}: already exists on {comment_id} (idempotent).",
+                    quiet_value="ok",
+                    is_json=is_json,
+                    is_quiet=quiet,
+                )
+                return
+            break
+
+    event = create_event(
+        type="reaction_added",
+        task_id=task_id,
+        actor=actor,
+        data={"comment_id": comment_id, "emoji": emoji},
+        model=model,
+        session=session,
+        triggered_by=triggered_by,
+        on_behalf_of=on_behalf_of,
+        reason=provenance_reason,
+    )
+    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+    write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
+
+    output_result(
+        data=updated_snapshot,
+        human_message=f"Reaction :{emoji}: added to {comment_id}",
+        quiet_value="ok",
+        is_json=is_json,
+        is_quiet=quiet,
+    )
+
+
+# ---------------------------------------------------------------------------
+# lattice unreact
+# ---------------------------------------------------------------------------
+
+
+@cli.command()
+@click.argument("task_id")
+@click.argument("comment_id")
+@click.argument("emoji")
+@common_options
+def unreact(
+    task_id: str,
+    comment_id: str,
+    emoji: str,
+    actor: str,
+    model: str | None,
+    session: str | None,
+    output_json: bool,
+    quiet: bool,
+    triggered_by: str | None,
+    on_behalf_of: str | None,
+    provenance_reason: str | None,
+) -> None:
+    """Remove a reaction from a comment."""
+    is_json = output_json
+
+    lattice_dir = require_root(is_json)
+    config = load_project_config(lattice_dir)
+    validate_actor_or_exit(actor, is_json)
+    if on_behalf_of is not None:
+        validate_actor_or_exit(on_behalf_of, is_json)
+
+    task_id = resolve_task_id(lattice_dir, task_id, is_json)
+
+    snapshot = read_snapshot_or_exit(lattice_dir, task_id, is_json)
+
+    if not validate_emoji(emoji):
+        output_error(
+            f"Invalid emoji: '{emoji}'. Must be 1-50 alphanumeric, underscore, or hyphen characters.",
+            "VALIDATION_ERROR",
+            is_json,
+        )
+
+    events = read_task_events(lattice_dir, task_id)
+
+    # Check the reaction exists for this actor
+    comments = materialize_comments(events)
+    _all_comments = _flatten_comments(comments)
+    found = False
+    for c in _all_comments:
+        if c["id"] == comment_id:
+            if actor in c.get("reactions", {}).get(emoji, []):
+                found = True
+            break
+
+    if not found:
+        output_error(
+            f"Reaction :{emoji}: by {actor} not found on comment {comment_id}.",
+            "NOT_FOUND",
+            is_json,
+        )
+
+    event = create_event(
+        type="reaction_removed",
+        task_id=task_id,
+        actor=actor,
+        data={"comment_id": comment_id, "emoji": emoji},
+        model=model,
+        session=session,
+        triggered_by=triggered_by,
+        on_behalf_of=on_behalf_of,
+        reason=provenance_reason,
+    )
+    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+    write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
+
+    output_result(
+        data=updated_snapshot,
+        human_message=f"Reaction :{emoji}: removed from {comment_id}",
+        quiet_value="ok",
+        is_json=is_json,
+        is_quiet=quiet,
+    )
+
+
+def _flatten_comments(comments: list[dict]) -> list[dict]:
+    """Flatten a threaded comment list into a flat list (top-level + replies)."""
+    flat: list[dict] = []
+    for c in comments:
+        flat.append(c)
+        flat.extend(c.get("replies", []))
+    return flat

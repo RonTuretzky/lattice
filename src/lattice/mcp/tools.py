@@ -12,6 +12,14 @@ from typing import Annotated
 from pydantic import Field
 
 from lattice.core.artifacts import ARTIFACT_TYPES, create_artifact_metadata, serialize_artifact
+from lattice.core.comments import (
+    materialize_comments,
+    validate_comment_for_delete,
+    validate_comment_for_edit,
+    validate_comment_for_react,
+    validate_comment_for_reply,
+    validate_emoji,
+)
 from lattice.core.config import (
     VALID_PRIORITIES,
     VALID_URGENCIES,
@@ -39,6 +47,7 @@ from lattice.storage.fs import atomic_write, find_root, jsonl_append
 from lattice.storage.hooks import execute_hooks
 from lattice.storage.locks import multi_lock
 from lattice.storage.operations import scaffold_notes, write_task_event
+from lattice.storage.readers import read_task_events
 from lattice.storage.short_ids import allocate_short_id, resolve_short_id
 
 logger = logging.getLogger(__name__)
@@ -442,6 +451,10 @@ def lattice_comment(
     task_id: Annotated[str, Field(description="Task ID (ULID or short ID)")],
     text: Annotated[str, Field(description="Comment text")],
     actor: Annotated[str, Field(description="Actor ID")],
+    parent_id: Annotated[
+        str | None,
+        Field(description="Event ID of parent comment for threading (one-level only)"),
+    ] = None,
     lattice_root: Annotated[
         str | None, Field(description="Path to project directory containing .lattice/")
     ] = None,
@@ -453,7 +466,13 @@ def lattice_comment(
     task_id = _resolve_task_id(lattice_dir, task_id)
     snapshot = _read_snapshot_or_error(lattice_dir, task_id)
 
-    event = create_event(type="comment_added", task_id=task_id, actor=actor, data={"body": text})
+    event_data: dict = {"body": text}
+    if parent_id is not None:
+        events = read_task_events(lattice_dir, task_id)
+        validate_comment_for_reply(events, parent_id)
+        event_data["parent_id"] = parent_id
+
+    event = create_event(type="comment_added", task_id=task_id, actor=actor, data=event_data)
     updated_snapshot = apply_event_to_snapshot(snapshot, event)
     write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
     return updated_snapshot
@@ -930,9 +949,198 @@ def lattice_event(
     return event
 
 
+@mcp.tool()
+def lattice_comment_edit(
+    task_id: Annotated[str, Field(description="Task ID (ULID or short ID)")],
+    comment_id: Annotated[str, Field(description="Event ID of the comment to edit")],
+    new_text: Annotated[str, Field(description="New comment text")],
+    actor: Annotated[str, Field(description="Actor ID")],
+    lattice_root: Annotated[
+        str | None, Field(description="Path to project directory containing .lattice/")
+    ] = None,
+) -> dict:
+    """Edit an existing comment on a task. Returns the updated snapshot."""
+    lattice_dir = _find_root(lattice_root)
+    config = _load_config(lattice_dir)
+    _validate_actor(actor)
+    task_id = _resolve_task_id(lattice_dir, task_id)
+    snapshot = _read_snapshot_or_error(lattice_dir, task_id)
+
+    events = read_task_events(lattice_dir, task_id)
+    previous_body = validate_comment_for_edit(events, comment_id)
+
+    event = create_event(
+        type="comment_edited",
+        task_id=task_id,
+        actor=actor,
+        data={"comment_id": comment_id, "body": new_text, "previous_body": previous_body},
+    )
+    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+    write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
+    return updated_snapshot
+
+
+@mcp.tool()
+def lattice_comment_delete(
+    task_id: Annotated[str, Field(description="Task ID (ULID or short ID)")],
+    comment_id: Annotated[str, Field(description="Event ID of the comment to delete")],
+    actor: Annotated[str, Field(description="Actor ID")],
+    lattice_root: Annotated[
+        str | None, Field(description="Path to project directory containing .lattice/")
+    ] = None,
+) -> dict:
+    """Soft-delete a comment on a task. Returns the updated snapshot."""
+    lattice_dir = _find_root(lattice_root)
+    config = _load_config(lattice_dir)
+    _validate_actor(actor)
+    task_id = _resolve_task_id(lattice_dir, task_id)
+    snapshot = _read_snapshot_or_error(lattice_dir, task_id)
+
+    events = read_task_events(lattice_dir, task_id)
+    validate_comment_for_delete(events, comment_id)
+
+    event = create_event(
+        type="comment_deleted",
+        task_id=task_id,
+        actor=actor,
+        data={"comment_id": comment_id},
+    )
+    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+    write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
+    return updated_snapshot
+
+
+@mcp.tool()
+def lattice_react(
+    task_id: Annotated[str, Field(description="Task ID (ULID or short ID)")],
+    comment_id: Annotated[str, Field(description="Event ID of the comment to react to")],
+    emoji: Annotated[
+        str, Field(description="Reaction emoji (alphanumeric, underscores, hyphens)")
+    ],
+    actor: Annotated[str, Field(description="Actor ID")],
+    lattice_root: Annotated[
+        str | None, Field(description="Path to project directory containing .lattice/")
+    ] = None,
+) -> dict:
+    """Add a reaction to a comment. Idempotent — duplicate reactions are no-ops. Returns the updated snapshot."""
+    lattice_dir = _find_root(lattice_root)
+    config = _load_config(lattice_dir)
+    _validate_actor(actor)
+    task_id = _resolve_task_id(lattice_dir, task_id)
+    snapshot = _read_snapshot_or_error(lattice_dir, task_id)
+
+    events = read_task_events(lattice_dir, task_id)
+    validate_comment_for_react(events, comment_id)
+
+    if not validate_emoji(emoji):
+        raise ValueError(
+            f"Invalid emoji: '{emoji}'. Must be 1-50 alphanumeric, underscore, or hyphen characters."
+        )
+
+    # Idempotency: check if this actor already reacted with this emoji
+    comments = materialize_comments(events)
+    # Search flat (top-level + replies)
+    for comment in comments:
+        if comment["id"] == comment_id:
+            existing_actors = comment.get("reactions", {}).get(emoji, [])
+            if actor in existing_actors:
+                return {"message": "Reaction already exists", "snapshot": snapshot}
+            break
+        for reply in comment.get("replies", []):
+            if reply["id"] == comment_id:
+                existing_actors = reply.get("reactions", {}).get(emoji, [])
+                if actor in existing_actors:
+                    return {"message": "Reaction already exists", "snapshot": snapshot}
+                break
+
+    event = create_event(
+        type="reaction_added",
+        task_id=task_id,
+        actor=actor,
+        data={"comment_id": comment_id, "emoji": emoji},
+    )
+    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+    write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
+    return updated_snapshot
+
+
+@mcp.tool()
+def lattice_unreact(
+    task_id: Annotated[str, Field(description="Task ID (ULID or short ID)")],
+    comment_id: Annotated[
+        str, Field(description="Event ID of the comment to remove reaction from")
+    ],
+    emoji: Annotated[str, Field(description="Reaction emoji to remove")],
+    actor: Annotated[str, Field(description="Actor ID")],
+    lattice_root: Annotated[
+        str | None, Field(description="Path to project directory containing .lattice/")
+    ] = None,
+) -> dict:
+    """Remove a reaction from a comment. Returns the updated snapshot."""
+    lattice_dir = _find_root(lattice_root)
+    config = _load_config(lattice_dir)
+    _validate_actor(actor)
+    task_id = _resolve_task_id(lattice_dir, task_id)
+    snapshot = _read_snapshot_or_error(lattice_dir, task_id)
+
+    if not validate_emoji(emoji):
+        raise ValueError(
+            f"Invalid emoji: '{emoji}'. Must be 1-50 alphanumeric, underscore, or hyphen characters."
+        )
+
+    events = read_task_events(lattice_dir, task_id)
+
+    # Check that the reaction exists for this actor
+    comments = materialize_comments(events)
+    found = False
+    for comment in comments:
+        if comment["id"] == comment_id:
+            existing_actors = comment.get("reactions", {}).get(emoji, [])
+            if actor in existing_actors:
+                found = True
+            break
+        for reply in comment.get("replies", []):
+            if reply["id"] == comment_id:
+                existing_actors = reply.get("reactions", {}).get(emoji, [])
+                if actor in existing_actors:
+                    found = True
+                break
+
+    if not found:
+        raise ValueError(f"No '{emoji}' reaction by {actor} on comment {comment_id}.")
+
+    event = create_event(
+        type="reaction_removed",
+        task_id=task_id,
+        actor=actor,
+        data={"comment_id": comment_id, "emoji": emoji},
+    )
+    updated_snapshot = apply_event_to_snapshot(snapshot, event)
+    write_task_event(lattice_dir, task_id, [event], updated_snapshot, config)
+    return updated_snapshot
+
+
 # ---------------------------------------------------------------------------
 # Read tools
 # ---------------------------------------------------------------------------
+
+
+@mcp.tool()
+def lattice_comments(
+    task_id: Annotated[str, Field(description="Task ID (ULID or short ID)")],
+    lattice_root: Annotated[
+        str | None, Field(description="Path to project directory containing .lattice/")
+    ] = None,
+) -> list[dict]:
+    """List comments on a task with threading, edit history, and reactions. Returns materialized comment tree."""
+    lattice_dir = _find_root(lattice_root)
+    task_id = _resolve_task_id(lattice_dir, task_id)
+
+    # Verify task exists
+    _read_snapshot_or_error(lattice_dir, task_id)
+
+    events = read_task_events(lattice_dir, task_id)
+    return materialize_comments(events)
 
 
 @mcp.tool()
