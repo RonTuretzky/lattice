@@ -430,6 +430,16 @@ a:hover{text-decoration:underline}
 .btn-icon{padding:4px 8px;font-size:1rem;line-height:1;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);cursor:pointer;color:var(--text-primary)}
 .btn-icon:hover{background:var(--surface-hover)}
 
+/* Nav Search */
+.nav-search{display:flex;align-items:center;position:relative}
+.nav-search-btn{background:none;border:1px solid var(--border);border-radius:var(--radius-sm);padding:4px 8px;cursor:pointer;color:var(--text-secondary);font-size:.875rem;display:flex;align-items:center;gap:4px}
+.nav-search-btn:hover{background:var(--surface-hover);color:var(--text-primary)}
+.nav-search-btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.nav-search-input{width:0;border:none;outline:none;background:transparent;font-size:.875rem;color:var(--text-primary);padding:0;transition:width .2s ease,padding .2s ease}
+.nav-search.open .nav-search-input{width:180px;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface)}
+.nav-search.open .nav-search-btn{border-color:var(--accent-primary);color:var(--accent-primary)}
+.nav-search-kbd{font-size:.65rem;color:var(--text-muted);border:1px solid var(--border);border-radius:3px;padding:1px 4px;margin-left:2px;font-family:var(--font-mono)}
+
 /* Content */
 .content{margin:0 auto;padding:16px}
 
@@ -2773,6 +2783,12 @@ select.form-control{cursor:pointer}
 
 <div class="nav">
   <span class="nav-brand">Lattice</span>
+  <div class="nav-search" id="nav-search">
+    <button type="button" class="nav-search-btn" id="nav-search-btn" title="Search tasks (/)">
+      <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <input type="text" class="nav-search-input" id="nav-search-input" placeholder="Search tasks...">
+  </div>
   <span class="nav-tab" data-view="board">Board</span>
   <span class="nav-tab" data-view="list">List</span>
   <span class="nav-tab" data-view="activity">Activity</span>
@@ -3507,6 +3523,7 @@ var config = null;
 var tasks = [];
 var archivedTasks = null;
 var currentView = "board";
+var pendingSearch = null;
 var draggedTaskId = null;
 var draggedFromStatus = null;
 
@@ -5668,11 +5685,18 @@ function renderList() {
     }
     applyListFilters();
   });
+
+  // If a global nav search was submitted, populate the search box
+  if (pendingSearch) {
+    document.getElementById("f-search").value = pendingSearch;
+    pendingSearch = null;
+  }
+
   applyListFilters();
 }
 
 function applyListFilters() {
-  var search = (document.getElementById("f-search").value || "").toLowerCase();
+  var search = (document.getElementById("f-search").value || "").trim().toLowerCase();
   var status = document.getElementById("f-status").value;
   var type = document.getElementById("f-type").value;
   var priority = document.getElementById("f-priority").value;
@@ -5682,7 +5706,14 @@ function applyListFilters() {
   if (showArchived && archivedTasks) items = items.concat(archivedTasks);
 
   items = items.filter(function(t) {
-    if (search && !(t.title||"").toLowerCase().includes(search)) return false;
+    if (search) {
+      var titleMatch = (t.title||"").toLowerCase().includes(search);
+      var shortIdMatch = (t.short_id||"").toLowerCase().includes(search);
+      // Bare number match: "50" matches "LAT-50", "97" matches "LAT-97"
+      var bareNum = /^\d+$/.test(search);
+      var numMatch = bareNum && t.short_id && t.short_id.split("-").pop() === search;
+      if (!titleMatch && !shortIdMatch && !numMatch) return false;
+    }
     if (status && t.status !== status) return false;
     if (type && t.type !== type) return false;
     if (priority && t.priority !== priority) return false;
@@ -6768,6 +6799,57 @@ document.addEventListener("visibilitychange", function() {
     startAutoRefresh();
   }
 });
+
+// --- Global Nav Search ---
+(function() {
+  var wrap = document.getElementById("nav-search");
+  var btn = document.getElementById("nav-search-btn");
+  var input = document.getElementById("nav-search-input");
+
+  btn.addEventListener("click", function() {
+    if (wrap.classList.contains("open")) {
+      submitNavSearch();
+    } else {
+      wrap.classList.add("open");
+      input.focus();
+    }
+  });
+
+  input.addEventListener("keydown", function(e) {
+    if (e.key === "Enter") { e.preventDefault(); submitNavSearch(); }
+    if (e.key === "Escape") { wrap.classList.remove("open"); input.value = ""; input.blur(); }
+  });
+
+  // Close on outside click
+  document.addEventListener("click", function(e) {
+    if (!wrap.contains(e.target) && wrap.classList.contains("open")) {
+      wrap.classList.remove("open");
+    }
+  });
+
+  // Global keyboard shortcut: "/" to open search
+  document.addEventListener("keydown", function(e) {
+    if (e.key === "/" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      var tag = (e.target.tagName || "").toLowerCase();
+      if (tag === "input" || tag === "textarea" || tag === "select" || e.target.isContentEditable) return;
+      e.preventDefault();
+      wrap.classList.add("open");
+      input.focus();
+    }
+  });
+
+  function submitNavSearch() {
+    var q = (input.value || "").trim();
+    if (!q) { wrap.classList.remove("open"); return; }
+    pendingSearch = q;
+    wrap.classList.remove("open");
+    input.value = "";
+    input.blur();
+    location.hash = "#/list";
+    // If already on list view, re-render to apply the search
+    if (currentView === "list") renderList();
+  }
+})();
 
 // --- Boot ---
 init().then(function() { startAutoRefresh(); });
