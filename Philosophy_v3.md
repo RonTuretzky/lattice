@@ -26,6 +26,10 @@ Lattice asks you to believe six things. these are the load-bearing concepts — 
 
 these six primitives compose into a coordination system where work is visible, change is auditable, status is meaningful, ownership is explicit, dependencies are intentional, and output is preserved. that is the worldview. everything else is implementation.
 
+the reason to codify this — to write it down and commit to it — is that a shared philosophy of work becomes a standard. and a standard is what lets many different tools participate in the same coordination without knowing about each other. Claude Code can create tasks. Codex can claim and work them. an OpenClaw bot can triage the backlog. a dashboard can visualize progress. a CI hook can transition status on merge. none of these tools need to agree on anything except the primitives: tasks exist, events are immutable, status is constrained, actors are attributed, relationships are typed, artifacts are attached. speak the grammar and you're in the conversation.
+
+that is why Lattice is designed for terminal-native coding agents (Claude Code, Codex, Gemini CLI) and cloud-hosted bots (OpenClaw) equally. the `.lattice/` directory doesn't care what reads it or writes it. a mind that can open a file and run a command is a full participant. the primitives are the protocol. the tools are interchangeable.
+
 ---
 
 ## files
