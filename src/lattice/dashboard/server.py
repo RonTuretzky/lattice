@@ -1830,7 +1830,7 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
 
         def _handle_post_open_guide(self, ld: Path) -> None:
             """Handle POST /api/open-guide — open the user guide on the Lattice website."""
-            guide_url = "https://thelattice.works/guide"
+            guide_url = "http://thelattice.works/guide"
 
             system = platform.system()
             try:
