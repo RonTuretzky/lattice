@@ -23,7 +23,6 @@ PROTECTED_FIELDS: frozenset[str] = frozenset(
         "relationships_out",
         "artifact_refs",
         "branch_links",
-        "active_processes",
         "custom_fields",
     }
 )
@@ -94,8 +93,6 @@ def compact_snapshot(snapshot: dict) -> dict:
         "relationships_out_count": len(snapshot.get("relationships_out", [])),
         "artifact_ref_count": len(snapshot.get("artifact_refs", [])),
         "branch_link_count": len(snapshot.get("branch_links", [])),
-        "active_process_count": len(snapshot.get("active_processes", [])),
-        "active_processes": snapshot.get("active_processes", []),
     }
     short_id = snapshot.get("short_id")
     if short_id is not None:
@@ -130,7 +127,6 @@ def _init_snapshot(event: dict) -> dict:
         "relationships_out": [],
         "artifact_refs": [],
         "branch_links": [],
-        "active_processes": [],
         "custom_fields": data.get("custom_fields") or {},
         "last_event_id": event["id"],
     }
@@ -278,45 +274,6 @@ def _mut_branch_unlinked(snap: dict, event: dict) -> None:
         if not (bl["branch"] == rm_branch and bl.get("repo") == rm_repo)
     ]
     snap["branch_links"] = links
-
-
-# ---------------------------------------------------------------------------
-# Process tracking mutations
-# ---------------------------------------------------------------------------
-
-
-@_register_mutation("process_started")
-def _mut_process_started(snap: dict, event: dict) -> None:
-    data = event["data"]
-    entry = {
-        "process_type": data["process_type"],
-        "started_event_id": event["id"],
-        "started_at": event["ts"],
-        "actor": event["actor"],
-        "commit_sha": data.get("commit_sha"),
-        "timeout_minutes": data.get("timeout_minutes"),
-    }
-    snap.setdefault("active_processes", []).append(entry)
-
-
-@_register_mutation("process_completed")
-def _mut_process_completed(snap: dict, event: dict) -> None:
-    data = event["data"]
-    started_eid = data["started_event_id"]
-    procs = snap.get("active_processes", [])
-    snap["active_processes"] = [
-        p for p in procs if p.get("started_event_id") != started_eid
-    ]
-
-
-@_register_mutation("process_failed")
-def _mut_process_failed(snap: dict, event: dict) -> None:
-    data = event["data"]
-    started_eid = data["started_event_id"]
-    procs = snap.get("active_processes", [])
-    snap["active_processes"] = [
-        p for p in procs if p.get("started_event_id") != started_eid
-    ]
 
 
 def get_artifact_roles(snapshot: dict) -> dict[str, str | None]:

@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import platform
 import shutil
+import subprocess
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
@@ -153,10 +155,6 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 self._handle_archived(ld)
             elif path == "/api/graph":
                 self._handle_graph(ld)
-            elif path == "/api/config/hooks":
-                self._handle_config_hooks(ld)
-            elif path == "/api/workers":
-                self._handle_workers(ld)
             elif path == "/api/git":
                 self._handle_git_summary(ld)
             elif path.startswith("/api/git/branches/"):
@@ -188,8 +186,6 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
 
             if path == "/api/config/dashboard":
                 self._handle_post_dashboard_config(ld)
-            elif path == "/api/config/hooks/transitions":
-                self._handle_post_hooks_transitions(ld)
             elif path == "/api/tasks":
                 self._handle_post_create_task(ld)
             elif path.startswith("/api/tasks/"):
@@ -214,6 +210,8 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                         self._handle_post_task_react(ld, task_id)
                     elif sub == "unreact":
                         self._handle_post_task_unreact(ld, task_id)
+                    elif sub == "open-notes":
+                        self._handle_post_open_notes(ld, task_id)
                     else:
                         self._send_json(404, _err("NOT_FOUND", f"Not found: {path}"))
                 else:
@@ -408,8 +406,6 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                     "type": snap.get("type"),
                     "assigned_to": snap.get("assigned_to"),
                     "branch_links": snap.get("branch_links", []),
-                    "active_process_count": len(snap.get("active_processes", [])),
-                    "active_processes": snap.get("active_processes", []),
                 }
                 nodes.append(node)
 
@@ -542,237 +538,6 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                         "count": len(commits),
                     }
                 ),
-            )
-
-        # ---------------------------------------------------------------
-        # Hooks / Workers API handlers
-        # ---------------------------------------------------------------
-
-        def _handle_config_hooks(self, ld: Path) -> None:
-            """Handle GET /api/config/hooks — return hooks configuration."""
-            config_path = ld / "config.json"
-            try:
-                config = json.loads(config_path.read_text())
-            except (json.JSONDecodeError, OSError) as exc:
-                self._send_json(500, _err("READ_ERROR", f"Failed to read config: {exc}"))
-                return
-            hooks = config.get("hooks", {})
-            self._send_json(200, _ok(hooks))
-
-        def _handle_workers(self, ld: Path) -> None:
-            """Handle GET /api/workers — list available worker definitions."""
-            repo_root = ld.resolve().parent
-            workers_dir = repo_root / "workers"
-            workers: list[dict] = []
-            if workers_dir.is_dir():
-                for wf in sorted(workers_dir.glob("*.json")):
-                    try:
-                        worker_def = json.loads(wf.read_text())
-                        workers.append({
-                            "name": worker_def.get("name", wf.stem),
-                            "description": worker_def.get("description", ""),
-                            "engine": worker_def.get("engine", ""),
-                            "command": worker_def.get("command", ""),
-                            "worktree": worker_def.get("worktree", False),
-                            "timeout_minutes": worker_def.get("timeout_minutes"),
-                            "artifact_role": worker_def.get("artifact_role"),
-                        })
-                    except (json.JSONDecodeError, OSError):
-                        continue
-            self._send_json(200, _ok(workers))
-
-        def _handle_post_hooks_transitions(self, ld: Path) -> None:
-            """Handle POST /api/config/hooks/transitions — set transition triggers.
-
-            Two modes:
-            - **Single**: ``{"pattern": "* -> review", "commands": ["cmd"]}``
-              Sets/removes one transition pattern.
-            - **Bulk**: ``{"* -> review": "cmd", "in_progress -> blocked": [...]}``
-              Replaces the entire transitions dict (used by raw editor).
-            """
-            body = self._read_request_body()
-            if body is None:
-                return
-
-            pattern = body.get("pattern")
-
-            # ---- Bulk mode: body IS the transitions dict ----
-            if pattern is None:
-                # Validate every key looks like a transition pattern
-                for key, val in body.items():
-                    parts = key.split("->")
-                    if len(parts) != 2:
-                        self._send_json(
-                            400,
-                            _err(
-                                "VALIDATION_ERROR",
-                                f"Invalid pattern key '{key}': must be 'from -> to' format",
-                            ),
-                        )
-                        return
-                    left = parts[0].strip()
-                    right = parts[1].strip()
-                    if not left or not right:
-                        self._send_json(
-                            400,
-                            _err(
-                                "VALIDATION_ERROR",
-                                f"Pattern '{key}' must have non-empty from and to",
-                            ),
-                        )
-                        return
-                    # Validate values: string or list of strings
-                    if isinstance(val, str):
-                        if not val.strip():
-                            self._send_json(
-                                400,
-                                _err(
-                                    "VALIDATION_ERROR",
-                                    f"Command for '{key}' must be non-empty",
-                                ),
-                            )
-                            return
-                    elif isinstance(val, list):
-                        for cmd in val:
-                            if not isinstance(cmd, str) or not cmd.strip():
-                                self._send_json(
-                                    400,
-                                    _err(
-                                        "VALIDATION_ERROR",
-                                        f"Each command for '{key}' must be a non-empty string",
-                                    ),
-                                )
-                                return
-                    else:
-                        self._send_json(
-                            400,
-                            _err(
-                                "VALIDATION_ERROR",
-                                f"Value for '{key}' must be a string or array of strings",
-                            ),
-                        )
-                        return
-
-                config_path = ld / "config.json"
-                locks_dir = ld / "locks"
-                try:
-                    with multi_lock(locks_dir, ["config"]):
-                        try:
-                            config = json.loads(config_path.read_text())
-                        except (json.JSONDecodeError, OSError) as exc:
-                            self._send_json(
-                                500,
-                                _err("READ_ERROR", f"Failed to read config: {exc}"),
-                            )
-                            return
-
-                        hooks = config.setdefault("hooks", {})
-                        if body:
-                            hooks["transitions"] = body
-                        else:
-                            hooks.pop("transitions", None)
-
-                        if not hooks:
-                            config.pop("hooks", None)
-
-                        atomic_write(config_path, serialize_config(config))
-                except Exception as exc:
-                    self._send_json(
-                        500,
-                        _err("WRITE_ERROR", f"Failed to save hooks config: {exc}"),
-                    )
-                    return
-
-                self._send_json(
-                    200, _ok(config.get("hooks", {}).get("transitions", {}))
-                )
-                return
-
-            # ---- Single-pattern mode ----
-            commands = body.get("commands")
-
-            if not isinstance(pattern, str) or not pattern.strip():
-                self._send_json(
-                    400, _err("VALIDATION_ERROR", "Missing or invalid 'pattern' field")
-                )
-                return
-
-            # Validate pattern format
-            parts = pattern.split("->")
-            if len(parts) != 2:
-                self._send_json(
-                    400,
-                    _err("VALIDATION_ERROR", "Pattern must be in 'from -> to' format"),
-                )
-                return
-            left = parts[0].strip()
-            right = parts[1].strip()
-            if not left or not right:
-                self._send_json(
-                    400,
-                    _err("VALIDATION_ERROR", "Pattern must have non-empty from and to"),
-                )
-                return
-
-            if commands is not None and not isinstance(commands, list):
-                self._send_json(
-                    400, _err("VALIDATION_ERROR", "'commands' must be an array")
-                )
-                return
-
-            if commands is not None:
-                for cmd in commands:
-                    if not isinstance(cmd, str) or not cmd.strip():
-                        self._send_json(
-                            400,
-                            _err("VALIDATION_ERROR", "Each command must be a non-empty string"),
-                        )
-                        return
-
-            # Read, merge, write config atomically
-            config_path = ld / "config.json"
-            locks_dir = ld / "locks"
-
-            try:
-                with multi_lock(locks_dir, ["config"]):
-                    try:
-                        config = json.loads(config_path.read_text())
-                    except (json.JSONDecodeError, OSError) as exc:
-                        self._send_json(
-                            500, _err("READ_ERROR", f"Failed to read config: {exc}")
-                        )
-                        return
-
-                    hooks = config.setdefault("hooks", {})
-                    transitions = hooks.setdefault("transitions", {})
-
-                    if not commands or len(commands) == 0:
-                        # Remove the transition trigger
-                        transitions.pop(pattern, None)
-                    elif len(commands) == 1:
-                        # Single command: store as string for cleaner config
-                        transitions[pattern] = commands[0]
-                    else:
-                        # Multiple commands: store as array
-                        transitions[pattern] = commands
-
-                    # Clean up empty structures
-                    if not transitions:
-                        hooks.pop("transitions", None)
-                    if not hooks:
-                        config.pop("hooks", None)
-
-                    atomic_write(config_path, serialize_config(config))
-
-            except Exception as exc:
-                self._send_json(
-                    500,
-                    _err("WRITE_ERROR", f"Failed to save hooks config: {exc}"),
-                )
-                return
-
-            self._send_json(
-                200, _ok(config.get("hooks", {}).get("transitions", {}))
             )
 
         # ---------------------------------------------------------------
@@ -1869,6 +1634,49 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 return
 
             self._send_json(200, _ok(updated_snapshot))
+
+        # ---------------------------------------------------------------
+        # POST /api/tasks/<id>/open-notes — Open notes file in editor
+        # ---------------------------------------------------------------
+
+        def _handle_post_open_notes(self, ld: Path, task_id: str) -> None:
+            """Handle POST /api/tasks/<id>/open-notes — open the notes file in the system default editor."""
+            if not validate_id(task_id, "task"):
+                self._send_json(400, _err("INVALID_ID", "Invalid task ID format"))
+                return
+
+            # Resolve notes path (check active, then archive)
+            notes_path = ld / "notes" / f"{task_id}.md"
+            if not notes_path.is_file():
+                notes_path = ld / "archive" / "notes" / f"{task_id}.md"
+            if not notes_path.is_file():
+                self._send_json(404, _err("NOT_FOUND", f"No notes file for task {task_id}"))
+                return
+
+            # Security: ensure resolved path is within .lattice/
+            resolved = notes_path.resolve()
+            lattice_resolved = ld.resolve()
+            if not str(resolved).startswith(str(lattice_resolved)):
+                self._send_json(403, _err("FORBIDDEN", "Path traversal not allowed"))
+                return
+
+            # Open in system default editor
+            system = platform.system()
+            try:
+                if system == "Darwin":
+                    subprocess.Popen(["open", str(resolved)])
+                elif system == "Linux":
+                    subprocess.Popen(["xdg-open", str(resolved)])
+                elif system == "Windows":
+                    subprocess.Popen(["start", "", str(resolved)], shell=True)
+                else:
+                    self._send_json(500, _err("UNSUPPORTED", f"Unsupported platform: {system}"))
+                    return
+            except OSError as exc:
+                self._send_json(500, _err("OPEN_ERROR", f"Failed to open file: {exc}"))
+                return
+
+            self._send_json(200, _ok({"opened": str(resolved)}))
 
     return LatticeHandler
 
