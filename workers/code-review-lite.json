@@ -1,0 +1,13 @@
+{
+  "name": "CodeReviewLite",
+  "description": "Fast single-agent code review for routine changes",
+  "actor": "agent:review-bot",
+  "engine": "claude",
+  "command": "claude -p",
+  "prompt_file": "prompts/workers/code-review-lite.md",
+  "worktree": true,
+  "timeout_minutes": 10,
+  "artifact_role": "review",
+  "report_prefix": "CR",
+  "report_dir": "notes"
+}

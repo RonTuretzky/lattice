@@ -804,6 +804,7 @@ class TestCompactSnapshot:
             "relationships_out_count",
             "artifact_ref_count",
             "branch_link_count",
+            "active_process_count",
         }
         assert set(compact.keys()) == expected_keys
 
@@ -864,6 +865,145 @@ class TestCompactSnapshot:
 # ---------------------------------------------------------------------------
 # Mutation registry completeness
 # ---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------
+# Process tracking mutations
+# ---------------------------------------------------------------------------
+
+_EV_P1 = "ev_01PPPPPPPPPPPPPPPPPPPPPPP001"
+_EV_P2 = "ev_01PPPPPPPPPPPPPPPPPPPPPPP002"
+_EV_P3 = "ev_01PPPPPPPPPPPPPPPPPPPPPPP003"
+
+
+def _process_event(etype: str, ev_id: str, ts: str, data: dict) -> dict:
+    return {
+        "schema_version": 1,
+        "id": ev_id,
+        "ts": ts,
+        "type": etype,
+        "task_id": _TASK_ID,
+        "actor": _ACTOR,
+        "data": data,
+    }
+
+
+class TestProcessStarted:
+    """process_started appends to active_processes."""
+
+    def test_appends_entry(self) -> None:
+        snap = _make_snapshot()
+        event = _process_event(
+            "process_started", _EV_P1, _TS_2,
+            {"process_type": "CodeReviewLite", "commit_sha": "abc1234"},
+        )
+        snap = apply_event_to_snapshot(snap, event)
+        assert len(snap["active_processes"]) == 1
+        entry = snap["active_processes"][0]
+        assert entry["process_type"] == "CodeReviewLite"
+        assert entry["started_event_id"] == _EV_P1
+        assert entry["commit_sha"] == "abc1234"
+        assert entry["started_at"] == _TS_2
+        assert entry["actor"] == _ACTOR
+
+    def test_multiple_processes(self) -> None:
+        snap = _make_snapshot()
+        ev1 = _process_event(
+            "process_started", _EV_P1, _TS_2,
+            {"process_type": "CodeReviewLite", "commit_sha": "abc"},
+        )
+        ev2 = _process_event(
+            "process_started", _EV_P2, _TS_3,
+            {"process_type": "CodeReviewHeavy", "commit_sha": "def"},
+        )
+        snap = apply_event_to_snapshot(snap, ev1)
+        snap = apply_event_to_snapshot(snap, ev2)
+        assert len(snap["active_processes"]) == 2
+
+    def test_initial_snapshot_has_empty_active_processes(self) -> None:
+        snap = _make_snapshot()
+        assert snap["active_processes"] == []
+
+
+class TestProcessCompleted:
+    """process_completed removes the matching entry by started_event_id."""
+
+    def test_removes_by_started_event_id(self) -> None:
+        snap = _make_snapshot()
+        start_ev = _process_event(
+            "process_started", _EV_P1, _TS_2,
+            {"process_type": "CodeReviewLite", "commit_sha": "abc"},
+        )
+        snap = apply_event_to_snapshot(snap, start_ev)
+        assert len(snap["active_processes"]) == 1
+
+        complete_ev = _process_event(
+            "process_completed", _EV_P2, _TS_3,
+            {
+                "process_type": "CodeReviewLite",
+                "started_event_id": _EV_P1,
+                "commit_sha": "abc",
+                "result": "success",
+            },
+        )
+        snap = apply_event_to_snapshot(snap, complete_ev)
+        assert snap["active_processes"] == []
+
+    def test_leaves_other_processes(self) -> None:
+        snap = _make_snapshot()
+        ev1 = _process_event(
+            "process_started", _EV_P1, _TS_2,
+            {"process_type": "CodeReviewLite", "commit_sha": "abc"},
+        )
+        ev2 = _process_event(
+            "process_started", _EV_P2, _TS_2,
+            {"process_type": "CodeReviewHeavy", "commit_sha": "abc"},
+        )
+        snap = apply_event_to_snapshot(snap, ev1)
+        snap = apply_event_to_snapshot(snap, ev2)
+        assert len(snap["active_processes"]) == 2
+
+        complete_ev = _process_event(
+            "process_completed", _EV_P3, _TS_3,
+            {"process_type": "CodeReviewLite", "started_event_id": _EV_P1, "commit_sha": "abc"},
+        )
+        snap = apply_event_to_snapshot(snap, complete_ev)
+        assert len(snap["active_processes"]) == 1
+        assert snap["active_processes"][0]["process_type"] == "CodeReviewHeavy"
+
+    def test_no_match_is_noop(self) -> None:
+        snap = _make_snapshot()
+        complete_ev = _process_event(
+            "process_completed", _EV_P2, _TS_3,
+            {"process_type": "CodeReviewLite", "started_event_id": "ev_NONEXISTENT", "commit_sha": "abc"},
+        )
+        snap = apply_event_to_snapshot(snap, complete_ev)
+        assert snap["active_processes"] == []
+
+
+class TestProcessFailed:
+    """process_failed removes the matching entry by started_event_id."""
+
+    def test_removes_by_started_event_id(self) -> None:
+        snap = _make_snapshot()
+        start_ev = _process_event(
+            "process_started", _EV_P1, _TS_2,
+            {"process_type": "CodeReviewLite", "commit_sha": "abc"},
+        )
+        snap = apply_event_to_snapshot(snap, start_ev)
+        assert len(snap["active_processes"]) == 1
+
+        fail_ev = _process_event(
+            "process_failed", _EV_P2, _TS_3,
+            {
+                "process_type": "CodeReviewLite",
+                "started_event_id": _EV_P1,
+                "commit_sha": "abc",
+                "error": "Agent crashed",
+            },
+        )
+        snap = apply_event_to_snapshot(snap, fail_ev)
+        assert snap["active_processes"] == []
 
 
 class TestMutationRegistryCompleteness:
