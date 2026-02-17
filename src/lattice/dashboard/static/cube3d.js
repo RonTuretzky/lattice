@@ -14,9 +14,24 @@
  *   updateCube3DData(data)  — incremental data update
  *   cleanupCube3D()         — teardown everything
  *
- * Dashboard globals used:
+ * Dashboard globals used (via window._lattice):
  *   config, getLaneColor, esc, api, apiPost, currentView, showToast
  * ========================================================================= */
+
+/* --------------------------------------------------------------------------
+ * 0. Dashboard Integration — resolve shared utilities from host IIFE
+ * ----------------------------------------------------------------------- */
+
+var _L = (typeof window !== 'undefined' && window._lattice) || {};
+var api = _L.api || function() { return Promise.reject(new Error('api unavailable')); };
+var apiPost = _L.apiPost || function() { return Promise.reject(new Error('apiPost unavailable')); };
+var esc = _L.esc || function(s) { return String(s); };
+var showToast = _L.showToast || function() {};
+var getLaneColor = _L.getLaneColor || function() { return '#6b7280'; };
+
+/* config and currentView are live references — read via getter each time */
+function _cube3dConfig() { return (_L.getConfig ? _L.getConfig() : null); }
+function _cube3dCurrentView() { return (_L.getCurrentView ? _L.getCurrentView() : 'cube'); }
 
 /* --------------------------------------------------------------------------
  * 1. Constants & Color Maps
@@ -417,7 +432,8 @@ function _cube3dInitScene() {
  * ----------------------------------------------------------------------- */
 
 function _cube3dInitSimulation(nodes, links) {
-  var statuses = (config && config.workflow && config.workflow.statuses) || [];
+  var _cfg = _cube3dConfig();
+  var statuses = (_cfg && _cfg.workflow && _cfg.workflow.statuses) || [];
   var statusX = {};
   statuses.forEach(function(s, i) { statusX[s] = i * 150; });
 
@@ -542,7 +558,8 @@ function _cube3dCreateEdges(links, nodes) {
  * ----------------------------------------------------------------------- */
 
 function _cube3dCreateFogPlanes() {
-  var statuses = (config && config.workflow && config.workflow.statuses) || [];
+  var _cfg = _cube3dConfig();
+  var statuses = (_cfg && _cfg.workflow && _cfg.workflow.statuses) || [];
   statuses.forEach(function(status, i) {
     var x = i * 150;
     var color = new THREE.Color(cube3dStatusColor(status));
@@ -594,7 +611,8 @@ function _cube3dCreateFogPlanes() {
 function _cube3dCreateHUD() {
   var container = document.getElementById('cube3d-container');
   if (!container) return;
-  var statuses = (config && config.workflow && config.workflow.statuses) || [];
+  var _cfg = _cube3dConfig();
+  var statuses = (_cfg && _cfg.workflow && _cfg.workflow.statuses) || [];
 
   // Legend (bottom-left)
   var legendHtml = '<div class="cube3d-legend">';
@@ -1012,7 +1030,7 @@ function _cube3dUpdateFlight() {
  * ----------------------------------------------------------------------- */
 
 var _cube3dSearchKeyHandler = function(e) {
-  if (e.key === '/' && currentView === 'cube') {
+  if (e.key === '/' && _cube3dCurrentView() === 'cube') {
     e.preventDefault();
     var searchEl = document.getElementById('cube3d-search');
     var inputEl = document.getElementById('cube3d-search-input');
@@ -1026,7 +1044,7 @@ var _cube3dSearchKeyHandler = function(e) {
   if (e.key === 'Escape' && _cube3d.searchActive) {
     _cube3dClearSearch();
   }
-  if (e.key === 'Escape' && !_cube3d.searchActive && currentView === 'cube') {
+  if (e.key === 'Escape' && !_cube3d.searchActive && _cube3dCurrentView() === 'cube') {
     // Rise: pull camera backward
     _cube3dRise();
   }

@@ -7042,6 +7042,17 @@ document.addEventListener("visibilitychange", function() {
   }
 })();
 
+// --- Expose utilities for external modules (cube3d.js) ---
+window._lattice = {
+  api: api,
+  apiPost: apiPost,
+  esc: esc,
+  showToast: showToast,
+  getLaneColor: getLaneColor,
+  getConfig: function() { return config; },
+  getCurrentView: function() { return currentView; }
+};
+
 // --- Boot ---
 init().then(function() { startAutoRefresh(); });
 
