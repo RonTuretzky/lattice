@@ -47,7 +47,7 @@ from lattice.mcp.server import mcp
 from lattice.storage.fs import atomic_write, find_root, jsonl_append
 from lattice.storage.hooks import execute_hooks
 from lattice.storage.locks import multi_lock
-from lattice.storage.operations import scaffold_notes, write_task_event
+from lattice.storage.operations import scaffold_plan, write_task_event
 from lattice.storage.readers import read_task_events
 from lattice.storage.short_ids import allocate_short_id, resolve_short_id
 
@@ -241,8 +241,8 @@ def lattice_create(
     # Write (event-first, then snapshot, under lock)
     write_task_event(lattice_dir, task_id, [event], snapshot, config)
 
-    # Scaffold notes file
-    scaffold_notes(lattice_dir, task_id, title, short_id, description)
+    # Scaffold plan file
+    scaffold_plan(lattice_dir, task_id, title, short_id, description)
 
     return snapshot
 
@@ -702,6 +702,13 @@ def lattice_archive(
                 str(lattice_dir / "archive" / "notes" / f"{task_id}.md"),
             )
 
+        plan_path = lattice_dir / "plans" / f"{task_id}.md"
+        if plan_path.exists():
+            shutil.move(
+                str(plan_path),
+                str(lattice_dir / "archive" / "plans" / f"{task_id}.md"),
+            )
+
     # Fire hooks after locks released
     execute_hooks(config, lattice_dir, task_id, event)
 
@@ -761,6 +768,13 @@ def lattice_unarchive(
             shutil.move(
                 str(archive_notes_path),
                 str(lattice_dir / "notes" / f"{task_id}.md"),
+            )
+
+        archive_plan_path = lattice_dir / "archive" / "plans" / f"{task_id}.md"
+        if archive_plan_path.exists():
+            shutil.move(
+                str(archive_plan_path),
+                str(lattice_dir / "plans" / f"{task_id}.md"),
             )
 
     # Fire hooks after locks released
@@ -1217,6 +1231,14 @@ def lattice_show(
         notes_path = lattice_dir / "notes" / f"{task_id}.md"
     if notes_path.exists():
         result["notes_path"] = f"notes/{task_id}.md"
+
+    # Check for plan
+    if is_archived:
+        plan_path = lattice_dir / "archive" / "plans" / f"{task_id}.md"
+    else:
+        plan_path = lattice_dir / "plans" / f"{task_id}.md"
+    if plan_path.exists():
+        result["plan_path"] = f"plans/{task_id}.md"
 
     return result
 

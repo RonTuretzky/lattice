@@ -148,3 +148,21 @@ def resource_notes(task_id: str) -> str:
         return archive_notes.read_text()
 
     raise ValueError(f"No notes file found for task {task_id}.")
+
+
+@mcp.resource("lattice://plans/{task_id}")
+def resource_plans(task_id: str) -> str:
+    """The task's plan markdown file contents."""
+    lattice_dir = _find_root_dir()
+    task_id = _resolve_task_id(lattice_dir, task_id)
+
+    plan_path = lattice_dir / "plans" / f"{task_id}.md"
+    if plan_path.exists():
+        return plan_path.read_text()
+
+    # Check archive
+    archive_plans = lattice_dir / "archive" / "plans" / f"{task_id}.md"
+    if archive_plans.exists():
+        return archive_plans.read_text()
+
+    raise ValueError(f"No plan file found for task {task_id}.")

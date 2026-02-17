@@ -11,6 +11,7 @@ from lattice.mcp.resources import (
     resource_all_tasks,
     resource_config,
     resource_notes,
+    resource_plans,
     resource_task_detail,
     resource_tasks_by_assignee,
     resource_tasks_by_status,
@@ -89,17 +90,35 @@ class TestResourceConfig:
 
 
 class TestResourceNotes:
-    def test_notes_exist(self, lattice_env: Path):
+    def test_notes_exist(self, lattice_env: Path, lattice_dir: Path):
         task = lattice_create(title="Notes task", actor="human:test")
+        # Notes are lazy (not scaffolded on create), so create manually
+        notes_path = lattice_dir / "notes" / f"{task['id']}.md"
+        notes_path.write_text("# Notes task\n\n## Summary\n\nSome notes.\n")
         result = resource_notes(task["id"])
         assert "Notes task" in result
         assert "## Summary" in result
 
     def test_notes_not_found(self, lattice_env: Path, lattice_dir: Path):
         task = lattice_create(title="No notes", actor="human:test")
-        # Remove the auto-scaffolded notes
-        notes_path = lattice_dir / "notes" / f"{task['id']}.md"
-        if notes_path.exists():
-            notes_path.unlink()
+        # Notes are lazy — no file exists by default
         with pytest.raises(ValueError, match="No notes"):
             resource_notes(task["id"])
+
+
+class TestResourcePlans:
+    def test_plan_exist(self, lattice_env: Path):
+        task = lattice_create(title="Plan task", actor="human:test")
+        # Plans are scaffolded on task create
+        result = resource_plans(task["id"])
+        assert "Plan task" in result
+        assert "## Summary" in result
+
+    def test_plan_not_found(self, lattice_env: Path, lattice_dir: Path):
+        task = lattice_create(title="No plan", actor="human:test")
+        # Remove the auto-scaffolded plan
+        plan_path = lattice_dir / "plans" / f"{task['id']}.md"
+        if plan_path.exists():
+            plan_path.unlink()
+        with pytest.raises(ValueError, match="No plan"):
+            resource_plans(task["id"])

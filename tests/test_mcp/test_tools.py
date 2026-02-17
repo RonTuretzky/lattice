@@ -68,15 +68,18 @@ class TestCreate:
         events = [json.loads(line) for line in event_path.read_text().strip().split("\n")]
         assert events[0]["type"] == "task_created"
 
-    def test_create_scaffolds_notes(self, lattice_env: Path, lattice_dir: Path):
-        result = lattice_create(title="Notes test", actor="human:test")
+    def test_create_scaffolds_plan(self, lattice_env: Path, lattice_dir: Path):
+        result = lattice_create(title="Plan test", actor="human:test")
         task_id = result["id"]
-        notes_path = lattice_dir / "notes" / f"{task_id}.md"
-        assert notes_path.exists()
-        content = notes_path.read_text()
-        assert "Notes test" in content
+        plan_path = lattice_dir / "plans" / f"{task_id}.md"
+        assert plan_path.exists()
+        content = plan_path.read_text()
+        assert "Plan test" in content
         assert "## Summary" in content
         assert "## Technical Plan" in content
+        # Notes should NOT be scaffolded on create (lazy)
+        notes_path = lattice_dir / "notes" / f"{task_id}.md"
+        assert not notes_path.exists()
 
     def test_create_invalid_actor(self, lattice_env: Path):
         with pytest.raises(ValueError, match="Invalid actor"):
