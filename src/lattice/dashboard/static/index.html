@@ -574,6 +574,8 @@ tr:hover td{background:var(--surface-hover)}
 .activity-filters{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
 .activity-filters select,.activity-filters input{padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;background:var(--surface);color:var(--text-primary)}
 .activity-filters input[type="text"]{min-width:180px}
+.activity-filters input[type="datetime-local"]{width:170px;font-size:.8rem}
+.activity-date-custom{display:flex;gap:6px;align-items:center;font-size:.8rem;color:var(--text-secondary)}
 .filter-pills{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
 .filter-pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;background:var(--accent-primary);color:var(--text-on-accent,#fff);border-radius:12px;font-size:.75rem;cursor:pointer}
 .filter-pill:hover{opacity:.85}
@@ -586,18 +588,38 @@ tr:hover td{background:var(--surface-hover)}
 .activity-item:hover{background:var(--surface-hover,rgba(128,128,128,.06))}
 .activity-item.focused{outline:2px solid var(--accent-primary);outline-offset:-2px;border-radius:var(--radius-sm)}
 .activity-item-main{display:flex;gap:10px;align-items:flex-start;width:100%;min-width:0}
+.activity-item-actor{flex-shrink:0;font-size:.8rem;color:var(--text-muted);cursor:pointer;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.activity-item-actor:hover{color:var(--accent-primary)}
 .activity-item-top{display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex:1;min-width:0}
 .activity-item-summary{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .activity-item-meta{display:flex;gap:8px;align-items:center;flex-shrink:0;color:var(--text-muted);font-size:.8rem}
 .activity-type-badge{display:inline-block;padding:1px 6px;border-radius:var(--radius-sm);font-size:.75rem;font-weight:600;white-space:nowrap;cursor:pointer;line-height:1.4}
 .activity-type-badge:hover{filter:brightness(1.15)}
-.activity-item-detail{width:100%;background:var(--surface-raised,var(--surface));border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;margin-top:6px;font-family:var(--font-mono);font-size:.78rem;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;color:var(--text-secondary)}
+.activity-item-detail{width:100%;background:var(--surface-raised,var(--surface));border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-top:6px;color:var(--text-secondary)}
 .activity-item.expanded .activity-item-detail{display:block}
 .activity-item .activity-item-detail{display:none}
+.activity-detail-actions{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;align-items:center}
+.activity-detail-actions .btn-sm{padding:3px 10px;font-size:.78rem;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-primary);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.activity-detail-actions .btn-sm:hover:not(:disabled){background:var(--accent-primary);color:#fff;border-color:var(--accent-primary)}
+.activity-detail-actions .btn-sm:disabled{opacity:.35;cursor:not-allowed}
+.activity-detail-json{font-family:var(--font-mono);font-size:.78rem;white-space:pre-wrap;word-break:break-all;max-height:250px;overflow-y:auto;margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
 .activity-list{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:12px 16px}
-.activity-load-more{text-align:center;padding:12px 0}
-.activity-load-more button{padding:6px 16px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text-primary);cursor:pointer;font-size:.85rem}
-.activity-load-more button:hover{background:var(--surface-hover,rgba(128,128,128,.08))}
+.activity-scroll-sentinel{height:1px}
+.activity-loading-more{text-align:center;padding:12px 0;font-size:.85rem;color:var(--text-muted)}
+/* Task picker dialog */
+.task-picker-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding-top:80px}
+.task-picker{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);width:420px;max-height:70vh;display:flex;flex-direction:column;box-shadow:0 8px 32px rgba(0,0,0,.25)}
+.task-picker-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:8px;align-items:center}
+.task-picker-header input{flex:1;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.9rem;background:var(--surface);color:var(--text-primary)}
+.task-picker-header button{background:none;border:none;font-size:1.1rem;cursor:pointer;color:var(--text-muted);padding:4px 8px}
+.task-picker-header button:hover{color:var(--text-primary)}
+.task-picker-list{overflow-y:auto;flex:1;padding:4px 0}
+.task-picker-item{padding:8px 16px;cursor:pointer;display:flex;gap:8px;align-items:center;font-size:.85rem}
+.task-picker-item:hover,.task-picker-item.selected{background:var(--accent-primary);color:#fff}
+.task-picker-item .tpi-id{font-weight:600;font-family:var(--font-mono);font-size:.8rem;white-space:nowrap;min-width:60px}
+.task-picker-item .tpi-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.task-picker-item .tpi-status{font-size:.75rem;opacity:.7}
+.task-picker-empty{padding:16px;text-align:center;color:var(--text-muted);font-size:.85rem}
 
 /* Settings panel */
 .settings-panel{position:fixed;top:0;right:0;width:320px;height:100%;background:var(--surface);border-left:1px solid var(--border);z-index:150;box-shadow:var(--shadow-settings);display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease}
@@ -3385,7 +3407,15 @@ var VOICES = {
     "activity.date_today": "Today",
     "activity.date_yesterday": "Yesterday",
     "activity.expand": "Show details",
-    "activity.collapse": "Hide details"
+    "activity.collapse": "Hide details",
+    "activity.custom": "Custom range",
+    "activity.from": "From",
+    "activity.to": "To",
+    "activity.view_task": "View Task",
+    "activity.view_on_board": "View on Board",
+    "activity.view_on_web": "View on Web",
+    "activity.pick_task": "Pick a task\u2026",
+    "activity.search_tasks": "Search by ID or title\u2026"
   },
   "en-clinical": {
     _meta: { label: "Clinical (English)", lang: "en" },
@@ -3526,7 +3556,15 @@ var VOICES = {
     "activity.date_today": "Today",
     "activity.date_yesterday": "Yesterday",
     "activity.expand": "Show details",
-    "activity.collapse": "Hide details"
+    "activity.collapse": "Hide details",
+    "activity.custom": "Custom range",
+    "activity.from": "From",
+    "activity.to": "To",
+    "activity.view_task": "View Task",
+    "activity.view_on_board": "View on Board",
+    "activity.view_on_web": "View on Web",
+    "activity.pick_task": "Pick a task\u2026",
+    "activity.search_tasks": "Search by ID or title\u2026"
   },
   "es-oracle": {
     _meta: { label: "Or\u00e1culo (Espa\u00f1ol)", lang: "es" },
@@ -3664,7 +3702,15 @@ var VOICES = {
     "activity.date_today": "Hoy",
     "activity.date_yesterday": "Ayer",
     "activity.expand": "Mostrar detalles",
-    "activity.collapse": "Ocultar detalles"
+    "activity.collapse": "Ocultar detalles",
+    "activity.custom": "Rango personalizado",
+    "activity.from": "Desde",
+    "activity.to": "Hasta",
+    "activity.view_task": "Ver Tarea",
+    "activity.view_on_board": "Ver en Tablero",
+    "activity.view_on_web": "Ver en Web",
+    "activity.pick_task": "Elegir tarea\u2026",
+    "activity.search_tasks": "Buscar por ID o t\u00edtulo\u2026"
   }
 };
 
@@ -6763,6 +6809,9 @@ var _activityFacets = { types: [], actors: [], tasks: [] };
 var _activityFilters = {};
 var _activityFocusIdx = -1;
 var _activityLimit = 50;
+var _activityLoading = false;
+var _activityObserver = null;
+var _activityHasMore = false;
 
 function _buildActivityQS() {
   var params = [];
@@ -6790,6 +6839,7 @@ async function _fetchActivity(initial) {
     _activityEvents = _activityEvents.concat(data.events || []);
   }
   _activityTotal = data.total || 0;
+  _activityHasMore = data.has_more || false;
   _activityFacets = data.facets || { types: [], actors: [], tasks: [] };
   return data;
 }
@@ -6801,6 +6851,96 @@ function _applyActivityFilter(key, value) {
     delete _activityFilters[key];
   }
   renderActivity();
+}
+
+// --- Task Picker Dialog ---
+function _openTaskPicker() {
+  // Remove any existing picker
+  var existing = document.querySelector(".task-picker-overlay");
+  if (existing) existing.remove();
+
+  var allTasks = _activityFacets.tasks || [];
+  var overlay = document.createElement("div");
+  overlay.className = "task-picker-overlay";
+
+  var picker = document.createElement("div");
+  picker.className = "task-picker";
+
+  var header = document.createElement("div");
+  header.className = "task-picker-header";
+  var searchInput = document.createElement("input");
+  searchInput.type = "text";
+  searchInput.placeholder = t("activity.search_tasks");
+  searchInput.autofocus = true;
+  var closeBtn = document.createElement("button");
+  closeBtn.textContent = "\u2715";
+  closeBtn.title = "Close";
+  header.appendChild(searchInput);
+  header.appendChild(closeBtn);
+  picker.appendChild(header);
+
+  var listEl = document.createElement("div");
+  listEl.className = "task-picker-list";
+  picker.appendChild(listEl);
+  overlay.appendChild(picker);
+  document.body.appendChild(overlay);
+
+  function renderItems(query) {
+    var q = (query || "").toLowerCase();
+    var filtered = allTasks.filter(function(ti) {
+      if (!q) return true;
+      if (ti.short_id && ti.short_id.toLowerCase().indexOf(q) !== -1) return true;
+      if (ti.title && ti.title.toLowerCase().indexOf(q) !== -1) return true;
+      if (ti.id.toLowerCase().indexOf(q) !== -1) return true;
+      return false;
+    });
+    listEl.innerHTML = "";
+    if (filtered.length === 0) {
+      listEl.innerHTML = '<div class="task-picker-empty">No tasks match</div>';
+      return;
+    }
+    // "Clear filter" option at top
+    var clearItem = document.createElement("div");
+    clearItem.className = "task-picker-item";
+    clearItem.innerHTML = '<span class="tpi-id" style="color:var(--text-muted)">\u2014</span><span class="tpi-title" style="font-style:italic">' + esc(t("activity.all_tasks")) + '</span>';
+    clearItem.addEventListener("click", function() {
+      _applyActivityFilter("task", "");
+      overlay.remove();
+    });
+    listEl.appendChild(clearItem);
+
+    filtered.forEach(function(ti) {
+      var item = document.createElement("div");
+      item.className = "task-picker-item";
+      if (_activityFilters.task === (ti.short_id || ti.id)) item.className += " selected";
+      var idLabel = ti.short_id || ti.id.slice(0, 12);
+      // Find status from loaded tasks
+      var status = "";
+      for (var i = 0; i < tasks.length; i++) {
+        if (tasks[i].id === ti.id) { status = tasks[i].status || ""; break; }
+      }
+      item.innerHTML = '<span class="tpi-id">' + esc(idLabel) + '</span>'
+        + '<span class="tpi-title">' + esc(ti.title || "") + '</span>'
+        + (status ? '<span class="tpi-status">' + esc(status) + '</span>' : '');
+      item.addEventListener("click", function() {
+        _applyActivityFilter("task", ti.short_id || ti.id);
+        overlay.remove();
+      });
+      listEl.appendChild(item);
+    });
+  }
+
+  renderItems("");
+  searchInput.addEventListener("input", function() { renderItems(this.value); });
+
+  // Close on overlay click or Escape
+  overlay.addEventListener("click", function(e) { if (e.target === overlay) overlay.remove(); });
+  searchInput.addEventListener("keydown", function(e) {
+    if (e.key === "Escape") overlay.remove();
+  });
+  closeBtn.addEventListener("click", function() { overlay.remove(); });
+
+  setTimeout(function() { searchInput.focus(); }, 50);
 }
 
 function _renderActivityFilterBar() {
@@ -6825,16 +6965,10 @@ function _renderActivityFilterBar() {
   });
   html += '</select>';
 
-  // Task dropdown
-  html += '<select id="activity-task-filter">';
-  html += '<option value="">' + esc(t("activity.all_tasks")) + '</option>';
-  _activityFacets.tasks.forEach(function(ti) {
-    var val = ti.short_id || ti.id;
-    var label = ti.short_id ? ti.short_id + (ti.title ? ': ' + ti.title.slice(0,30) : '') : ti.id.slice(0,16);
-    var sel = (_activityFilters.task === val) ? ' selected' : '';
-    html += '<option value="' + esc(val) + '"' + sel + '>' + esc(label) + '</option>';
-  });
-  html += '</select>';
+  // Task picker button (replaces dropdown)
+  var taskLabel = _activityFilters.task || t("activity.all_tasks");
+  html += '<button id="activity-task-picker-btn" class="btn-sm" style="padding:4px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:.85rem;background:var(--surface);color:var(--text-primary);cursor:pointer">';
+  html += esc(taskLabel) + ' \u25BE</button>';
 
   // Date range quick-select
   html += '<select id="activity-date-filter">';
@@ -6842,7 +6976,8 @@ function _renderActivityFilterBar() {
     { value: "", label: t("activity.all_time") },
     { value: "today", label: t("activity.today") },
     { value: "week", label: t("activity.this_week") },
-    { value: "month", label: t("activity.this_month") }
+    { value: "month", label: t("activity.this_month") },
+    { value: "custom", label: t("activity.custom") }
   ];
   var curDate = _activityFilters._dateRange || "";
   dateOpts.forEach(function(opt) {
@@ -6850,6 +6985,14 @@ function _renderActivityFilterBar() {
     html += '<option value="' + esc(opt.value) + '"' + sel + '>' + esc(opt.label) + '</option>';
   });
   html += '</select>';
+
+  // Custom date range inputs (shown when "custom" selected)
+  if (_activityFilters._dateRange === "custom") {
+    html += '<span class="activity-date-custom">';
+    html += esc(t("activity.from")) + ' <input type="datetime-local" id="activity-date-after" value="' + esc((_activityFilters._customAfter || '').slice(0, 16)) + '">';
+    html += esc(t("activity.to")) + ' <input type="datetime-local" id="activity-date-before" value="' + esc((_activityFilters._customBefore || '').slice(0, 16)) + '">';
+    html += '</span>';
+  }
 
   // Search input
   html += '<input type="text" id="activity-search" placeholder="' + esc(t("activity.search")) + '" value="' + esc(_activityFilters.search || '') + '">';
@@ -6866,8 +7009,12 @@ function _renderActivityFilterBar() {
   if (_activityFilters.type) pills.push({ key: "type", label: EVENT_TYPE_LABELS[_activityFilters.type] || _activityFilters.type });
   if (_activityFilters.actor) pills.push({ key: "actor", label: _activityFilters.actor });
   if (_activityFilters.task) pills.push({ key: "task", label: _activityFilters.task });
-  if (_activityFilters._dateRange) pills.push({ key: "_dateRange", label: _activityFilters._dateRange });
-  if (_activityFilters.search) pills.push({ key: "search", label: '"' + _activityFilters.search + '"' });
+  if (_activityFilters._dateRange) {
+    var dateLabel = _activityFilters._dateRange;
+    if (dateLabel === "custom") dateLabel = t("activity.custom");
+    pills.push({ key: "_dateRange", label: dateLabel });
+  }
+  if (_activityFilters.search) pills.push({ key: "search", label: '\u201c' + _activityFilters.search + '\u201d' });
 
   if (pills.length > 0) {
     html += '<div class="filter-pills">';
@@ -6886,20 +7033,34 @@ function _renderActivityItem(ev, taskIdMap) {
   var taskLabel = taskIdMap[ev.task_id] || (ev.task_id ? ev.task_id.slice(0,12) + "\u2026" : "");
   var ts = timeAgo(ev.ts);
 
+  // Check if task is on the board (in active tasks)
+  var onBoard = false;
+  for (var i = 0; i < tasks.length; i++) {
+    if (tasks[i].id === ev.task_id) { onBoard = true; break; }
+  }
+
   var html = '<div class="activity-item" data-event-id="' + esc(ev.id || '') + '" data-task-id="' + esc(ev.task_id || '') + '" tabindex="-1">';
   html += '<div class="activity-item-main">';
+  // Actor first (leftmost)
+  html += '<span class="activity-item-actor" data-filter-actor="' + esc(ev.actor || '') + '" title="' + esc(ev.actor || '') + '">' + esc(ev.actor || '') + '</span>';
   html += '<div class="activity-item-top">';
   html += '<span class="activity-type-badge" style="background:' + typeColor + ';color:#fff" data-filter-type="' + esc(ev.type || '') + '" title="' + esc(ev.type || '') + '">' + esc(typeLabel) + '</span>';
-  html += '<a href="#/task/' + esc(ev.task_id || '') + '" style="font-weight:600;color:var(--accent-primary);white-space:nowrap" data-filter-task="' + esc(ev.task_id || '') + '">' + esc(taskLabel) + '</a>';
+  html += '<a href="#/task/' + esc(ev.task_id || '') + '" style="font-weight:600;color:var(--accent-primary);white-space:nowrap">' + esc(taskLabel) + '</a>';
   html += '<span class="activity-item-summary">' + eventSummary(ev) + '</span>';
   html += '</div>';
   html += '<div class="activity-item-meta">';
-  html += '<span class="event-actor" data-filter-actor="' + esc(ev.actor || '') + '" style="cursor:pointer" title="' + esc(ev.actor || '') + '">' + esc(ev.actor || '') + '</span>';
   html += '<span class="event-ts" title="' + esc(ev.ts || '') + '">' + esc(ts) + '</span>';
   html += '</div>';
   html += '</div>';
-  // Expandable detail (hidden by default)
-  html += '<div class="activity-item-detail">' + esc(JSON.stringify(ev.data || {}, null, 2)) + '</div>';
+  // Expandable detail panel
+  html += '<div class="activity-item-detail">';
+  html += '<div class="activity-detail-actions">';
+  html += '<a class="btn-sm" href="#/task/' + esc(ev.task_id || '') + '">' + esc(t("activity.view_task")) + '</a>';
+  html += '<button class="btn-sm activity-nav-board" data-nav-task="' + esc(ev.task_id || '') + '"' + (onBoard ? '' : ' disabled title="Task not on board"') + '>' + esc(t("activity.view_on_board")) + '</button>';
+  html += '<button class="btn-sm activity-nav-web" data-nav-task="' + esc(ev.task_id || '') + '">' + esc(t("activity.view_on_web")) + '</button>';
+  html += '</div>';
+  html += '<div class="activity-detail-json">' + esc(JSON.stringify(ev.data || {}, null, 2)) + '</div>';
+  html += '</div>';
   html += '</div>';
   return html;
 }
@@ -6921,6 +7082,8 @@ function _renderActivityDayGroups(events, taskIdMap) {
 async function renderActivity() {
   var app = document.getElementById("app");
   app.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  // Clean up previous observer
+  if (_activityObserver) { _activityObserver.disconnect(); _activityObserver = null; }
   try {
     await _fetchActivity(true);
 
@@ -6943,7 +7106,7 @@ function _renderActivityUI(app) {
 
   var html = '';
   html += _renderActivityFilterBar();
-  html += '<div class="activity-list">';
+  html += '<div class="activity-list" id="activity-list-container">';
 
   if (_activityEvents.length === 0) {
     html += '<div style="padding:16px;text-align:center;color:var(--text-muted)">' + esc(t("activity.no_results")) + '</div>';
@@ -6951,12 +7114,13 @@ function _renderActivityUI(app) {
     html += _renderActivityDayGroups(_activityEvents, taskIdMap);
   }
 
-  html += '</div>';
-
-  // Load More
-  if (_activityOffset + _activityLimit < _activityTotal) {
-    html += '<div class="activity-load-more"><button id="activity-load-more-btn">' + esc(t("activity.load_more")) + '</button></div>';
+  // Infinite scroll sentinel
+  if (_activityHasMore) {
+    html += '<div class="activity-scroll-sentinel" id="activity-sentinel"></div>';
+    html += '<div class="activity-loading-more" id="activity-loading-more" style="display:none">Loading\u2026</div>';
   }
+
+  html += '</div>';
 
   app.innerHTML = html;
   _wireActivityEvents(app);
@@ -6972,8 +7136,9 @@ function _wireActivityEvents(app) {
   var actorSelect = document.getElementById("activity-actor-filter");
   if (actorSelect) actorSelect.addEventListener("change", function() { _applyActivityFilter("actor", this.value); });
 
-  var taskSelect = document.getElementById("activity-task-filter");
-  if (taskSelect) taskSelect.addEventListener("change", function() { _applyActivityFilter("task", this.value); });
+  // Task picker button
+  var taskPickerBtn = document.getElementById("activity-task-picker-btn");
+  if (taskPickerBtn) taskPickerBtn.addEventListener("click", _openTaskPicker);
 
   var dateSelect = document.getElementById("activity-date-filter");
   if (dateSelect) dateSelect.addEventListener("change", function() {
@@ -6982,6 +7147,8 @@ function _wireActivityEvents(app) {
     delete _activityFilters.after;
     delete _activityFilters.before;
     delete _activityFilters._dateRange;
+    delete _activityFilters._customAfter;
+    delete _activityFilters._customBefore;
     if (val === "today") {
       _activityFilters.after = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
       _activityFilters._dateRange = "today";
@@ -6993,9 +7160,33 @@ function _wireActivityEvents(app) {
       var monthAgo = new Date(now); monthAgo.setMonth(monthAgo.getMonth() - 1);
       _activityFilters.after = monthAgo.toISOString();
       _activityFilters._dateRange = "month";
+    } else if (val === "custom") {
+      _activityFilters._dateRange = "custom";
     }
     renderActivity();
   });
+
+  // Custom date range inputs
+  var dateAfterInput = document.getElementById("activity-date-after");
+  var dateBeforeInput = document.getElementById("activity-date-before");
+  if (dateAfterInput) {
+    dateAfterInput.addEventListener("change", function() {
+      var v = this.value;
+      _activityFilters._customAfter = v;
+      _activityFilters.after = v ? new Date(v).toISOString() : undefined;
+      if (!_activityFilters.after) delete _activityFilters.after;
+      renderActivity();
+    });
+  }
+  if (dateBeforeInput) {
+    dateBeforeInput.addEventListener("change", function() {
+      var v = this.value;
+      _activityFilters._customBefore = v;
+      _activityFilters.before = v ? new Date(v).toISOString() : undefined;
+      if (!_activityFilters.before) delete _activityFilters.before;
+      renderActivity();
+    });
+  }
 
   // Search input with debounce
   var searchInput = document.getElementById("activity-search");
@@ -7017,6 +7208,8 @@ function _wireActivityEvents(app) {
         delete _activityFilters.after;
         delete _activityFilters.before;
         delete _activityFilters._dateRange;
+        delete _activityFilters._customAfter;
+        delete _activityFilters._customBefore;
         renderActivity();
       } else {
         _applyActivityFilter(key, "");
@@ -7024,43 +7217,42 @@ function _wireActivityEvents(app) {
     });
   });
 
-  // Load More
-  var loadMoreBtn = document.getElementById("activity-load-more-btn");
-  if (loadMoreBtn) {
-    loadMoreBtn.addEventListener("click", async function() {
-      loadMoreBtn.disabled = true;
-      loadMoreBtn.textContent = "Loading...";
-      _activityOffset += _activityLimit;
-      try {
-        await _fetchActivity(false);
-        _renderActivityUI(app);
-      } catch(e) {
-        loadMoreBtn.disabled = false;
-        loadMoreBtn.textContent = t("activity.load_more");
+  // Infinite scroll via IntersectionObserver
+  var sentinel = document.getElementById("activity-sentinel");
+  if (sentinel && _activityHasMore) {
+    if (_activityObserver) _activityObserver.disconnect();
+    _activityObserver = new IntersectionObserver(function(entries) {
+      if (entries[0].isIntersecting && !_activityLoading && _activityHasMore) {
+        _loadMoreActivity();
       }
-    });
+    }, { rootMargin: "200px" });
+    _activityObserver.observe(sentinel);
   }
 
   // Click-to-expand event detail
   app.querySelectorAll(".activity-item").forEach(function(item) {
     item.addEventListener("click", function(e) {
-      // Don't toggle if clicking a link or badge filter
-      if (e.target.tagName === "A") return;
+      // Don't toggle if clicking a link, button, or filter shortcut
+      if (e.target.tagName === "A" || e.target.tagName === "BUTTON") return;
+      if (e.target.closest && e.target.closest(".activity-detail-actions")) return;
       if (e.target.dataset.filterType) {
         e.stopPropagation();
         _applyActivityFilter("type", e.target.dataset.filterType);
         return;
       }
-      if (e.target.dataset.filterActor) {
+      if (e.target.dataset.filterActor || (e.target.closest && e.target.closest(".activity-item-actor"))) {
         e.stopPropagation();
-        _applyActivityFilter("actor", e.target.dataset.filterActor);
+        var actorEl = e.target.closest ? e.target.closest(".activity-item-actor") : e.target;
+        if (actorEl && actorEl.dataset.filterActor) {
+          _applyActivityFilter("actor", actorEl.dataset.filterActor);
+        }
         return;
       }
       item.classList.toggle("expanded");
     });
   });
 
-  // Quick-filter shortcuts on badges and actors
+  // Quick-filter shortcuts on type badges
   app.querySelectorAll("[data-filter-type]").forEach(function(el) {
     el.addEventListener("click", function(e) {
       e.preventDefault();
@@ -7069,8 +7261,113 @@ function _wireActivityEvents(app) {
     });
   });
 
+  // Navigation buttons in expanded detail
+  app.querySelectorAll(".activity-nav-board").forEach(function(btn) {
+    btn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      if (btn.disabled) return;
+      location.hash = "#/board";
+    });
+  });
+  app.querySelectorAll(".activity-nav-web").forEach(function(btn) {
+    btn.addEventListener("click", function(e) {
+      e.stopPropagation();
+      location.hash = "#/web";
+    });
+  });
+
   // Keyboard navigation
   document.addEventListener("keydown", _activityKeyHandler);
+}
+
+async function _loadMoreActivity() {
+  if (_activityLoading || !_activityHasMore) return;
+  _activityLoading = true;
+  var loadingEl = document.getElementById("activity-loading-more");
+  if (loadingEl) loadingEl.style.display = "block";
+
+  _activityOffset += _activityLimit;
+  try {
+    await _fetchActivity(false);
+    // Append new items to the existing list (avoid full re-render to preserve scroll)
+    var container = document.getElementById("activity-list-container");
+    if (container) {
+      var taskIdMap = {};
+      tasks.forEach(function(tk) { if (tk.short_id) taskIdMap[tk.id] = tk.short_id; });
+      _activityFacets.tasks.forEach(function(ti) { if (ti.short_id) taskIdMap[ti.id] = ti.short_id; });
+
+      // Get only the new events (the last batch appended)
+      var newEvents = _activityEvents.slice(_activityEvents.length - (_activityEvents.length - (_activityOffset - _activityLimit + _activityLimit)));
+      // Actually simpler: new events start at the old length
+      var prevLen = _activityOffset;
+      var freshEvents = _activityEvents.slice(prevLen);
+
+      var sentinel = document.getElementById("activity-sentinel");
+      var loadingMore = document.getElementById("activity-loading-more");
+
+      // Build HTML for new events with day grouping continuity
+      var lastDay = '';
+      // Check last day header from existing content
+      var dayHeaders = container.querySelectorAll(".activity-day-header");
+      if (dayHeaders.length > 0) lastDay = dayHeaders[dayHeaders.length - 1].textContent;
+
+      var frag = document.createDocumentFragment();
+      freshEvents.forEach(function(ev) {
+        var day = formatDateHeader(ev.ts);
+        if (day && day !== lastDay) {
+          var hdr = document.createElement("div");
+          hdr.className = "activity-day-header";
+          hdr.textContent = day;
+          if (sentinel) container.insertBefore(hdr, sentinel);
+          else container.appendChild(hdr);
+          lastDay = day;
+        }
+        var tmp = document.createElement("div");
+        tmp.innerHTML = _renderActivityItem(ev, taskIdMap);
+        var itemEl = tmp.firstChild;
+        if (sentinel) container.insertBefore(itemEl, sentinel);
+        else container.appendChild(itemEl);
+
+        // Wire click handlers on the new item
+        itemEl.addEventListener("click", function(e) {
+          if (e.target.tagName === "A" || e.target.tagName === "BUTTON") return;
+          if (e.target.closest && e.target.closest(".activity-detail-actions")) return;
+          if (e.target.dataset.filterType) { e.stopPropagation(); _applyActivityFilter("type", e.target.dataset.filterType); return; }
+          if (e.target.closest && e.target.closest(".activity-item-actor")) { e.stopPropagation(); var a2 = e.target.closest(".activity-item-actor"); if (a2) _applyActivityFilter("actor", a2.dataset.filterActor); return; }
+          itemEl.classList.toggle("expanded");
+        });
+        // Nav buttons
+        itemEl.querySelectorAll(".activity-nav-board").forEach(function(btn) {
+          btn.addEventListener("click", function(e2) { e2.stopPropagation(); if (!btn.disabled) location.hash = "#/board"; });
+        });
+        itemEl.querySelectorAll(".activity-nav-web").forEach(function(btn) {
+          btn.addEventListener("click", function(e2) { e2.stopPropagation(); location.hash = "#/web"; });
+        });
+        itemEl.querySelectorAll("[data-filter-type]").forEach(function(el) {
+          el.addEventListener("click", function(e2) { e2.preventDefault(); e2.stopPropagation(); _applyActivityFilter("type", el.dataset.filterType); });
+        });
+      });
+
+      // Remove sentinel + loading if no more
+      if (!_activityHasMore) {
+        if (sentinel) sentinel.remove();
+        if (loadingMore) loadingMore.remove();
+        if (_activityObserver) { _activityObserver.disconnect(); _activityObserver = null; }
+      }
+
+      // Update the count display
+      var countEl = document.querySelector(".filter-count");
+      if (countEl) {
+        var from2 = _activityEvents.length > 0 ? 1 : 0;
+        countEl.textContent = t("activity.showing").replace("{from}", from2).replace("{to}", _activityEvents.length).replace("{total}", _activityTotal);
+      }
+    }
+  } catch(e) {
+    // Revert offset on error
+    _activityOffset -= _activityLimit;
+  }
+  _activityLoading = false;
+  if (loadingEl) loadingEl.style.display = "none";
 }
 
 function _activityKeyHandler(e) {
