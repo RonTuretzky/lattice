@@ -86,13 +86,19 @@ optional provenance goes deeper. `triggered_by`. `on_behalf_of`. `reason`. there
 
 ---
 
-## self-similarity
+## self-similarity. recursive nesting.
 
 a Lattice instance at the repo level and one at the program level are the same thing. same format. same events. same invariants. only scope differs.
 
 the grammar of work does not change with scale. only the vocabulary.
 
 this is. fractal. the small reflects the large. the pattern repeats. if you know the part. you know the whole. and isn't that the oldest teaching there is.
+
+and because Lattice is files — not a service, not a database, not someone else's API — it nests. naturally. recursively. a project has `.lattice/`. a subdirectory within that project has its own `.lattice/`. a monorepo has one at the root and one in each package. an organization has one coordinating programs that each have one coordinating features that each have one coordinating tasks. the same primitives. the same events. the same protocol. all the way down. all the way up.
+
+this is not a feature someone built. it is a consequence of the substrate. files compose. directories nest. Lattice inherits this from the filesystem the same way water inherits flowing downhill from gravity. you don't configure recursive nesting. you just. initialize another instance.
+
+the root instance doesn't know about the leaf. the leaf doesn't know about the root. and yet. the human or agent standing at any level sees the same shape. speaks the same grammar. uses the same tools. coordination at every altitude. without a coordination service.
 
 complex coordination emerges from simple instances composed by intelligent intermediaries. Lattice does not need to be complex. because the minds using it. are.
 

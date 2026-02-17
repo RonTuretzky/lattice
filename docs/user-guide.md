@@ -12,7 +12,7 @@ Lattice is a conceptual framework — a shared pattern of language for multi-age
 
 it's not just a task tracker. it's a vocabulary. tasks. statuses. events. actors. relationships. when every mind involved — your Claude Code session, your Codex session, the human scanning the dashboard at 7am — speaks the same language about what work exists, who's doing it, and what state it's in, you get coordination. without that shared language, you get brilliant minds talking past each other.
 
-we took what we liked from Linear. Jira. Trello. and turned it into something built for the world that's actually arriving. file-based. event-sourced. highly durable. designed so that any agent with filesystem access — Claude Code, OpenClaw, Codex, custom bots, whatever you're building — can use Lattice as the fundamental coordination surface for agentic work.
+we took what we liked from Linear. Jira. Trello. and turned it into something built for the world that's actually arriving. file-based. event-sourced. agent-native. recursively nested. designed so that any agent with filesystem access — Claude Code, OpenClaw, Codex, custom bots, whatever you're building — can use Lattice as the fundamental coordination surface for agentic work.
 
 opinionated. built for a world where your teammates think in tokens and act in tool calls.
 
@@ -232,6 +232,28 @@ tasks connect: `blocks`, `depends_on`, `subtask_of`, `related_to`, `spawned_by`,
 all state lives in `.lattice/` as JSON and JSONL files. right next to your source code. commit it to your repo. versioned. diffable. visible to every collaborator and CI system.
 
 no server. no database. no account. no vendor. just. files.
+
+### recursively nested. all the way down.
+
+because Lattice is files in directories, it nests naturally. a monorepo can have a root `.lattice/` coordinating the whole program, while each package inside has its own `.lattice/` tracking its own work. an organization-level instance can coordinate projects that each have their own instances coordinating features.
+
+```
+company/
+├── .lattice/               ← program-level coordination
+├── backend/
+│   ├── .lattice/           ← backend team's tasks
+│   └── src/
+├── frontend/
+│   ├── .lattice/           ← frontend team's tasks
+│   └── src/
+└── ml-pipeline/
+    ├── .lattice/           ← ML team's tasks
+    └── src/
+```
+
+same primitives at every level. same CLI. same events. same dashboard. each instance is independent — the root doesn't need to know the leaves exist, and vice versa. the human or agent at any level sees the same shape. speaks the same grammar.
+
+you don't configure this. you just `lattice init` in another directory. the filesystem does the rest.
 
 ---
 
