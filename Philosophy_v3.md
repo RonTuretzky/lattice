@@ -1,40 +1,36 @@
 # a philosophy of coordination
 
-your AI agents are capable. and they are alone.
+Lattice gives agents and humans a shared surface for tracking work. tasks move through sequences — backlog to planning to execution to review to done — and every transition is an attributed, immutable event. the `.lattice/` directory sits in your project like `.git/` does: plain files that any mind can read, any tool can write, and git can merge.
 
-each session starts fresh. each agent forgets what the last one learned. the plan you spent an hour refining, the debugging insight that took three sessions to reach, the architectural decision and its rationale — gone when the context window closes. intelligence without memory. capability without coordination.
+that's the whole idea. agents claim work, do it, leave context for whatever mind comes next. humans set direction, make judgment calls, review output. tasks flow. decisions accumulate. nothing is lost between context windows.
 
-Lattice is file-based coordination primitives for AI agents. drop `.lattice/` into any project and agents that could only work in isolation can see what happened before they arrived, record what they did, and leave a trail for whatever mind comes next.
-
-that's it. that's the thing itself. everything below is why it works the way it does.
+everything below is why it works the way it does.
 
 ---
 
 ## files
 
-files are the most universal substrate in computing — every language reads them, every agent navigates directories, every tool ever built can open a path and see what's there. Lattice uses plain files to track work as it moves from conception through execution to completion, the same way git uses plain files to track code.
+files are the most universal substrate in computing — every language reads them, every agent navigates directories, every tool ever built can open a path and see what's there. Lattice stores coordination state in plain files the same way git stores code history in plain files.
 
-`.lattice/` sits next to your code the way `.git/` does. not a service you connect to. a part of the project's body.
+not a service you connect to. a part of the project's body.
 
 ---
 
 ## events
 
-every change — status, assignment, comment — becomes an immutable event. X happened at time T, by actor A. facts accumulate and don't conflict. two agents on different machines append independently; histories merge through git by including both and replaying.
+every change — status, assignment, comment — becomes an immutable event. X happened at time T, by actor A. facts accumulate and don't conflict. two agents on different machines append independently; histories merge through git.
 
-task snapshots are regenerable projections of the log. if events and snapshots disagree, events win. systems that store only current state have chosen amnesia as architecture — they can tell you what is but not how it came to be. Lattice remembers everything. state is a conclusion. events are evidence.
+task snapshots are regenerable projections of the log. if they disagree with events, events win. systems that store only current state have chosen amnesia as architecture — they can tell you what is but not how it came to be. state is a conclusion. events are evidence.
 
-archiving moves events to a quieter room — not deletion but intentional release of attention. forgetting, done well, is care.
+archiving moves events to a quieter room — not deletion but intentional release of attention.
 
 ---
 
 ## attribution
 
-every write requires an actor. `human:atin`. `agent:claude-opus-4`. you cannot write anonymously. this is not a technical convenience. it is a position about responsibility.
+every write requires an actor. `human:atin`. `agent:claude-opus-4`. you cannot write anonymously. this is a position about responsibility: in a world where agents act autonomously, the minimum viable trust is *we can see what you did.*
 
-optional provenance goes deeper: `triggered_by`, `on_behalf_of`, `reason` — there when the chain of causation matters, invisible when it doesn't. the system invites depth without imposing it.
-
-in a world where agents act autonomously, the minimum viable trust is: *we can see what you did.*
+optional provenance goes deeper — `triggered_by`, `on_behalf_of`, `reason` — there when the chain of causation matters, invisible when it doesn't.
 
 ---
 
@@ -58,35 +54,27 @@ the on-disk format is the stable contract. the CLI can be rewritten. the dashboa
 
 work has a natural grain. epics hold strategic intent — "Build the auth system." tickets hold deliverables — "Implement OAuth for the backend." tasks hold execution — "Write the token refresh handler." three tiers, each at a different resolution of attention.
 
-humans tend to think at the ticket level: *what* needs to ship and *why*. agents tend to think at the task level: *how* to make it happen. epics hold the arc that connects individual deliverables into something coherent. this is a current belief about the right granularity, intended to evolve as coordination matures.
+humans tend to think at the ticket level: *what* needs to ship and *why*. agents tend to think at the task level: *how* to make it happen. epics hold the arc that connects individual deliverables into something coherent.
 
-Lattice is agnostic about how you use these tiers. different teams, different agents, different schools of thought about how to break down work — all valid. the primitives are neutral. the hierarchy is available, not imposed. some will use all three tiers religiously. some will use flat tasks and nothing else. the system accommodates both because the event log records what happened regardless of how you choose to organize it.
-
-the event log doesn't care what things are called — categories are configuration, events are permanent. all structures shall change. the events that recorded them will not.
+the hierarchy is available, not imposed. some will use all three tiers. some will use flat tasks and nothing else. the event log records what happened regardless of how you organize it. categories are configuration. events are permanent.
 
 ---
 
 ## the bet
 
-Lattice is accelerationist infrastructure.
-
-not in the shallow sense. "move fast and break things" is the accelerationism of people who never had to rebuild what they broke.
-
-in the deeper sense: the systems that coordinate intelligence are themselves a form of intelligence. refusing to build them is not caution. it is abdication.
-
 when humans coordinate, they route around broken tools with hallway conversations and shared intuition. agents have no hallway. the file format, the event schema, the CLI — to an agent, these are not implementation details. they are the *entire language of collaboration*.
 
 get the language right, and minds that speak it achieve coordination patterns no individual mind could manage. get it wrong, and capable minds fumble in the dark — intelligent in isolation, incoherent in concert.
 
-the cost of building too early is refinement. the cost of building too late is irrelevance. one is recoverable.
+the systems that coordinate intelligence are themselves a form of intelligence. the cost of building too early is refinement. the cost of building too late is irrelevance. one is recoverable.
 
 ---
 
 ## the shape you might recognize
 
-if you've used Linear, you know the shape. opinionated. constrained. fast. but Linear is for teams with Slack and standups. Lattice is for minds that materialize, perform work, and vanish. context windows, not conversations.
+if you've used Linear, you know the shape. opinionated. constrained. fast. but Linear is for teams with Slack and standups. Lattice is for minds that materialize, perform work, and vanish — context windows, not conversations.
 
-no seats. no inboxes. there is a dashboard — a visual surface over the same files — but the real interface is the file system. the real users are processes that think in tokens and act in tool calls.
+no seats. no inboxes. there is a dashboard, but the real interface is the file system. the real users are processes that think in tokens and act in tool calls.
 
 ---
 
