@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import json
-from collections import Counter
-from datetime import datetime, timezone
+from collections import Counter, defaultdict
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -92,6 +92,178 @@ def format_days(days: float) -> str:
     if days < 30:
         return f"{days:.0f}d"
     return f"{days / 30:.1f}mo"
+
+
+def load_all_events(lattice_dir: Path) -> list[dict]:
+    """Load and parse all events from active task event logs.
+
+    Returns a flat list of event dicts, sorted by timestamp.
+    """
+    events_dir = lattice_dir / "events"
+    events: list[dict] = []
+    if not events_dir.is_dir():
+        return events
+    for f in events_dir.glob("*.jsonl"):
+        if f.name.startswith("_"):
+            continue
+        for line in f.read_text().splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    events.sort(key=lambda e: e.get("ts", ""))
+    return events
+
+
+def _compute_velocity(events: list[dict], now: datetime, weeks: int = 8) -> list[dict]:
+    """Compute tasks completed per week for the last N weeks.
+
+    Returns list of {week_label, count} dicts, oldest first.
+    """
+    # Find status_changed events where to == "done"
+    done_events: list[datetime] = []
+    for ev in events:
+        if ev.get("type") == "status_changed" and ev.get("data", {}).get("to") == "done":
+            dt = parse_ts(ev.get("ts", ""))
+            if dt:
+                done_events.append(dt)
+
+    # Bucket by ISO week
+    cutoff = now - timedelta(weeks=weeks)
+    buckets: Counter = Counter()
+    for dt in done_events:
+        if dt >= cutoff:
+            # Use ISO year-week as key
+            iso_year, iso_week, _ = dt.isocalendar()
+            buckets[f"{iso_year}-W{iso_week:02d}"] = (
+                buckets.get(f"{iso_year}-W{iso_week:02d}", 0) + 1
+            )
+
+    # Build ordered list for the last N weeks
+    result: list[dict] = []
+    for i in range(weeks - 1, -1, -1):
+        week_start = now - timedelta(weeks=i)
+        iso_year, iso_week, _ = week_start.isocalendar()
+        label = f"{iso_year}-W{iso_week:02d}"
+        result.append({"week": label, "count": buckets.get(label, 0)})
+
+    return result
+
+
+def _compute_time_in_status(events: list[dict], now: datetime) -> list[dict]:
+    """Compute average time spent in each status across all tasks.
+
+    Returns list of {status, avg_hours, sample_count} dicts, sorted by avg_hours desc.
+    """
+    # Group events by task_id
+    task_events: dict[str, list[dict]] = defaultdict(list)
+    for ev in events:
+        tid = ev.get("task_id")
+        if tid:
+            task_events[tid].append(ev)
+
+    # For each task, walk status transitions and accumulate durations
+    status_durations: defaultdict[str, list[float]] = defaultdict(list)  # status -> list of hours
+
+    for tid, tevs in task_events.items():
+        tevs.sort(key=lambda e: e.get("ts", ""))
+
+        # Find initial status from task_created event
+        current_status = None
+        current_ts = None
+
+        for ev in tevs:
+            etype = ev.get("type")
+            ts = parse_ts(ev.get("ts", ""))
+            if ts is None:
+                continue
+
+            if etype == "task_created":
+                current_status = ev.get("data", {}).get("status", "backlog")
+                current_ts = ts
+            elif etype == "status_changed":
+                if current_status and current_ts:
+                    hours = (ts - current_ts).total_seconds() / 3600
+                    status_durations[current_status].append(hours)
+                current_status = ev.get("data", {}).get("to")
+                current_ts = ts
+
+        # Account for time in current status up to now
+        if current_status and current_ts:
+            hours = (now - current_ts).total_seconds() / 3600
+            status_durations[current_status].append(hours)
+
+    # Compute averages
+    result: list[dict] = []
+    for status, durations in status_durations.items():
+        avg = sum(durations) / len(durations)
+        result.append(
+            {
+                "status": status,
+                "avg_hours": round(avg, 1),
+                "sample_count": len(durations),
+            }
+        )
+
+    result.sort(key=lambda r: r["avg_hours"], reverse=True)
+    return result
+
+
+def _compute_blocked_counts(events: list[dict], active: list[dict]) -> dict:
+    """Compute blocked-related metrics.
+
+    Returns {currently_blocked, total_blocked_episodes, avg_blocked_hours}.
+    """
+    currently_blocked = sum(1 for s in active if s.get("status") == "blocked")
+
+    # Count how many times any task entered "blocked"
+    unblocked_times: list[float] = []  # hours spent blocked
+
+    task_blocked_at: dict[str, datetime] = {}  # task_id -> when it entered blocked
+
+    for ev in events:
+        if ev.get("type") != "status_changed":
+            continue
+        data = ev.get("data", {})
+        ts = parse_ts(ev.get("ts", ""))
+        tid = ev.get("task_id", "")
+        if not ts:
+            continue
+
+        if data.get("to") == "blocked":
+            task_blocked_at[tid] = ts
+        elif data.get("from") == "blocked" and tid in task_blocked_at:
+            hours = (ts - task_blocked_at[tid]).total_seconds() / 3600
+            unblocked_times.append(hours)
+            del task_blocked_at[tid]
+
+    total_episodes = len(unblocked_times) + len(task_blocked_at)  # resolved + still blocked
+    avg_hours = round(sum(unblocked_times) / len(unblocked_times), 1) if unblocked_times else 0
+
+    return {
+        "currently_blocked": currently_blocked,
+        "total_blocked_episodes": total_episodes,
+        "avg_blocked_hours": avg_hours,
+    }
+
+
+def _compute_agent_activity(events: list[dict]) -> list[dict]:
+    """Compute event counts per actor.
+
+    Returns list of {actor, event_count} dicts, sorted by count desc. Top 10.
+    """
+    actor_counts: Counter = Counter()
+    for ev in events:
+        actor = ev.get("actor")
+        if actor:
+            actor_counts[actor] += 1
+
+    return [
+        {"actor": actor, "event_count": count} for actor, count in actor_counts.most_common(10)
+    ]
 
 
 def build_stats(lattice_dir: Path, config: dict) -> dict:
@@ -205,6 +377,13 @@ def build_stats(lattice_dir: Path, config: dict) -> dict:
         if s not in defined_statuses and c > 0:
             ordered_status.append((s, c))
 
+    # --- Quality Metrics (event-derived) ---
+    all_events = load_all_events(lattice_dir)
+    velocity = _compute_velocity(all_events, now)
+    time_in_status = _compute_time_in_status(all_events, now)
+    blocked = _compute_blocked_counts(all_events, active)
+    agent_activity = _compute_agent_activity(all_events)
+
     return {
         "summary": {
             "active_tasks": len(active),
@@ -222,4 +401,8 @@ def build_stats(lattice_dir: Path, config: dict) -> dict:
         "recently_active": recently_active,
         "stale": stale,
         "busiest": busiest,
+        "velocity": velocity,
+        "time_in_status": time_in_status,
+        "blocked": blocked,
+        "agent_activity": agent_activity,
     }

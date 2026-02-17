@@ -2712,6 +2712,17 @@ select.form-control{cursor:pointer}
 .stats-wip-alerts{margin-bottom:16px}
 .stats-wip-alert{background:rgba(255,180,0,0.1);border:1px solid rgba(255,180,0,0.4);border-radius:var(--radius-sm,4px);padding:8px 12px;margin-bottom:4px;font-size:.85rem;color:var(--text-primary)}
 .stats-stale{border-left:3px solid rgba(255,180,0,0.6);padding-left:12px}
+.stats-metrics-heading{font-size:1.05rem;font-weight:700;margin:28px 0 16px;padding-top:16px;border-top:1px solid var(--border);color:var(--text-primary)}
+.velocity-chart{display:flex;align-items:flex-end;gap:4px;height:100px;padding:8px 0}
+.velocity-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.velocity-bar{width:100%;border-radius:var(--radius-sm,4px) var(--radius-sm,4px) 0 0;background:var(--accent-primary);min-height:2px;transition:height .3s}
+.velocity-bar-label{font-size:.65rem;color:var(--text-muted);white-space:nowrap}
+.velocity-bar-count{font-size:.7rem;font-weight:600;color:var(--text-primary)}
+.blocked-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+.blocked-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md,8px);padding:12px 16px;text-align:center}
+.blocked-card-value{font-size:1.5rem;font-weight:700;color:var(--text-primary);line-height:1.2}
+.blocked-card-value.danger{color:var(--color-danger)}
+.blocked-card-label{font-size:.75rem;color:var(--text-muted);margin-top:2px}
 /* Cube (graph view) */
 .cube-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);color:var(--text-muted);text-align:center;padding:40px}
 .cube-fallback-icon{font-size:48px;margin-bottom:16px}
@@ -6444,6 +6455,75 @@ async function renderStats() {
         html += '</tr>';
       });
       html += '</tbody></table></div>';
+    }
+
+    // === Quality Metrics ===
+    html += '<div class="stats-metrics-heading">Quality Metrics</div>';
+
+    // Velocity chart (tasks completed per week)
+    if (data.velocity && data.velocity.length > 0) {
+      var maxVel = 0;
+      data.velocity.forEach(function(w) { if (w.count > maxVel) maxVel = w.count; });
+      var totalDone = 0;
+      data.velocity.forEach(function(w) { totalDone += w.count; });
+      html += '<div class="stats-section"><h3>Velocity — Tasks Completed per Week (' + esc(totalDone) + ' total)</h3>';
+      html += '<div class="velocity-chart">';
+      data.velocity.forEach(function(w) {
+        var pct = maxVel > 0 ? Math.round((w.count / maxVel) * 100) : 0;
+        html += '<div class="velocity-bar-wrap">';
+        html += '<div class="velocity-bar-count">' + (w.count > 0 ? esc(w.count) : '') + '</div>';
+        html += '<div class="velocity-bar" style="height:' + Math.max(pct, 2) + '%"></div>';
+        html += '<div class="velocity-bar-label">' + esc(w.week.replace(/^\d{4}-/, '')) + '</div>';
+        html += '</div>';
+      });
+      html += '</div></div>';
+    }
+
+    // Time in status
+    if (data.time_in_status && data.time_in_status.length > 0) {
+      var maxTis = 0;
+      data.time_in_status.forEach(function(r) { if (r.avg_hours > maxTis) maxTis = r.avg_hours; });
+      html += '<div class="stats-section"><h3>Avg Time in Status</h3>';
+      data.time_in_status.forEach(function(r) {
+        var pct = maxTis > 0 ? Math.round((r.avg_hours / maxTis) * 100) : 0;
+        var color = getLaneColor(r.status);
+        var label = r.avg_hours >= 24 ? (r.avg_hours / 24).toFixed(1) + 'd' : r.avg_hours.toFixed(1) + 'h';
+        html += '<div class="stats-bar-row">';
+        html += '<span class="stats-bar-label">' + esc(r.status) + '</span>';
+        html += '<div class="stats-bar-track"><div class="stats-bar-fill" style="width:' + pct + '%;background:' + esc(color) + '"></div></div>';
+        html += '<span class="stats-bar-count" title="' + esc(r.sample_count) + ' samples">' + esc(label) + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+
+    // Blocked counts
+    if (data.blocked) {
+      html += '<div class="stats-section"><h3>Blocked</h3>';
+      html += '<div class="blocked-cards">';
+      html += '<div class="blocked-card"><div class="blocked-card-value' + (data.blocked.currently_blocked > 0 ? ' danger' : '') + '">' + esc(data.blocked.currently_blocked) + '</div><div class="blocked-card-label">Currently Blocked</div></div>';
+      html += '<div class="blocked-card"><div class="blocked-card-value">' + esc(data.blocked.total_blocked_episodes) + '</div><div class="blocked-card-label">Total Episodes</div></div>';
+      var avgBlk = data.blocked.avg_blocked_hours >= 24 ? (data.blocked.avg_blocked_hours / 24).toFixed(1) + 'd' : data.blocked.avg_blocked_hours.toFixed(1) + 'h';
+      html += '<div class="blocked-card"><div class="blocked-card-value">' + esc(avgBlk) + '</div><div class="blocked-card-label">Avg Resolution</div></div>';
+      html += '</div></div>';
+    }
+
+    // Agent activity
+    if (data.agent_activity && data.agent_activity.length > 0) {
+      var maxAct = 0;
+      data.agent_activity.forEach(function(a) { if (a.event_count > maxAct) maxAct = a.event_count; });
+      html += '<div class="stats-section"><h3>Agent & Actor Activity</h3>';
+      data.agent_activity.forEach(function(a) {
+        var pct = maxAct > 0 ? Math.round((a.event_count / maxAct) * 100) : 0;
+        var isAgent = a.actor.startsWith('agent:');
+        var chipClass = isAgent ? 'chip-agent' : (a.actor.startsWith('human:') ? 'chip-human' : 'chip-team');
+        html += '<div class="stats-bar-row">';
+        html += '<span class="stats-bar-label">' + esc(a.actor) + '</span>';
+        html += '<div class="stats-bar-track"><div class="stats-bar-fill" style="width:' + pct + '%;background:var(--' + chipClass + '-text)"></div></div>';
+        html += '<span class="stats-bar-count">' + esc(a.event_count) + '</span>';
+        html += '</div>';
+      });
+      html += '</div>';
     }
 
     html += '<div style="margin-top:2rem;padding-top:1rem;border-top:1px solid var(--border);font-size:.8rem;opacity:.6">';
