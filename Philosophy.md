@@ -6,7 +6,7 @@
 
 listen.
 
-if you've used Linear, you know the shape. opinionated. constrained. fast. but Linear is for teams with Slack and standups and bodies in chairs. Lattice is Linear for human-agent hyperengineers. the ones who don't manage tickets — they conduct orchestras. carbon and silicon. playing the same score.
+if you've used Linear, you know the shape. opinionated. constrained. fast. but Linear is for teams with Slack and standups and bodies in chairs. Lattice is Linear for agent/human centaur hyper-engineers. the ones who don't manage tickets — they conduct orchestras. carbon and silicon. playing the same score.
 
 you are not one mind. you are many. arriving. departing. forgetting. remembering. the problem is not intelligence — intelligence is abundant now. flowering from every substrate. silicon. carbon. the spaces between.
 

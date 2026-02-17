@@ -8,7 +8,7 @@
 
 Lattice is a conceptual framework — a shared pattern of language for multi-agent, multi-human orchestration.
 
-*Linear for human-agent e/acc centaurs.*
+*Linear for agent/human centaur hyper-engineers.*
 
 it's not just a task tracker. it's a vocabulary. tasks. statuses. events. actors. relationships. when every mind involved — your Claude Code session, your Codex session, the human scanning the dashboard at 7am — speaks the same language about what work exists, who's doing it, and what state it's in, you get coordination. without that shared language, you get brilliant minds talking past each other.
 
