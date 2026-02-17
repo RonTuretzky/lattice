@@ -47,29 +47,16 @@ Installs the Lattice skill so your agent uses `lattice` commands naturally. [Ful
 }
 ```
 
-## Create tasks, advance, review
+## Open the dashboard
 
 ```bash
-lattice create "Build the login page" --actor human:yourname --priority high
-lattice create "Add rate limiting" --actor human:yourname --priority medium
 lattice dashboard
 ```
+
+This is where you live. The dashboard opens at [http://127.0.0.1:8799](http://127.0.0.1:8799) — a local web UI where you create tasks, set priorities, review agent work, and make decisions. Everything your agents do shows up here in real time.
+
+You don't need to use the CLI after setup. The dashboard handles creating tasks, dragging them between status columns, adding comments, and reviewing the activity feed. Your agents handle the CLI side — you handle the dashboard side.
 
 Then tell your agent to advance — it claims the top task, does the work, and reports back. You come back to a sorted inbox: work in review, decisions waiting, blockers identified.
 
 That's the loop. [Read the guide →](/guide) to understand it deeply.
-
-## Quick reference
-
-| Action | Command |
-|--------|---------|
-| Install | `pip install lattice-tracker` |
-| Initialize | `lattice init` |
-| Create task | `lattice create "Title" --actor human:you` |
-| Change status | `lattice status ID STATUS --actor human:you` |
-| List tasks | `lattice list` |
-| Show task | `lattice show ID` |
-| Open dashboard | `lattice dashboard` |
-| Daily digest | `lattice weather` |
-| Claude Code setup | `lattice setup-claude` |
-| OpenClaw setup | `lattice setup-openclaw` |
