@@ -517,6 +517,41 @@ class TestMatchTransitions:
     def test_empty_transitions(self) -> None:
         assert _match_transitions({}, "in_progress", "review") == []
 
+    def test_array_value_single(self) -> None:
+        """Array with one command works like a string."""
+        transitions = {"* -> review": ["entering-review.sh"]}
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert result == ["entering-review.sh"]
+
+    def test_array_value_multiple(self) -> None:
+        """Array with multiple commands flattens them all."""
+        transitions = {"* -> review": ["first.sh", "second.sh", "third.sh"]}
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert result == ["first.sh", "second.sh", "third.sh"]
+
+    def test_array_and_string_mixed(self) -> None:
+        """Mix of string and array values both work."""
+        transitions = {
+            "* -> review": ["arr1.sh", "arr2.sh"],
+            "in_progress -> *": "single.sh",
+        }
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert result == ["arr1.sh", "arr2.sh", "single.sh"]
+
+    def test_array_value_with_exact_match(self) -> None:
+        """Array on exact match runs all commands."""
+        transitions = {
+            "in_progress -> review": ["exact1.sh", "exact2.sh"],
+        }
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert result == ["exact1.sh", "exact2.sh"]
+
+    def test_array_empty_treated_as_no_commands(self) -> None:
+        """Empty array means no commands for that pattern."""
+        transitions = {"* -> review": []}
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert result == []
+
 
 # ---------------------------------------------------------------------------
 # 11. Transition hooks fire on status_changed events

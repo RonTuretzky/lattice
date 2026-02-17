@@ -66,7 +66,7 @@ def execute_hooks(
 
 
 def _match_transitions(
-    transitions: dict[str, str],
+    transitions: dict[str, str | list[str]],
     from_status: str,
     to_status: str,
 ) -> list[str]:
@@ -77,13 +77,15 @@ def _match_transitions(
     2. Wildcard source (``"* -> to"``)
     3. Wildcard target (``"from -> *"``)
     4. Double wildcard (``"* -> *"``)
+
+    Values may be a single command string or a list of command strings.
     """
     exact: list[str] = []
     wild_src: list[str] = []
     wild_tgt: list[str] = []
     wild_both: list[str] = []
 
-    for pattern, cmd in transitions.items():
+    for pattern, cmd_or_list in transitions.items():
         parsed = _parse_transition_key(pattern)
         if parsed is None:
             continue
@@ -95,14 +97,20 @@ def _match_transitions(
         if not from_matches or not to_matches:
             continue
 
-        if pat_from != "*" and pat_to != "*":
-            exact.append(cmd)
-        elif pat_from == "*" and pat_to != "*":
-            wild_src.append(cmd)
-        elif pat_from != "*" and pat_to == "*":
-            wild_tgt.append(cmd)
+        # Normalize to list of commands
+        if isinstance(cmd_or_list, list):
+            cmds = cmd_or_list
         else:
-            wild_both.append(cmd)
+            cmds = [cmd_or_list]
+
+        if pat_from != "*" and pat_to != "*":
+            exact.extend(cmds)
+        elif pat_from == "*" and pat_to != "*":
+            wild_src.extend(cmds)
+        elif pat_from != "*" and pat_to == "*":
+            wild_tgt.extend(cmds)
+        else:
+            wild_both.extend(cmds)
 
     return exact + wild_src + wild_tgt + wild_both
 

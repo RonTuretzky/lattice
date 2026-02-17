@@ -95,6 +95,7 @@ def compact_snapshot(snapshot: dict) -> dict:
         "artifact_ref_count": len(snapshot.get("artifact_refs", [])),
         "branch_link_count": len(snapshot.get("branch_links", [])),
         "active_process_count": len(snapshot.get("active_processes", [])),
+        "active_processes": snapshot.get("active_processes", []),
     }
     short_id = snapshot.get("short_id")
     if short_id is not None:

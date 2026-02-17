@@ -47,7 +47,7 @@ class HooksOnConfig(TypedDict, total=False):
 class HooksConfig(TypedDict, total=False):
     post_event: str
     on: HooksOnConfig
-    transitions: dict[str, str]
+    transitions: dict[str, str | list[str]]
 
 
 class ResourceDef(TypedDict, total=False):

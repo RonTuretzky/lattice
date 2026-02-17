@@ -873,6 +873,7 @@ class TestCompactSnapshot:
             "artifact_ref_count",
             "branch_link_count",
             "active_process_count",
+            "active_processes",
         }
         assert set(compact.keys()) == expected_keys
 
@@ -915,6 +916,27 @@ class TestCompactSnapshot:
         assert compact["relationships_out_count"] == 0
         assert compact["artifact_ref_count"] == 0
         assert compact["branch_link_count"] == 0
+
+    def test_active_processes_empty_by_default(self) -> None:
+        snap = _make_snapshot()
+        compact = compact_snapshot(snap)
+        assert compact["active_process_count"] == 0
+        assert compact["active_processes"] == []
+
+    def test_active_processes_included_with_data(self) -> None:
+        snap = _make_snapshot()
+        process_entry = {
+            "process_type": "CodeReviewLite",
+            "started_event_id": "ev_01AAAAAAAAAAAAAAAAAAAAAAAAAA",
+            "started_at": _TS_2,
+            "actor": _ACTOR,
+            "commit_sha": "abc1234",
+            "timeout_minutes": 10,
+        }
+        snap["active_processes"] = [process_entry]
+        compact = compact_snapshot(snap)
+        assert compact["active_process_count"] == 1
+        assert compact["active_processes"] == [process_entry]
 
     def test_done_at_included(self) -> None:
         snap = _make_snapshot()
