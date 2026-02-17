@@ -1,10 +1,10 @@
-# User Guide: `needs_human`, `lattice next`, and Sweep Mode
+# User Guide: `needs_human`, `lattice next`, and Advance
 
 This guide covers three features that work together to create a smooth human-agent coordination loop:
 
 1. **`needs_human` status** — Agents signal when they're blocked on you
 2. **`lattice next`** — Deterministic task selection for agents
-3. **`/lattice-sweep`** — Autonomous backlog processing
+3. **`/lattice-advance`** — One unit of forward progress
 
 ---
 
@@ -150,49 +150,49 @@ Check `lattice list` to see what's actually in the system.
 
 ---
 
-## 3. `/lattice-sweep` — Autonomous Backlog Processing
+## 3. `/lattice-advance` — One Unit of Forward Progress
 
 ### What it is
 
-A Claude Code slash command that runs an autonomous loop: claim a task, do the work, transition it, claim the next one, repeat. Think of it as a "play button" for your backlog.
+A Claude Code slash command that advances the project by one task. The agent claims the highest-priority ready task, does the work, transitions it, and reports what happened. One task, one advance.
 
 ### How to use it
 
 ```
-/lattice-sweep
+/lattice-advance
 ```
 
-That's it. The agent enters sweep mode and starts working through the backlog autonomously.
+That's it. The agent claims the next task and works it to completion (or to a transition point like `needs_human` or `blocked`).
 
-### What it does (the loop)
+For multiple advances, just invoke it again or tell the agent "do 3 advances" or "keep advancing until blocked."
+
+### What it does (the protocol)
 
 1. **Claim:** `lattice next --actor agent:claude-cli --claim --json`
-2. **Read:** Examine the task details and any notes
+2. **Read:** Examine the task details and any notes/plans
 3. **Work:** Implement, test, iterate — full coding agent capabilities
 4. **Transition:** Move the task to `review`, `needs_human`, or `blocked` depending on outcome
 5. **Comment:** Record what was done, what was chosen, what's left
-6. **Commit:** Commit changes before moving to the next task
-7. **Repeat** (up to 10 iterations)
-8. **Summarize:** Report what was completed, what needs human input, what's blocked
+6. **Commit:** Commit changes
+7. **Report:** Tell you what happened — task, outcome, summary
 
 ### When to use it
 
-- You have a backlog of well-defined tasks and want an agent to burn through them
+- You have a backlog of well-defined tasks and want an agent to make progress
+- You want to control the pace — one advance at a time, or several in sequence
 - Tasks are independent enough to be worked sequentially
-- You're comfortable reviewing the output after the sweep completes
 
 ### What it won't do
 
 - Work on `needs_human` tasks (those are waiting on you)
 - Force invalid status transitions
-- Continue past 10 iterations (safety cap — review before continuing)
 - Push code (commits locally, you review and push)
 
-### Post-sweep workflow
+### Post-advance workflow
 
-After a sweep, you'll typically:
+After an advance, you'll typically:
 
-1. Review the summary to see what was completed
+1. Read the agent's report to see what was done
 2. Check `lattice list --status review` for tasks awaiting your review
 3. Check `lattice list --status needs_human` for decisions only you can make
 4. Run tests / review code
@@ -204,10 +204,10 @@ After a sweep, you'll typically:
 # Check the backlog
 lattice weather
 
-# Let the agent work
-/lattice-sweep
+# Advance by one task
+/lattice-advance
 
-# After sweep completes, check what needs you
+# Check what needs you
 lattice list --status needs_human
 lattice list --status review
 
@@ -215,8 +215,8 @@ lattice list --status review
 lattice status LAT-15 in_progress --actor human:atin
 lattice comment LAT-15 "Approved: use the proposed schema" --actor human:atin
 
-# Run another sweep to continue
-/lattice-sweep
+# Advance again
+/lattice-advance
 ```
 
 ---
@@ -228,7 +228,7 @@ The three features form a coordination loop:
 ```
    ┌─────────────────────────────────────────┐
    │                                         │
-   │  AGENT (sweep mode)                     │
+   │  AGENT (advance)                        │
    │  ┌──────────────────────┐               │
    │  │ lattice next --claim │               │
    │  │ → work on task       │               │
@@ -258,7 +258,7 @@ The three features form a coordination loop:
                                         ↓
                               Agent picks up
                               unblocked task
-                              on next sweep
+                              on next advance
 ```
 
 The human's job is to:

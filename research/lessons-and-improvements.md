@@ -135,11 +135,11 @@ Lattice tasks are one-shot by design — and that should stay. Recurring tasks a
 - `lattice create --template doc-garden --actor agent:gardener` creates a new task from a template with pre-filled fields
 - Templates live in `.lattice/templates/` (YAML or JSON)
 - A cron job or CI workflow calls `lattice create` periodically
-- `lattice sweep` processes the created tasks
+- `lattice advance` processes the created tasks
 
 This preserves one-shot tasks while enabling recurring patterns through composition. Each run is its own task with its own events, making the history queryable: "show me all doc-gardening runs this month."
 
-**Alternative:** Even simpler — just document the pattern. A bash script that runs `lattice create "Doc-gardening sweep $(date)" --actor agent:gardener` on a cron is 90% of what's needed. Don't build what can be composed.
+**Alternative:** Even simpler — just document the pattern. A bash script that runs `lattice create "Doc-gardening pass $(date)" --actor agent:gardener` on a cron is 90% of what's needed. Don't build what can be composed.
 
 ---
 
@@ -223,7 +223,7 @@ Each task tracks one step of the pipeline. The `triggered_by` provenance field r
 
 ```bash
 # Create a gardening task
-lattice create "Doc-gardening sweep 2026-02-16" \
+lattice create "Doc-gardening pass 2026-02-16" \
   --actor agent:doc-gardener \
   --type chore
 
@@ -239,7 +239,7 @@ lattice attach LAT-70 pr-links.json --type evidence \
 lattice status LAT-70 done --actor agent:doc-gardener
 ```
 
-Over time, the history of gardening sweeps is queryable. Coverage improves visibly. This is a great "show, don't tell" demo for Lattice's value.
+Over time, the history of gardening passes is queryable. Coverage improves visibly. This is a great "show, don't tell" demo for Lattice's value.
 
 ---
 

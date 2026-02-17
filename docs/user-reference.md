@@ -114,18 +114,18 @@ Plans and notes are non-authoritative supplementary files — edited directly by
 
 ## Patterns
 
-### The sweep loop
+### The advance
 
-The pattern that turns a prioritized backlog into completed work:
+The pattern that turns a prioritized backlog into completed work — one task at a time:
 
 1. **`lattice next --claim`** — atomically grab the top task and move it to `in_progress`
 2. **Work** — implement, test, iterate
 3. **Transition** — move to `review` (done), `needs_human` (stuck on a decision), or `blocked` (external dependency)
 4. **Comment** — record what was done, what was chosen, what's left
 5. **Commit** — save the work
-6. **Repeat** — claim the next task
+6. **Report** — tell the user what happened
 
-In Claude Code, `/lattice-sweep` runs this loop automatically (up to 10 tasks per sweep as a safety cap).
+In Claude Code, `/lattice-advance` runs one advance. For multiple, just invoke it again or say "do N advances."
 
 ### Parallel agent builds
 

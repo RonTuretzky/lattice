@@ -69,9 +69,9 @@ you are the conductor. the orchestra plays.
 
 ---
 
-## the sweep. how agents work your backlog.
+## the advance. how agents move your project forward.
 
-the sweep is the pattern that makes Lattice click. here's what it looks like. from your side.
+the advance is the pattern that makes Lattice click. here's what it looks like. from your side.
 
 ### 1. you fill the backlog
 
@@ -81,14 +81,15 @@ this is. your job. the part only you can do.
 
 ### 2. agents claim and execute
 
-tell your agent to sweep. in Claude Code: `/lattice-sweep`. or just "sweep the backlog." the agent:
+tell your agent to advance. in Claude Code: `/lattice-advance`. or just "advance the project." the agent:
 
 - claims the highest-priority available task
 - works it. implements. tests. iterates.
 - leaves a comment explaining what it did and why
 - moves the task to `review`
-- claims the next one
-- repeats. until the backlog is empty. or it hits something it can't resolve alone.
+- reports what happened
+
+one advance. one task. one unit of forward progress. want more? say "do 3 advances" or "keep advancing." the agent moves the project forward at the pace you set.
 
 ### 3. you come back to a sorted inbox
 
@@ -98,7 +99,7 @@ open the dashboard. the board tells the story:
 - **Needs Human column** — decisions only you can make. each with a comment explaining what the agent needs.
 - **Blocked column** — tasks waiting on something external.
 
-you review. you make the calls. you unblock what's stuck. then sweep again.
+you review. you make the calls. you unblock what's stuck. then advance again.
 
 the agents produce throughput. you produce judgment. that's the division of labor. respect. both sides.
 
@@ -238,7 +239,7 @@ here is what a day with Lattice looks like. if you let it breathe.
 
 **midday.** check activity feed. see what swept. read agent comments. approve or redirect. maybe create a few new tasks from what you learned this morning. priorities shift. let them.
 
-**evening.** final scan. anything in review that you can close? any patterns emerging? any tasks that need splitting or rethinking? update priorities for tomorrow's sweep.
+**evening.** final scan. anything in review that you can close? any patterns emerging? any tasks that need splitting or rethinking? update priorities for tomorrow's advances.
 
 and then. let go. the agents will be here when you return. the event log will hold everything they did. nothing is lost.
 

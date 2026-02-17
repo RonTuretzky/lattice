@@ -533,7 +533,7 @@ Additional review findings that shaped this decision:
 - Algorithm: (1) Resume-first — if `--actor` specified, return in_progress/in_planning tasks assigned to that actor. (2) Pick from ready pool — backlog/planned, unassigned or assigned to requesting actor. (3) Sort by priority → urgency → ULID (oldest first).
 - `--claim` atomically assigns the task to the actor and moves it to `in_progress` (two events under one lock). Requires `--actor`.
 - Pure logic lives in `core/next.py` (no I/O). CLI wiring in `cli/query_cmds.py`. Weather `_find_up_next` delegates to the same sort logic.
-- Consequence: Enables the sweep pattern — an autonomous loop that claims, works, transitions, and repeats. The `/lattice-sweep` skill builds on this primitive.
+- Consequence: Enables the advance pattern — claim a task, work it, transition it, report. The `/lattice-advance` skill builds on this primitive.
 
 ---
 
@@ -555,8 +555,8 @@ Additional review findings that shaped this decision:
 
 - Decision: The "Lattice Agent" — a persistent, board-level orchestrator that triages, assigns, and makes strategic decisions across the whole board — is explicitly **not** a Lattice feature. It is an external usage pattern. Lattice's automation ceiling is **Workers**.
 - Context: The Workers design doc (LAT-93) described three tiers: Hooks (lightweight reactions), Workers (task-scoped heavyweight automation), and a "Lattice Agent" (board-scoped orchestrator). The Agent row was aspirational — describing what an intelligent consumer of the Lattice CLI looks like, not a feature to build into Lattice itself.
-- Rationale: Lattice is coordination infrastructure, not the coordinator. The board-level intelligence that decides what to work on, who to assign, and when to escalate is fundamentally an LLM-powered judgment call — it belongs in the orchestration layer (a Claude Code session, a sweep skill, a custom script) that drives the CLI. Different teams want radically different orchestration logic; baking one into Lattice would either be too opinionated or too generic. Keeping the boundary clean means Lattice stays a shippable, portable primitive.
-- Consequence: No `lattice agent` command. Workers (`lattice worker run/list/ps`) are the highest-level automation Lattice owns. The dispatcher (`lattice worker watch`, Phase 3 of Workers) is mechanical rule-matching, not intelligent orchestration. Board-level intelligence lives at the Stage 11 Agentics / consumer layer — e.g., `/lattice-sweep`, custom orchestrator scripts, or future products built on top of Lattice.
+- Rationale: Lattice is coordination infrastructure, not the coordinator. The board-level intelligence that decides what to work on, who to assign, and when to escalate is fundamentally an LLM-powered judgment call — it belongs in the orchestration layer (a Claude Code session, an advance skill, a custom script) that drives the CLI. Different teams want radically different orchestration logic; baking one into Lattice would either be too opinionated or too generic. Keeping the boundary clean means Lattice stays a shippable, portable primitive.
+- Consequence: No `lattice agent` command. Workers (`lattice worker run/list/ps`) are the highest-level automation Lattice owns. The dispatcher (`lattice worker watch`, Phase 3 of Workers) is mechanical rule-matching, not intelligent orchestration. Board-level intelligence lives at the Stage 11 Agentics / consumer layer — e.g., `/lattice-advance`, custom orchestrator scripts, or future products built on top of Lattice.
 
 ## 2026-02-17: Epics as derived-status bottom-lane containers
 
@@ -579,7 +579,7 @@ Additional review findings that shaped this decision:
 
 ## 2026-02-17: Workers and trigger automation removed from Lattice (LAT-108)
 
-**Decision:** Remove all worker/trigger automation from Lattice. Lattice is data and coordination primitives, not intelligence. External agents (sweep, OpenClaw, Claude Code) decide what to do with Lattice data.
+**Decision:** Remove all worker/trigger automation from Lattice. Lattice is data and coordination primitives, not intelligence. External agents (`/lattice-advance`, OpenClaw, Claude Code) decide what to do with Lattice data.
 
 **Context:** The Workers design (LAT-93) added `lattice worker run/list/ps/complete/fail`, process event types (`process_started`, `process_completed`, `process_failed`), `active_processes` snapshot tracking, dashboard trigger modal, and workers badge/panel. In practice, the intelligence that decides *when* and *how* to act on status changes belongs in the orchestration layer — not baked into Lattice's event pipeline. Easier to add fresh than maintain dead code.
 

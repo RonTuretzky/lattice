@@ -88,7 +88,7 @@ Carson's Code Factory has the same gap from the CI side — he bolted together f
 
 | Their Pattern | Lattice Equivalent | Gap |
 |---|---|---|
-| Full end-to-end agent loop (reproduce → fix → validate → PR → merge) | Lattice `sweep` command processes backlog tasks autonomously | **Aligned.** `lattice sweep` is Lattice's version of this — agents pick up tasks, work them, move them through status. |
+| Full end-to-end agent loop (reproduce → fix → validate → PR → merge) | Lattice `advance` pattern — agents claim and work tasks autonomously | **Aligned.** `/lattice-advance` is Lattice's version of this — agents pick up tasks, work them, move them through status. |
 | "Ralph Wiggum Loop" (iterate until reviewers satisfied) | Global CLAUDE.md defines `ralph` as autonomous iteration loop | **Identical term and concept.** Our `ralph` command and their reference are the same pattern — iterate autonomously until complete. |
 | Escalate to human only when judgment required | Lattice `needs_human` status | **Direct mapping.** This is exactly what `needs_human` was designed for. |
 
