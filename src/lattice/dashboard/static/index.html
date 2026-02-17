@@ -493,6 +493,22 @@ a:hover{text-decoration:underline}
 /* Type badges */
 .type-badge{background:var(--surface-raised);color:var(--text-secondary)}
 
+/* Epic bottom lane */
+.board-epic-lane{border-top:2px solid var(--border);padding-top:12px;margin-top:12px}
+.board-epic-header{font-weight:600;font-size:.875rem;margin-bottom:8px;color:var(--text-secondary)}
+.board-epic-cards{display:flex;gap:8px;flex-wrap:wrap}
+.epic-card{background:var(--surface-card);border:2px solid var(--border-subtle);border-radius:var(--radius-sm);padding:8px 12px;font-size:.85rem;cursor:pointer;transition:border-color .15s,box-shadow .15s;min-width:180px;max-width:320px}
+.epic-card:hover{box-shadow:var(--shadow-card-hover)}
+.epic-card.epic-selected{border-color:var(--accent-primary);box-shadow:0 0 8px var(--accent-glow)}
+.epic-card .epic-short-id{font-size:.7rem;font-weight:600;color:var(--accent-primary);margin-bottom:2px}
+.epic-card .epic-title{font-weight:600;margin-bottom:4px;word-break:break-word}
+.epic-card .epic-progress-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin-bottom:4px}
+.epic-card .epic-progress-fill{height:100%;background:var(--accent-primary);border-radius:2px;transition:width .3s}
+.epic-card .epic-meta{display:flex;gap:6px;align-items:center;font-size:.75rem;color:var(--text-muted)}
+.epic-card .epic-status-badge{font-size:.7rem;padding:1px 6px;border-radius:var(--radius-sm);font-weight:600}
+.epic-card .epic-health-indicator{font-size:.7rem}
+.card.epic-highlight{border-color:var(--accent-primary);box-shadow:0 0 8px var(--accent-glow)}
+
 /* Status colors for column headers (CSS fallback — JS inline styles override these) */
 .status-done .board-col-header{background:#198754;color:var(--text-on-lane)}
 .status-cancelled .board-col-header{background:#6c757d;color:var(--text-on-lane)}
@@ -3569,6 +3585,8 @@ var currentView = "board";
 var pendingSearch = null;
 var draggedTaskId = null;
 var draggedFromStatus = null;
+var boardGraphLinks = [];
+var selectedEpicId = null;
 
 // --- Cube (graph view) state ---
 var cubeGraph = null;
@@ -3651,9 +3669,10 @@ async function init() {
   updateTabs();
 
   try {
-    var results = await Promise.all([api("/api/config"), api("/api/tasks")]);
+    var results = await Promise.all([api("/api/config"), api("/api/tasks"), api("/api/graph").catch(function() { return { links: [] }; })]);
     config = results[0];
     tasks = results[1];
+    boardGraphLinks = (results[2] && results[2].links) || [];
     // Load voice preference
     var dc = (config && config.dashboard) || {};
     if (dc.voice && VOICES[dc.voice]) {
@@ -6881,9 +6900,10 @@ document.getElementById("help-btn").addEventListener("click", async function() {
 
 document.getElementById("refresh-btn").addEventListener("click", async function() {
   try {
-    var results = await Promise.all([api("/api/config"), api("/api/tasks")]);
+    var results = await Promise.all([api("/api/config"), api("/api/tasks"), api("/api/graph").catch(function() { return { links: [] }; })]);
     config = results[0];
     tasks = results[1];
+    boardGraphLinks = (results[2] && results[2].links) || [];
     archivedTasks = null;
     var dc = (config && config.dashboard) || {};
     if (dc.voice && VOICES[dc.voice]) currentVoice = dc.voice;
@@ -6940,8 +6960,12 @@ function startAutoRefresh() {
     }
 
     try {
-      var newTasks = await api("/api/tasks");
-      var newConfig = await api("/api/config");
+      var fetchPromises = [api("/api/tasks"), api("/api/config")];
+      if (currentView === "board") fetchPromises.push(api("/api/graph").catch(function() { return { links: [] }; }));
+      var fetchResults = await Promise.all(fetchPromises);
+      var newTasks = fetchResults[0];
+      var newConfig = fetchResults[1];
+      if (fetchResults[2]) boardGraphLinks = (fetchResults[2] && fetchResults[2].links) || [];
       // Only re-render if data actually changed
       var tasksChanged = JSON.stringify(newTasks) !== JSON.stringify(tasks);
       var configChanged = JSON.stringify(newConfig) !== JSON.stringify(config);

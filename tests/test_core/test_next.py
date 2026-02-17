@@ -11,6 +11,7 @@ def _snap(
     priority: str = "medium",
     urgency: str = "normal",
     assigned_to: str | None = None,
+    type: str = "task",
     **extra: object,
 ) -> dict:
     """Build a minimal snapshot dict for testing."""
@@ -20,6 +21,7 @@ def _snap(
         "priority": priority,
         "urgency": urgency,
         "assigned_to": assigned_to,
+        "type": type,
         "title": f"Task {task_id}",
         **extra,
     }
@@ -310,6 +312,43 @@ class TestSelectAllReady:
         result = select_all_ready(snaps)
         assert len(result) == 1
         assert result[0]["id"] == "task_bl"
+
+    def test_epics_excluded(self) -> None:
+        """Epics should never appear in the ready list."""
+        snaps = [
+            _snap("task_epic", status="backlog", type="epic"),
+            _snap("task_normal", status="backlog"),
+        ]
+        result = select_all_ready(snaps)
+        assert len(result) == 1
+        assert result[0]["id"] == "task_normal"
+
+
+class TestSelectNextEpicExclusion:
+    """Epics are containers, not actionable work — always excluded from next."""
+
+    def test_epic_excluded_from_next(self) -> None:
+        snaps = [
+            _snap("task_epic", status="backlog", type="epic"),
+            _snap("task_normal", status="backlog", priority="low"),
+        ]
+        result = select_next(snaps)
+        assert result is not None
+        assert result["id"] == "task_normal"
+
+    def test_only_epics_returns_none(self) -> None:
+        snaps = [_snap("task_epic", status="backlog", type="epic")]
+        result = select_next(snaps)
+        assert result is None
+
+    def test_epic_excluded_from_resume(self) -> None:
+        snaps = [
+            _snap("task_epic", status="in_progress", type="epic", assigned_to="agent:claude"),
+            _snap("task_normal", status="backlog"),
+        ]
+        result = select_next(snaps, actor="agent:claude")
+        assert result is not None
+        assert result["id"] == "task_normal"
 
 
 class TestComputeClaimTransitions:

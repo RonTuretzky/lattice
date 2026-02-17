@@ -302,6 +302,116 @@ def get_artifact_roles(snapshot: dict) -> dict[str, str | None]:
     return result
 
 
+# ---------------------------------------------------------------------------
+# Epic derived status
+# ---------------------------------------------------------------------------
+
+# Precedence order for deriving epic status from children (highest urgency first)
+_EPIC_STATUS_PRECEDENCE = [
+    "needs_human",
+    "blocked",
+    "in_progress",
+    "review",
+    "planned",
+    "in_planning",
+    "backlog",
+]
+
+
+def compute_epic_derived_status(
+    epic_id: str,
+    all_snapshots: list[dict],
+    graph_links: list[dict],
+) -> dict:
+    """Compute derived status for an epic based on its subtasks.
+
+    Parameters
+    ----------
+    epic_id:
+        The task ID of the epic.
+    all_snapshots:
+        List of all task snapshot dicts (active tasks).
+    graph_links:
+        List of relationship link dicts with ``source``, ``target``, ``type`` keys.
+        A ``subtask_of`` link has source=child, target=parent.
+
+    Returns
+    -------
+    dict with keys:
+        - derived_status: str | None (highest-urgency child status, or None)
+        - progress: {done: int, total: int, cancelled: int}
+        - health: {blocked: int, needs_human: int}
+        - child_ids: list[str]
+    """
+    # Build snapshot lookup
+    snap_by_id: dict[str, dict] = {s["id"]: s for s in all_snapshots if "id" in s}
+
+    # Build parent -> children map from subtask_of links
+    # subtask_of: source is child, target is parent
+    parent_to_children: dict[str, list[str]] = {}
+    for link in graph_links:
+        if link.get("type") == "subtask_of":
+            parent = link["target"]
+            child = link["source"]
+            parent_to_children.setdefault(parent, []).append(child)
+
+    # Recursively collect all descendant task IDs
+    child_ids: list[str] = []
+    visited: set[str] = set()
+
+    def _collect(parent: str) -> None:
+        for cid in parent_to_children.get(parent, []):
+            if cid not in visited:
+                visited.add(cid)
+                child_ids.append(cid)
+                _collect(cid)
+
+    _collect(epic_id)
+
+    # Compute progress and health from children
+    done = 0
+    cancelled = 0
+    blocked_count = 0
+    needs_human_count = 0
+    active_statuses: list[str] = []
+
+    for cid in child_ids:
+        snap = snap_by_id.get(cid)
+        if snap is None:
+            continue
+        status = snap.get("status", "backlog")
+        if status == "done":
+            done += 1
+        elif status == "cancelled":
+            cancelled += 1
+        else:
+            active_statuses.append(status)
+            if status == "blocked":
+                blocked_count += 1
+            elif status == "needs_human":
+                needs_human_count += 1
+
+    total = len(child_ids) - cancelled
+
+    # Derive status by precedence
+    derived_status = None
+    if active_statuses:
+        for candidate in _EPIC_STATUS_PRECEDENCE:
+            if candidate in active_statuses:
+                derived_status = candidate
+                break
+    elif child_ids:
+        # All children are done or cancelled
+        derived_status = "done"
+
+    return {
+        "derived_status": derived_status,
+        "progress": {"done": done, "total": total, "cancelled": cancelled},
+        "health": {"blocked": blocked_count, "needs_human": needs_human_count},
+        "child_ids": child_ids,
+    }
+
+
 def _apply_mutation(snap: dict, etype: str, event: dict) -> None:
     """Mutate *snap* in-place based on event type.
 

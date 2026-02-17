@@ -629,6 +629,17 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 self._send_json(404, _err("NOT_FOUND", f"Task {task_id} not found"))
                 return
 
+            # Epics cannot have their status set directly
+            if snapshot.get("type") == "epic":
+                self._send_json(
+                    400,
+                    _err(
+                        "EPIC_STATUS_REJECTED",
+                        "Cannot set status on epics. Epic status is derived from subtask completion.",
+                    ),
+                )
+                return
+
             current_status = snapshot["status"]
 
             if current_status == new_status:
