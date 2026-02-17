@@ -138,7 +138,7 @@ For multi-agent setups, use unique IDs per agent instance:
 # Main agent
 --actor agent:openclaw
 
-# Worker agents
+# Sub-agents
 --actor agent:openclaw-worker-1
 --actor agent:openclaw-worker-2
 ```

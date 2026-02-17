@@ -367,20 +367,11 @@ Shell hooks that fire after event writes:
 ```json
 {
   "hooks": {
-    "on_status_change": {
-      "review": "echo 'Task {task_id} ready for review'"
+    "transitions": {
+      "* -> review": "echo 'Task {task_id} ready for review'"
     }
   }
 }
-```
-
-### Workers
-
-Autonomous agents that subscribe to events. A task moves to `review`, a hook fires, a worker runs a multi-model code review and attaches the synthesis:
-
-```bash
-lattice worker run code-review
-lattice worker list
 ```
 
 ### Custom events

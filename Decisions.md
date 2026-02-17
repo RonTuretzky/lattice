@@ -553,3 +553,19 @@ Additional review findings that shaped this decision:
 - Epics reflect — they don't move. The Board columns above answer "what do I do next"; the bottom lane answers "how are my initiatives going"
 
 **Consequence:** Requires dashboard changes (Board bottom lane rendering, Cube epic node styling, Web epic detail), CLI changes (`lattice show` for epics renders differently), and core changes (derived status computation). Tracked as LAT-103.
+
+---
+
+## 2026-02-17: Workers and trigger automation removed from Lattice (LAT-108)
+
+**Decision:** Remove all worker/trigger automation from Lattice. Lattice is data and coordination primitives, not intelligence. External agents (sweep, OpenClaw, Claude Code) decide what to do with Lattice data.
+
+**Context:** The Workers design (LAT-93) added `lattice worker run/list/ps/complete/fail`, process event types (`process_started`, `process_completed`, `process_failed`), `active_processes` snapshot tracking, dashboard trigger modal, and workers badge/panel. In practice, the intelligence that decides *when* and *how* to act on status changes belongs in the orchestration layer — not baked into Lattice's event pipeline. Easier to add fresh than maintain dead code.
+
+**Supersedes:** The 2026-02-17 entry "Lattice Agent is an external orchestrator, not a Lattice feature" stated Workers were the automation ceiling. That ceiling has been removed entirely. Hooks (general-purpose shell commands on status transitions) remain as the only built-in automation.
+
+**What was removed:** `worker_cmds.py` (CLI), worker JSON definitions, process event types, `active_processes` snapshot field, dashboard trigger modal, workers badge/panel, all worker/trigger API endpoints, worker-specific tests and design docs.
+
+**What was kept:** `storage/hooks.py` (general-purpose hook execution), `hooks.transitions` config structure, all other event types.
+
+**Consequence:** No `lattice worker` command. No process events. No trigger UI. Hooks are the only built-in automation primitive. All higher-level automation lives in external agents.
