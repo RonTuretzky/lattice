@@ -287,18 +287,22 @@ td {
   max-width: 580px;
 }
 
-.hero .hero-ctas {
+.hero-ctas {
   display: flex;
   flex-wrap: wrap;
   gap: 0.8rem;
-  margin-top: 0.5rem;
+  margin: 1.5rem 0 2.5rem;
 }
 
-.hero .hero-btn .btn-icon {
+.hero-ctas .hero-btn .btn-icon {
   margin-right: 0.3em;
 }
 
 .hero .hero-btn {
+  margin-bottom: 0.6rem;
+}
+
+.hero-btn {
   display: inline-block;
   font-family: var(--font-mono);
   font-size: 0.82rem;
@@ -312,7 +316,7 @@ td {
   transition: background 0.2s, transform 0.15s;
 }
 
-.hero .hero-btn:hover {
+.hero-btn:hover {
   background: var(--text-bright);
   transform: translateY(-1px);
   border-bottom: none;

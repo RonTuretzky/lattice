@@ -2,28 +2,30 @@
 import Base from '../layouts/Base.astro';
 ---
 
-<Base title="Lattice — Linear for e/acc" active="home">
+<Base title="Lattice — Linear for e/acc hyperengineers" active="home">
   <div class="hero">
     <h1>Lattice</h1>
-    <div class="tagline">Linear for e/acc</div>
+    <div class="tagline">Linear for e/acc hyperengineers</div>
     <p class="description">
       file-based<span class="period">.</span> event-sourced<span class="period">.</span> agent-native<span class="period">.</span>
       <br /><br />
       task tracking for a world where your teammates think in tokens and act in tool calls<span class="period">.</span>
     </p>
 
-    <div class="hero-ctas">
-      <a href="/guide" class="hero-btn">humans read the guide</a>
-      <a href="/getting-started" class="hero-btn">agents install the skill</a>
-      <a href="/getting-started#claude-code" class="hero-btn"><span class="btn-icon">✦</span> install in Claude Code</a>
-      <a href="/getting-started#openclaude" class="hero-btn"><span class="btn-icon">🦞</span> install in OpenClaude</a>
-    </div>
+    <a href="/guide" class="hero-btn">humans read the guide</a>
+    <br />
+    <a href="/getting-started" class="hero-btn">agents install the skill</a>
   </div>
 
   <div class="install-block">
     <span class="prompt">$</span> pip install lattice-tracker<br />
     <span class="prompt">$</span> lattice init<br />
     <span class="prompt">$</span> lattice dashboard
+  </div>
+
+  <div class="hero-ctas">
+    <a href="/getting-started#claude-code" class="hero-btn"><span class="btn-icon">✦</span> install in Claude Code</a>
+    <a href="/getting-started#openclaude" class="hero-btn"><span class="btn-icon">🦞</span> install in OpenClaude</a>
   </div>
 
   <hr />
