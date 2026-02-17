@@ -2698,6 +2698,16 @@ select.form-control{cursor:pointer}
 .cube-fallback-retry{padding:8px 24px;background:var(--accent-primary);color:#fff;border:none;border-radius:var(--radius-md);cursor:pointer}
 .cube-fallback-retry:hover{background:var(--accent-hover)}
 .cube-mobile-notice{background:var(--color-warning-bg);color:var(--text-primary);padding:8px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+/* Web (Indra's Web view) */
+.web-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 120px);color:var(--text-muted);text-align:center;padding:40px}
+.web-fallback-icon{font-size:48px;margin-bottom:16px}
+.web-fallback-title{font-size:18px;font-weight:600;margin-bottom:8px;color:var(--text-primary)}
+.web-fallback-msg{max-width:400px;line-height:1.5;margin-bottom:16px}
+.web-fallback-retry{padding:8px 24px;background:var(--accent-primary);color:#fff;border:none;border-radius:var(--radius-md);cursor:pointer}
+.web-fallback-retry:hover{background:var(--accent-hover)}
+.web-mobile-notice{background:var(--color-warning-bg);color:var(--text-primary);padding:8px 12px;font-size:12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border)}
+.web-orphan-badge{position:absolute;top:12px;right:12px;z-index:10;background:rgba(255,180,0,0.15);border:1px solid rgba(255,180,0,0.5);border-radius:var(--radius-md);padding:6px 12px;font-size:.75rem;color:var(--text-primary);cursor:pointer}
+.web-orphan-badge:hover{background:rgba(255,180,0,0.25)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 </style>
 </head>
@@ -2710,6 +2720,7 @@ select.form-control{cursor:pointer}
   <span class="nav-tab" data-view="activity">Activity</span>
   <span class="nav-tab" data-view="stats">Stats</span>
   <span class="nav-tab" data-view="cube" onclick="location.hash='#/cube'">Cube</span>
+  <span class="nav-tab" data-view="web" onclick="location.hash='#/web'">Web</span>
   <div class="nav-right">
     <span id="stats-badges"></span>
     <button type="button" class="btn btn-new-task" id="new-task-btn" title="Create new task">+ New Task</button>
@@ -3421,6 +3432,22 @@ var cubeData = null;
 var cubeRenderGeneration = 0;
 var cubeCurrentRevision = null;
 
+// --- Web (Indra's Web view) state ---
+var webGraph = null;
+var webResizeHandler = null;
+var webData = null;
+var webRenderGeneration = 0;
+var webCurrentRevision = null;
+
+// Web constants
+var WEB_TIER_RADIUS = { epic: 20, ticket: 10, task: 4 };
+var WEB_ACTIVITY_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+var WEB_ACTIVITY_COLORS = { git: "#ffc107", lattice: "#fd7e14", both: "#f0a500" };
+var WEB_SPOKE_COLOR = "rgba(100,130,180,0.35)";
+var WEB_LINK_DISTANCE = { "epic-ticket": 120, "ticket-task": 60 };
+var WEB_CHARGE = { epic: -400, ticket: -100, task: -30 };
+var WEB_COLLISION_RADIUS = { epic: 30, ticket: 15, task: 8 };
+
 // --- API ---
 async function api(path, opts) {
   var r = await fetch(path, opts);
@@ -3757,6 +3784,534 @@ function buildCubeLegendHTML() {
   return html;
 }
 
+// --- Web (Indra's Web view) ---
+
+function buildWebHierarchy(graphData, gitData) {
+  var nodes = (graphData && graphData.nodes) || [];
+  var links = (graphData && graphData.links) || [];
+
+  // Index nodes by ID and short_id
+  var nodeById = {};
+  var nodeByShortId = {};
+  nodes.forEach(function(n) {
+    nodeById[n.id] = n;
+    if (n.short_id) nodeByShortId[n.short_id.toUpperCase()] = n;
+  });
+
+  // Build parent/child maps from subtask_of links
+  var parentMap = {};  // child_id -> parent_id
+  var childrenMap = {}; // parent_id -> [child_ids]
+  links.forEach(function(link) {
+    if (link.type === "subtask_of") {
+      var childId = (typeof link.source === "object") ? link.source.id : link.source;
+      var parentId = (typeof link.target === "object") ? link.target.id : link.target;
+      parentMap[childId] = parentId;
+      if (!childrenMap[parentId]) childrenMap[parentId] = [];
+      childrenMap[parentId].push(childId);
+    }
+  });
+
+  // Assign tier per node
+  var tierMap = {};
+  nodes.forEach(function(n) {
+    var nodeType = (n.type || "").toLowerCase();
+    if (nodeType === "epic") {
+      tierMap[n.id] = "epic";
+    } else if (nodeType === "ticket") {
+      tierMap[n.id] = "ticket";
+    } else if (nodeType === "task") {
+      tierMap[n.id] = "task";
+    } else {
+      // Topology fallback: nodes with children but no parent → epic
+      // Nodes with children AND a parent → ticket
+      // Leaf nodes → task
+      var hasChildren = childrenMap[n.id] && childrenMap[n.id].length > 0;
+      var hasParent = !!parentMap[n.id];
+      if (hasChildren && !hasParent) tierMap[n.id] = "epic";
+      else if (hasChildren && hasParent) tierMap[n.id] = "ticket";
+      else tierMap[n.id] = "task";
+    }
+  });
+
+  // Build branch recency map from git data
+  var branchRecency = {}; // branch_name -> last_commit_timestamp_ms
+  var gitBranches = (gitData && gitData.available && gitData.branches) || [];
+  gitBranches.forEach(function(b) {
+    if (b.last_commit_date) {
+      branchRecency[b.name] = new Date(b.last_commit_date).getTime();
+    }
+  });
+
+  // Map branches to tasks via branch_links + implicit convention detection
+  var taskBranches = {}; // task_id -> [branch_names]
+  var linkedBranches = new Set();
+
+  // Explicit links from branch_links field
+  nodes.forEach(function(n) {
+    if (n.branch_links && n.branch_links.length > 0) {
+      n.branch_links.forEach(function(bl) {
+        var bname = bl.branch || bl;
+        if (!taskBranches[n.id]) taskBranches[n.id] = [];
+        taskBranches[n.id].push(bname);
+        linkedBranches.add(bname);
+      });
+    }
+  });
+
+  // Implicit convention: branch name contains short ID (e.g., feat/LAT-47-oauth)
+  gitBranches.forEach(function(b) {
+    if (linkedBranches.has(b.name)) return;
+    var branchUpper = b.name.toUpperCase();
+    for (var sid in nodeByShortId) {
+      if (nodeByShortId.hasOwnProperty(sid) && branchUpper.indexOf(sid) !== -1) {
+        var matchedNode = nodeByShortId[sid];
+        if (!taskBranches[matchedNode.id]) taskBranches[matchedNode.id] = [];
+        taskBranches[matchedNode.id].push(b.name);
+        linkedBranches.add(b.name);
+        break;
+      }
+    }
+  });
+
+  // Detect orphan branches (no linked task, not main/master/HEAD)
+  var skipBranches = new Set(["main", "master", "HEAD", "develop", "dev"]);
+  var orphanBranches = [];
+  gitBranches.forEach(function(b) {
+    if (!linkedBranches.has(b.name) && !skipBranches.has(b.name)) {
+      orphanBranches.push(b);
+    }
+  });
+
+  // Compute activity state per node
+  var now = Date.now();
+  var activity = {};  // task_id -> { git: bool, lattice: bool }
+  nodes.forEach(function(n) {
+    var gitActive = false;
+    var latticeActive = (n.status === "in_progress");
+    var branches = taskBranches[n.id] || [];
+    branches.forEach(function(bname) {
+      var ts = branchRecency[bname];
+      if (ts && (now - ts) < WEB_ACTIVITY_WINDOW_MS) {
+        gitActive = true;
+      }
+    });
+    if (gitActive || latticeActive) {
+      activity[n.id] = { git: gitActive, lattice: latticeActive };
+    }
+  });
+
+  // Build output nodes with tier info
+  var outNodes = nodes.map(function(n) {
+    return {
+      id: n.id,
+      short_id: n.short_id,
+      title: n.title,
+      status: n.status,
+      priority: n.priority,
+      type: n.type,
+      assigned_to: n.assigned_to,
+      tier: tierMap[n.id],
+      branches: taskBranches[n.id] || [],
+      activityState: activity[n.id] || null
+    };
+  });
+
+  // Build links (subtask_of only for hierarchy)
+  var outLinks = [];
+  links.forEach(function(link) {
+    if (link.type === "subtask_of") {
+      outLinks.push({
+        source: (typeof link.source === "object") ? link.source.id : link.source,
+        target: (typeof link.target === "object") ? link.target.id : link.target,
+        type: link.type
+      });
+    }
+  });
+
+  return {
+    nodes: outNodes,
+    links: outLinks,
+    orphanBranches: orphanBranches,
+    activity: activity
+  };
+}
+
+function drawWebNode(node, ctx, globalScale) {
+  var tier = node.tier || "task";
+  var radius = WEB_TIER_RADIUS[tier] || 4;
+  var color = getLaneColor(node.status);
+  var alpha = 1.0;
+
+  // Dimming for done/blocked
+  if (node.status === "done" || node.status === "cancelled") alpha = 0.3;
+  else if (node.status === "blocked") alpha = 0.4;
+
+  ctx.globalAlpha = alpha;
+
+  // Activity glow ring
+  var act = node.activityState;
+  if (act) {
+    var glowColor;
+    if (act.git && act.lattice) glowColor = WEB_ACTIVITY_COLORS.both;
+    else if (act.git) glowColor = WEB_ACTIVITY_COLORS.git;
+    else glowColor = WEB_ACTIVITY_COLORS.lattice;
+
+    ctx.save();
+    ctx.shadowColor = glowColor;
+    ctx.shadowBlur = 12;
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius + 4, 0, 2 * Math.PI, false);
+    ctx.strokeStyle = glowColor;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Main circle
+  ctx.beginPath();
+  ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.15)";
+  ctx.lineWidth = 0.5;
+  ctx.stroke();
+
+  // Inner white ring for epics (hub indicator)
+  if (tier === "epic") {
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius * 0.6, 0, 2 * Math.PI, false);
+    ctx.strokeStyle = "rgba(255,255,255,0.7)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  // Label
+  var textColor = getComputedStyle(document.documentElement)
+    .getPropertyValue("--text-primary").trim() || "#212529";
+  var fontSize;
+  if (tier === "epic") {
+    fontSize = 12 / globalScale;
+    if (fontSize > 14) fontSize = 14;
+    if (fontSize < 3) { ctx.globalAlpha = 1.0; return; }
+    var label = node.short_id || node.title || node.id.substring(0, 8);
+    ctx.font = "bold " + fontSize + "px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillStyle = textColor;
+    ctx.fillText(label, node.x, node.y + radius + 3);
+  } else if (tier === "ticket") {
+    fontSize = 10 / globalScale;
+    if (fontSize > 11) fontSize = 11;
+    if (fontSize < 2.5) { ctx.globalAlpha = 1.0; return; }
+    var tlabel = node.short_id || node.id.substring(0, 8);
+    ctx.font = fontSize + "px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    ctx.fillStyle = textColor;
+    ctx.fillText(tlabel, node.x, node.y + radius + 2);
+  } else {
+    // Task: only label at high zoom
+    fontSize = 8 / globalScale;
+    if (fontSize > 9) fontSize = 9;
+    if (fontSize >= 4) {
+      var dlabel = node.short_id || node.id.substring(0, 6);
+      ctx.font = fontSize + "px sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      ctx.fillStyle = textColor;
+      ctx.fillText(dlabel, node.x, node.y + radius + 1);
+    }
+  }
+
+  ctx.globalAlpha = 1.0;
+}
+
+function buildWebTooltipHTML(node) {
+  var tierBadge = { epic: "Epic", ticket: "Ticket", task: "Task" };
+  var html = '<div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:12px;max-width:300px;box-shadow:0 4px 12px rgba(0,0,0,0.15);color:var(--text-primary);line-height:1.4">';
+  html += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:4px">';
+  html += '<span style="background:var(--surface-raised);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-size:10px;font-weight:600;text-transform:uppercase">' + esc(tierBadge[node.tier] || "Task") + '</span>';
+  html += '<span style="font-weight:700;font-family:var(--font-mono)">' + esc(node.short_id || node.id.substring(0, 12)) + '</span>';
+  html += '</div>';
+  html += '<div style="font-weight:500;margin-bottom:6px">' + esc(node.title || '') + '</div>';
+  if (node.status) {
+    html += '<div style="display:flex;gap:6px;align-items:center;margin-bottom:2px"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + esc(getLaneColor(node.status)) + '"></span><span style="color:var(--text-muted);font-size:11px;min-width:50px">Status</span><span>' + esc(node.status) + '</span></div>';
+  }
+  if (node.assigned_to) {
+    html += '<div style="display:flex;gap:6px;margin-bottom:2px"><span style="color:var(--text-muted);font-size:11px;min-width:50px">Assignee</span><span>' + esc(node.assigned_to) + '</span></div>';
+  }
+  // Activity indicators
+  var act = node.activityState;
+  if (act) {
+    var indicators = [];
+    if (act.git) indicators.push('<span style="color:' + WEB_ACTIVITY_COLORS.git + '">\u26a1 Git active</span>');
+    if (act.lattice) indicators.push('<span style="color:' + WEB_ACTIVITY_COLORS.lattice + '">\u25cf In progress</span>');
+    html += '<div style="margin-top:4px;display:flex;gap:8px">' + indicators.join("") + '</div>';
+  }
+  // Branch names
+  if (node.branches && node.branches.length > 0) {
+    html += '<div style="margin-top:4px;color:var(--text-muted);font-size:10px">';
+    node.branches.forEach(function(b) { html += '<div>\u2514 ' + esc(b) + '</div>'; });
+    html += '</div>';
+  }
+  html += '<div style="color:var(--text-muted);font-size:10px;margin-top:6px;border-top:1px solid var(--border);padding-top:4px">Click to open task</div>';
+  html += '</div>';
+  return html;
+}
+
+function buildWebLegendHTML(hasOrphans) {
+  var html = '<div style="'
+    + 'position:absolute;bottom:16px;left:16px;z-index:10;'
+    + 'background:var(--surface);border:1px solid var(--border);'
+    + 'border-radius:var(--radius-md);padding:10px 14px;'
+    + 'font-size:.75rem;color:var(--text-secondary);'
+    + 'max-width:220px;box-shadow:var(--shadow-card-hover);opacity:0.92;'
+    + '">';
+  html += '<div style="font-weight:600;margin-bottom:6px;color:var(--text-primary)">Node Tiers</div>';
+  var tiers = [
+    { label: "Epic (hub)", r: 10, tier: "epic" },
+    { label: "Ticket (spoke)", r: 6, tier: "ticket" },
+    { label: "Task (dot)", r: 3, tier: "task" }
+  ];
+  tiers.forEach(function(t) {
+    html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+      + '<span style="display:inline-block;width:' + (t.r * 2) + 'px;height:' + (t.r * 2) + 'px;border-radius:50%;background:var(--text-muted);flex-shrink:0"></span>'
+      + '<span>' + t.label + '</span></div>';
+  });
+  html += '<div style="border-top:1px solid var(--border-subtle);margin:8px 0"></div>';
+  html += '<div style="font-weight:600;margin-bottom:6px;color:var(--text-primary)">Activity</div>';
+  var activities = [
+    { label: "Git active (<10m)", color: WEB_ACTIVITY_COLORS.git },
+    { label: "In progress", color: WEB_ACTIVITY_COLORS.lattice },
+    { label: "Both", color: WEB_ACTIVITY_COLORS.both }
+  ];
+  activities.forEach(function(a) {
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">'
+      + '<span style="display:inline-block;width:12px;height:12px;border-radius:50%;border:2px solid ' + a.color + ';flex-shrink:0;box-shadow:0 0 4px ' + a.color + '"></span>'
+      + '<span>' + a.label + '</span></div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+async function renderWeb() {
+  var app = document.getElementById("app");
+  app.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  cleanupWeb();
+
+  webRenderGeneration++;
+  var myGeneration = webRenderGeneration;
+
+  // CDN fallback checks
+  if (typeof ForceGraph === "undefined") {
+    app.innerHTML = '<div class="web-empty">'
+      + '<div class="web-fallback-icon">\u26a0</div>'
+      + '<div class="web-fallback-title">Graph library unavailable</div>'
+      + '<div class="web-fallback-msg">The Web view requires the force-graph library. Check your network connection.</div>'
+      + '<button class="web-fallback-retry" onclick="location.reload()">Retry</button>'
+      + '</div>';
+    return;
+  }
+  if (typeof d3 === "undefined" || typeof d3.forceX !== "function") {
+    app.innerHTML = '<div class="web-empty">'
+      + '<div class="web-fallback-icon">\u26a0</div>'
+      + '<div class="web-fallback-title">Layout library unavailable</div>'
+      + '<div class="web-fallback-msg">The Web view requires d3-force. Check your network connection.</div>'
+      + '<button class="web-fallback-retry" onclick="location.reload()">Retry</button>'
+      + '</div>';
+    return;
+  }
+
+  // Fetch both endpoints in parallel
+  var graphData, gitData;
+  try {
+    var results = await Promise.all([
+      api("/api/graph"),
+      api("/api/git").catch(function() { return { available: false }; })
+    ]);
+    graphData = results[0];
+    gitData = results[1];
+  } catch (e) {
+    if (myGeneration !== webRenderGeneration) return;
+    app.innerHTML = '<div class="web-empty"><p>Failed to load data: ' + esc(e.message) + '</p></div>';
+    return;
+  }
+  if (myGeneration !== webRenderGeneration) return;
+
+  // Build hierarchy
+  var hierarchy = buildWebHierarchy(graphData, gitData);
+  var webNodes = hierarchy.nodes;
+  var webLinks = hierarchy.links;
+
+  webData = { graphRevision: graphData.revision, gitData: gitData, hierarchy: hierarchy };
+  webCurrentRevision = (graphData.revision || "") + ":" + (gitData.head_commit || "");
+
+  // Empty state
+  if (webNodes.length === 0) {
+    app.innerHTML = '<div class="web-empty">'
+      + '<p>No tasks to visualize.</p>'
+      + '<p style="color:var(--text-muted);font-size:.875rem;">Create some tasks to see the coordination web.</p>'
+      + '</div>';
+    return;
+  }
+
+  // Build container
+  app.innerHTML = '<div id="web-container" style="'
+    + 'position:relative;width:100%;height:calc(100vh - 60px);overflow:hidden;'
+    + 'background:var(--bg-base);">'
+    + '<span class="sr-only">' + esc(webNodes.length + ' nodes in Indra\'s Web visualization. Use Board or List for full accessibility.') + '</span>'
+    + '</div>';
+  var container = document.getElementById("web-container");
+  container.setAttribute("role", "img");
+  container.setAttribute("aria-label", "Indra's Web — coordination landscape");
+
+  // Mobile notice
+  if (window.innerWidth < 768) {
+    container.insertAdjacentHTML("afterbegin",
+      '<div class="web-mobile-notice">'
+      + '<span>Web works best on larger screens. Pinch to zoom, drag to pan.</span>'
+      + '<button onclick="this.parentNode.remove()" style="background:none;border:none;cursor:pointer;color:inherit;font-size:16px">\u2715</button>'
+      + '</div>');
+  }
+
+  // Legend
+  container.insertAdjacentHTML("beforeend", buildWebLegendHTML(hierarchy.orphanBranches.length > 0));
+
+  // Orphan badge
+  if (hierarchy.orphanBranches.length > 0) {
+    var orphanNames = hierarchy.orphanBranches.map(function(b) { return b.name; });
+    container.insertAdjacentHTML("beforeend",
+      '<div class="web-orphan-badge" title="' + esc(orphanNames.join(", ")) + '">'
+      + '\u26a0 ' + hierarchy.orphanBranches.length + ' orphan branch' + (hierarchy.orphanBranches.length > 1 ? 'es' : '')
+      + '</div>');
+  }
+
+  var w = container.offsetWidth;
+  var h = container.offsetHeight;
+
+  try {
+    webGraph = ForceGraph()(container)
+      .graphData({ nodes: webNodes, links: webLinks })
+      .width(w).height(h)
+      .nodeId("id")
+      .nodeLabel(function(node) { return buildWebTooltipHTML(node); })
+      .linkSource("source").linkTarget("target")
+      .linkColor(function() { return WEB_SPOKE_COLOR; })
+      .linkWidth(function(link) {
+        var src = (typeof link.source === "object") ? link.source : null;
+        var tgt = (typeof link.target === "object") ? link.target : null;
+        if (src && tgt) {
+          if (src.tier === "epic" || tgt.tier === "epic") return 2;
+        }
+        return 1;
+      })
+      .linkDirectionalArrowLength(0) // No arrows — hierarchy, not dependency
+      .onNodeClick(function(node) {
+        if (node && node.id) location.hash = "#/task/" + node.id;
+      })
+      .nodeCanvasObjectMode(function() { return "replace"; })
+      .nodeCanvasObject(drawWebNode);
+  } catch (err) {
+    app.innerHTML = '<div class="web-empty">'
+      + '<div class="web-fallback-icon">\u26a0</div>'
+      + '<div class="web-fallback-title">Graph rendering failed</div>'
+      + '<div class="web-fallback-msg">' + esc(err.message) + '</div>'
+      + '<button class="web-fallback-retry" onclick="location.hash=\'#/web\'">Retry</button>'
+      + '</div>';
+    return;
+  }
+
+  // Hierarchy-aware forces
+  webGraph
+    .d3Force("link", d3.forceLink(webLinks).id(function(d) { return d.id; })
+      .distance(function(link) {
+        var src = (typeof link.source === "object") ? link.source : null;
+        var tgt = (typeof link.target === "object") ? link.target : null;
+        if (src && (src.tier === "epic" || (tgt && tgt.tier === "epic"))) return WEB_LINK_DISTANCE["epic-ticket"];
+        return WEB_LINK_DISTANCE["ticket-task"];
+      })
+      .strength(function(link) {
+        var src = (typeof link.source === "object") ? link.source : null;
+        if (src && src.tier === "epic") return 0.7;
+        return 0.5;
+      })
+    )
+    .d3Force("charge", d3.forceManyBody().strength(function(d) {
+      return WEB_CHARGE[d.tier] || -30;
+    }))
+    .d3Force("x", d3.forceX(0).strength(0.03))
+    .d3Force("y", d3.forceY(0).strength(0.03))
+    .d3Force("collision", d3.forceCollide(function(d) {
+      return WEB_COLLISION_RADIUS[d.tier] || 8;
+    }).strength(0.7))
+    .d3Force("center", null);
+
+  // Resize handler
+  webResizeHandler = function() {
+    if (!webGraph) return;
+    var c = document.getElementById("web-container");
+    if (!c) return;
+    webGraph.width(c.offsetWidth).height(c.offsetHeight);
+  };
+  window.addEventListener("resize", webResizeHandler);
+
+  // Zoom to fit after stabilization
+  webGraph.d3ReheatSimulation();
+  setTimeout(function() {
+    if (webGraph) webGraph.zoomToFit(400, 40);
+  }, 2000);
+}
+
+function updateWebData(graphData, gitData) {
+  if (!webGraph) return;
+  if (!graphData) return;
+  var newRevision = (graphData.revision || "") + ":" + ((gitData && gitData.head_commit) || "");
+  if (webCurrentRevision && newRevision === webCurrentRevision) return;
+  webCurrentRevision = newRevision;
+
+  var hierarchy = buildWebHierarchy(graphData, gitData);
+  var webNodes = hierarchy.nodes;
+
+  if (webNodes.length === 0) {
+    webData = null;
+    renderWeb();
+    return;
+  }
+
+  webData = { graphRevision: graphData.revision, gitData: gitData, hierarchy: hierarchy };
+  webGraph.graphData({ nodes: webNodes, links: hierarchy.links });
+
+  // Update orphan badge
+  var container = document.getElementById("web-container");
+  if (container) {
+    var oldBadge = container.querySelector(".web-orphan-badge");
+    if (oldBadge) oldBadge.remove();
+    if (hierarchy.orphanBranches.length > 0) {
+      var orphanNames = hierarchy.orphanBranches.map(function(b) { return b.name; });
+      container.insertAdjacentHTML("beforeend",
+        '<div class="web-orphan-badge" title="' + esc(orphanNames.join(", ")) + '">'
+        + '\u26a0 ' + hierarchy.orphanBranches.length + ' orphan branch' + (hierarchy.orphanBranches.length > 1 ? 'es' : '')
+        + '</div>');
+    }
+  }
+}
+
+function cleanupWeb() {
+  if (webResizeHandler) {
+    window.removeEventListener("resize", webResizeHandler);
+    webResizeHandler = null;
+  }
+  if (webGraph) {
+    webGraph.pauseAnimation();
+    var container = document.getElementById("web-container");
+    if (container) container.innerHTML = "";
+    webGraph = null;
+  }
+  webData = null;
+  webCurrentRevision = null;
+  webRenderGeneration++;
+}
+
 // --- Routing ---
 async function route(hash) {
   var h = (hash || "/board").replace(/^#?\/?/, "/");
@@ -3767,6 +4322,10 @@ async function route(hash) {
   if (currentView === "cube" && view !== "cube" && view !== "task") {
     cleanupCube();
   }
+  // Clean up web when navigating to a different main view
+  if (currentView === "web" && view !== "web" && view !== "task") {
+    cleanupWeb();
+  }
 
   currentView = view === "task" ? currentView : view;
   updateTabs();
@@ -3776,6 +4335,7 @@ async function route(hash) {
   else if (view === "activity") await renderActivity();
   else if (view === "stats") await renderStats();
   else if (view === "cube") await renderCube();
+  else if (view === "web") await renderWeb();
   else if (view === "task" && parts[1]) await renderDetail(parts[1]);
   else renderBoard();
 }
@@ -5182,7 +5742,7 @@ var AUTO_REFRESH_MS = 5000;
 function startAutoRefresh() {
   stopAutoRefresh();
   autoRefreshInterval = setInterval(async function() {
-    if (currentView !== "board" && currentView !== "list" && currentView !== "activity" && currentView !== "stats" && currentView !== "cube") return;
+    if (currentView !== "board" && currentView !== "list" && currentView !== "activity" && currentView !== "stats" && currentView !== "cube" && currentView !== "web") return;
 
     // Cube: revision-based refresh (independent data path)
     if (currentView === "cube") {
@@ -5193,6 +5753,24 @@ function startAutoRefresh() {
         if (currentView !== "cube") return;
         if (graphData.revision && graphData.revision !== cubeCurrentRevision) {
           updateCubeData(graphData);
+        }
+      } catch (e) { /* server may be restarting */ }
+      return;
+    }
+
+    // Web: dual-source revision refresh
+    if (currentView === "web") {
+      try {
+        var webGen = webRenderGeneration;
+        var results = await Promise.all([
+          api("/api/graph"),
+          api("/api/git").catch(function() { return { available: false }; })
+        ]);
+        if (webGen !== webRenderGeneration) return;
+        if (currentView !== "web") return;
+        var newWebRevision = (results[0].revision || "") + ":" + ((results[1] && results[1].head_commit) || "");
+        if (newWebRevision !== webCurrentRevision) {
+          updateWebData(results[0], results[1]);
         }
       } catch (e) { /* server may be restarting */ }
       return;
