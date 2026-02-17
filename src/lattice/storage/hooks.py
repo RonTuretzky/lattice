@@ -22,9 +22,13 @@ def execute_hooks(
     Hooks are fire-and-forget: failures are logged to stderr but never
     raise exceptions or fail the calling CLI command.
 
-    Execution order when both are configured:
+    Execution order when multiple are configured:
     1. ``hooks.post_event`` (catch-all)
     2. ``hooks.on.<event_type>`` (type-specific)
+    3. ``hooks.transitions`` (transition-specific, status_changed only)
+       - Exact match: ``"from -> to"``
+       - Wildcard source: ``"* -> to"``
+       - Wildcard target: ``"from -> *"``
     """
     hooks = config.get("hooks")
     if not hooks:
@@ -43,6 +47,67 @@ def execute_hooks(
     type_cmd = on_hooks.get(event["type"])
     if type_cmd:
         _run_hook(type_cmd, env, stdin_data)
+
+    # 3. transitions (status_changed only)
+    transitions = hooks.get("transitions")
+    if transitions and event["type"] == "status_changed":
+        data = event.get("data", {})
+        from_status = data.get("from", "")
+        to_status = data.get("to", "")
+
+        if from_status and to_status:
+            # Add transition-specific env vars
+            transition_env = env.copy()
+            transition_env["LATTICE_FROM_STATUS"] = from_status
+            transition_env["LATTICE_TO_STATUS"] = to_status
+
+            for cmd in _match_transitions(transitions, from_status, to_status):
+                _run_hook(cmd, transition_env, stdin_data)
+
+
+def _match_transitions(
+    transitions: dict[str, str],
+    from_status: str,
+    to_status: str,
+) -> list[str]:
+    """Return commands matching the given transition, in priority order.
+
+    Match order: exact (``"from -> to"``), wildcard source (``"* -> to"``),
+    wildcard target (``"from -> *"``).
+    """
+    matched: list[str] = []
+
+    for pattern, cmd in transitions.items():
+        parsed = _parse_transition_key(pattern)
+        if parsed is None:
+            continue
+
+        pat_from, pat_to = parsed
+
+        if pat_from == from_status and pat_to == to_status:
+            matched.insert(0, cmd)  # exact match first
+        elif pat_from == "*" and pat_to == to_status:
+            matched.append(cmd)
+        elif pat_from == from_status and pat_to == "*":
+            matched.append(cmd)
+
+    return matched
+
+
+def _parse_transition_key(key: str) -> tuple[str, str] | None:
+    """Parse a transition key like ``"from -> to"`` into ``(from, to)``.
+
+    Returns ``None`` if the key doesn't match the expected format.
+    Tolerates whitespace around the arrow.
+    """
+    parts = key.split("->")
+    if len(parts) != 2:
+        return None
+    left = parts[0].strip()
+    right = parts[1].strip()
+    if not left or not right:
+        return None
+    return (left, right)
 
 
 def _build_env(lattice_dir: Path, task_id: str, event: dict) -> dict[str, str]:

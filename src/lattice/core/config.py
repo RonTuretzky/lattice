@@ -12,9 +12,10 @@ class WipLimits(TypedDict, total=False):
     review: int
 
 
-class Workflow(TypedDict):
+class Workflow(TypedDict, total=False):
     statuses: list[str]
     transitions: dict[str, list[str]]
+    universal_targets: list[str]
     wip_limits: WipLimits
 
 
@@ -36,6 +37,7 @@ class HooksOnConfig(TypedDict, total=False):
 class HooksConfig(TypedDict, total=False):
     post_event: str
     on: HooksOnConfig
+    transitions: dict[str, str]
 
 
 class ModelTier(TypedDict, total=False):
@@ -114,6 +116,7 @@ def default_config() -> LatticeConfig:
                 ],
                 "cancelled": [],
             },
+            "universal_targets": ["needs_human", "cancelled"],
             "wip_limits": {
                 "in_progress": 10,
                 "review": 5,
@@ -163,8 +166,18 @@ def validate_transition(
     from_status: str,
     to_status: str,
 ) -> bool:
-    """Return ``True`` if the transition from *from_status* to *to_status* is allowed."""
-    transitions = config.get("workflow", {}).get("transitions", {})
+    """Return ``True`` if the transition from *from_status* to *to_status* is allowed.
+
+    A transition is allowed if *to_status* appears in the explicit transition
+    list for *from_status*, **or** if *to_status* is listed in
+    ``workflow.universal_targets``.  Universal targets are statuses reachable
+    from any other status (e.g. ``needs_human``, ``cancelled``).
+    """
+    workflow = config.get("workflow", {})
+    universal = workflow.get("universal_targets", [])
+    if to_status in universal:
+        return True
+    transitions = workflow.get("transitions", {})
     allowed = transitions.get(from_status, [])
     return to_status in allowed
 

@@ -9,7 +9,11 @@ from pathlib import Path
 import pytest
 
 from lattice.core.events import create_event
-from lattice.storage.hooks import execute_hooks
+from lattice.storage.hooks import (
+    _match_transitions,
+    _parse_transition_key,
+    execute_hooks,
+)
 
 
 @pytest.fixture()
@@ -367,3 +371,424 @@ cat > "{output_file}"
     assert output_file.exists(), "Hook did not fire during archive"
     event = json.loads(output_file.read_text())
     assert event["type"] == "task_archived"
+
+
+# ---------------------------------------------------------------------------
+# 9. _parse_transition_key unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestParseTransitionKey:
+    """Unit tests for the transition key parser."""
+
+    def test_standard_arrow(self) -> None:
+        assert _parse_transition_key("in_progress -> review") == ("in_progress", "review")
+
+    def test_no_spaces(self) -> None:
+        assert _parse_transition_key("in_progress->review") == ("in_progress", "review")
+
+    def test_extra_spaces(self) -> None:
+        assert _parse_transition_key("  in_progress  ->  review  ") == ("in_progress", "review")
+
+    def test_wildcard_source(self) -> None:
+        assert _parse_transition_key("* -> review") == ("*", "review")
+
+    def test_wildcard_target(self) -> None:
+        assert _parse_transition_key("in_progress -> *") == ("in_progress", "*")
+
+    def test_both_wildcards(self) -> None:
+        assert _parse_transition_key("* -> *") == ("*", "*")
+
+    def test_no_arrow_returns_none(self) -> None:
+        assert _parse_transition_key("in_progress review") is None
+
+    def test_empty_string_returns_none(self) -> None:
+        assert _parse_transition_key("") is None
+
+    def test_arrow_only_returns_none(self) -> None:
+        assert _parse_transition_key("->") is None
+
+    def test_missing_right_returns_none(self) -> None:
+        assert _parse_transition_key("in_progress ->") is None
+
+    def test_missing_left_returns_none(self) -> None:
+        assert _parse_transition_key("-> review") is None
+
+    def test_multiple_arrows_returns_none(self) -> None:
+        assert _parse_transition_key("a -> b -> c") is None
+
+
+# ---------------------------------------------------------------------------
+# 10. _match_transitions unit tests
+# ---------------------------------------------------------------------------
+
+
+class TestMatchTransitions:
+    """Unit tests for the transition matching logic."""
+
+    def test_exact_match(self) -> None:
+        transitions = {"in_progress -> review": "exact.sh"}
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert result == ["exact.sh"]
+
+    def test_no_match(self) -> None:
+        transitions = {"in_progress -> review": "exact.sh"}
+        result = _match_transitions(transitions, "backlog", "in_planning")
+        assert result == []
+
+    def test_wildcard_source(self) -> None:
+        transitions = {"* -> review": "entering-review.sh"}
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert result == ["entering-review.sh"]
+
+    def test_wildcard_target(self) -> None:
+        transitions = {"in_progress -> *": "leaving-progress.sh"}
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert result == ["leaving-progress.sh"]
+
+    def test_exact_before_wildcards(self) -> None:
+        transitions = {
+            "* -> review": "wildcard-source.sh",
+            "in_progress -> *": "wildcard-target.sh",
+            "in_progress -> review": "exact.sh",
+        }
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert result[0] == "exact.sh"
+        assert len(result) == 3
+
+    def test_wildcard_source_does_not_match_wrong_target(self) -> None:
+        transitions = {"* -> done": "entering-done.sh"}
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert result == []
+
+    def test_wildcard_target_does_not_match_wrong_source(self) -> None:
+        transitions = {"backlog -> *": "leaving-backlog.sh"}
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert result == []
+
+    def test_multiple_exact_matches(self) -> None:
+        transitions = {
+            "in_progress -> review": "first.sh",
+            "in_progress->review": "second.sh",
+        }
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert len(result) == 2
+        assert "first.sh" in result
+        assert "second.sh" in result
+
+    def test_malformed_key_is_skipped(self) -> None:
+        transitions = {
+            "not a valid key": "bad.sh",
+            "in_progress -> review": "good.sh",
+        }
+        result = _match_transitions(transitions, "in_progress", "review")
+        assert result == ["good.sh"]
+
+    def test_empty_transitions(self) -> None:
+        assert _match_transitions({}, "in_progress", "review") == []
+
+
+# ---------------------------------------------------------------------------
+# 11. Transition hooks fire on status_changed events
+# ---------------------------------------------------------------------------
+
+
+def test_transition_exact_match_fires(
+    tmp_path: Path, lattice_dir: Path, sample_event: dict
+) -> None:
+    """Exact transition hook fires for matching from -> to."""
+    output_file = tmp_path / "transition_output.txt"
+
+    hook_script = tmp_path / "transition_hook.sh"
+    hook_script.write_text(
+        f"""#!/bin/sh
+echo "fired" > "{output_file}"
+"""
+    )
+    hook_script.chmod(hook_script.stat().st_mode | stat.S_IEXEC)
+
+    config = {
+        "hooks": {
+            "transitions": {
+                "backlog -> in_planning": str(hook_script),
+            }
+        }
+    }
+    execute_hooks(config, lattice_dir, sample_event["task_id"], sample_event)
+
+    assert output_file.exists(), "Transition hook did not fire"
+    assert output_file.read_text().strip() == "fired"
+
+
+def test_transition_does_not_fire_for_wrong_transition(
+    tmp_path: Path, lattice_dir: Path, sample_event: dict
+) -> None:
+    """Transition hook does NOT fire when the transition doesn't match."""
+    output_file = tmp_path / "wrong_transition_output.txt"
+
+    hook_script = tmp_path / "wrong_transition_hook.sh"
+    hook_script.write_text(
+        f"""#!/bin/sh
+echo "should-not-fire" > "{output_file}"
+"""
+    )
+    hook_script.chmod(hook_script.stat().st_mode | stat.S_IEXEC)
+
+    config = {
+        "hooks": {
+            "transitions": {
+                "in_progress -> review": str(hook_script),
+            }
+        }
+    }
+    # sample_event is backlog -> in_planning, not in_progress -> review
+    execute_hooks(config, lattice_dir, sample_event["task_id"], sample_event)
+
+    assert not output_file.exists(), "Transition hook fired for wrong transition"
+
+
+def test_transition_wildcard_source_fires(
+    tmp_path: Path, lattice_dir: Path, sample_event: dict
+) -> None:
+    """Wildcard source (* -> to) fires for any source with matching target."""
+    output_file = tmp_path / "wildcard_source_output.txt"
+
+    hook_script = tmp_path / "wildcard_source_hook.sh"
+    hook_script.write_text(
+        f"""#!/bin/sh
+echo "fired" > "{output_file}"
+"""
+    )
+    hook_script.chmod(hook_script.stat().st_mode | stat.S_IEXEC)
+
+    config = {
+        "hooks": {
+            "transitions": {
+                "* -> in_planning": str(hook_script),
+            }
+        }
+    }
+    execute_hooks(config, lattice_dir, sample_event["task_id"], sample_event)
+
+    assert output_file.exists(), "Wildcard source transition hook did not fire"
+
+
+def test_transition_wildcard_target_fires(
+    tmp_path: Path, lattice_dir: Path, sample_event: dict
+) -> None:
+    """Wildcard target (from -> *) fires for any target with matching source."""
+    output_file = tmp_path / "wildcard_target_output.txt"
+
+    hook_script = tmp_path / "wildcard_target_hook.sh"
+    hook_script.write_text(
+        f"""#!/bin/sh
+echo "fired" > "{output_file}"
+"""
+    )
+    hook_script.chmod(hook_script.stat().st_mode | stat.S_IEXEC)
+
+    config = {
+        "hooks": {
+            "transitions": {
+                "backlog -> *": str(hook_script),
+            }
+        }
+    }
+    execute_hooks(config, lattice_dir, sample_event["task_id"], sample_event)
+
+    assert output_file.exists(), "Wildcard target transition hook did not fire"
+
+
+def test_transition_does_not_fire_for_non_status_event(
+    tmp_path: Path, lattice_dir: Path
+) -> None:
+    """Transition hooks do NOT fire for non-status_changed events."""
+    output_file = tmp_path / "non_status_output.txt"
+
+    hook_script = tmp_path / "non_status_hook.sh"
+    hook_script.write_text(
+        f"""#!/bin/sh
+echo "should-not-fire" > "{output_file}"
+"""
+    )
+    hook_script.chmod(hook_script.stat().st_mode | stat.S_IEXEC)
+
+    task_created_event = create_event(
+        type="task_created",
+        task_id="task_01AAAAAAAAAAAAAAAAAAAAAAAAAA",
+        actor="human:test",
+        data={"title": "Test task"},
+    )
+
+    config = {
+        "hooks": {
+            "transitions": {
+                "* -> *": str(hook_script),
+            }
+        }
+    }
+    execute_hooks(config, lattice_dir, task_created_event["task_id"], task_created_event)
+
+    assert not output_file.exists(), "Transition hook fired for non-status_changed event"
+
+
+def test_transition_env_vars(
+    tmp_path: Path, lattice_dir: Path, sample_event: dict
+) -> None:
+    """Transition hooks receive LATTICE_FROM_STATUS and LATTICE_TO_STATUS env vars."""
+    env_output = tmp_path / "transition_env_output.txt"
+
+    hook_script = tmp_path / "transition_env_hook.sh"
+    hook_script.write_text(
+        f"""#!/bin/sh
+echo "FROM=$LATTICE_FROM_STATUS" > "{env_output}"
+echo "TO=$LATTICE_TO_STATUS" >> "{env_output}"
+"""
+    )
+    hook_script.chmod(hook_script.stat().st_mode | stat.S_IEXEC)
+
+    config = {
+        "hooks": {
+            "transitions": {
+                "backlog -> in_planning": str(hook_script),
+            }
+        }
+    }
+    execute_hooks(config, lattice_dir, sample_event["task_id"], sample_event)
+
+    assert env_output.exists()
+    lines = env_output.read_text().strip().splitlines()
+    env_dict = {}
+    for line in lines:
+        key, val = line.split("=", 1)
+        env_dict[key] = val
+
+    assert env_dict["FROM"] == "backlog"
+    assert env_dict["TO"] == "in_planning"
+
+
+def test_all_three_hook_types_fire_together(
+    tmp_path: Path, lattice_dir: Path, sample_event: dict
+) -> None:
+    """post_event, on.status_changed, and transitions all fire for one event."""
+    post_output = tmp_path / "post.txt"
+    type_output = tmp_path / "type.txt"
+    transition_output = tmp_path / "transition.txt"
+
+    for name, output in [("post", post_output), ("type", type_output), ("transition", transition_output)]:
+        script = tmp_path / f"{name}_hook.sh"
+        script.write_text(f"""#!/bin/sh\necho "{name}" > "{output}"\n""")
+        script.chmod(script.stat().st_mode | stat.S_IEXEC)
+
+    config = {
+        "hooks": {
+            "post_event": str(tmp_path / "post_hook.sh"),
+            "on": {"status_changed": str(tmp_path / "type_hook.sh")},
+            "transitions": {
+                "backlog -> in_planning": str(tmp_path / "transition_hook.sh"),
+            },
+        }
+    }
+    execute_hooks(config, lattice_dir, sample_event["task_id"], sample_event)
+
+    assert post_output.exists(), "post_event did not fire"
+    assert type_output.exists(), "on.status_changed did not fire"
+    assert transition_output.exists(), "transition hook did not fire"
+
+
+# ---------------------------------------------------------------------------
+# 12. CLI integration: transition hooks fire via status command
+# ---------------------------------------------------------------------------
+
+
+def test_cli_status_fires_transition_hook(tmp_path: Path, cli_runner, cli_env: dict) -> None:
+    """lattice status fires transition-specific hooks."""
+    from lattice.cli.main import cli
+
+    output_file = tmp_path / "cli_transition_output.json"
+
+    hook_script = tmp_path / "hook.sh"
+    hook_script.write_text(
+        f"""#!/bin/sh
+cat > "{output_file}"
+"""
+    )
+    hook_script.chmod(hook_script.stat().st_mode | stat.S_IEXEC)
+
+    # Create a task first
+    result = cli_runner.invoke(
+        cli,
+        ["create", "Transition hook CLI task", "--actor", "human:test", "--json"],
+        env=cli_env,
+    )
+    assert result.exit_code == 0
+    task_id = json.loads(result.output)["data"]["id"]
+
+    # Configure transition hook
+    lattice_dir = Path(cli_env["LATTICE_ROOT"]) / ".lattice"
+    config = json.loads((lattice_dir / "config.json").read_text())
+    config["hooks"] = {
+        "transitions": {
+            "backlog -> in_planning": str(hook_script),
+        }
+    }
+    (lattice_dir / "config.json").write_text(json.dumps(config, sort_keys=True, indent=2) + "\n")
+
+    result = cli_runner.invoke(
+        cli,
+        ["status", task_id, "in_planning", "--actor", "human:test"],
+        env=cli_env,
+    )
+    assert result.exit_code == 0, f"status failed: {result.output}"
+
+    assert output_file.exists(), "Transition hook did not fire via CLI"
+    event = json.loads(output_file.read_text())
+    assert event["type"] == "status_changed"
+    assert event["data"]["from"] == "backlog"
+    assert event["data"]["to"] == "in_planning"
+
+
+def test_cli_status_transition_hook_does_not_fire_for_wrong_transition(
+    tmp_path: Path, cli_runner, cli_env: dict
+) -> None:
+    """Transition hook does NOT fire for a non-matching status change via CLI."""
+    from lattice.cli.main import cli
+
+    output_file = tmp_path / "wrong_cli_transition_output.txt"
+
+    hook_script = tmp_path / "hook.sh"
+    hook_script.write_text(
+        f"""#!/bin/sh
+echo "should-not-fire" > "{output_file}"
+"""
+    )
+    hook_script.chmod(hook_script.stat().st_mode | stat.S_IEXEC)
+
+    # Create a task
+    result = cli_runner.invoke(
+        cli,
+        ["create", "Wrong transition CLI task", "--actor", "human:test", "--json"],
+        env=cli_env,
+    )
+    assert result.exit_code == 0
+    task_id = json.loads(result.output)["data"]["id"]
+
+    # Configure hook for in_progress -> review (not backlog -> in_planning)
+    lattice_dir = Path(cli_env["LATTICE_ROOT"]) / ".lattice"
+    config = json.loads((lattice_dir / "config.json").read_text())
+    config["hooks"] = {
+        "transitions": {
+            "in_progress -> review": str(hook_script),
+        }
+    }
+    (lattice_dir / "config.json").write_text(json.dumps(config, sort_keys=True, indent=2) + "\n")
+
+    # Transition backlog -> in_planning (doesn't match hook)
+    result = cli_runner.invoke(
+        cli,
+        ["status", task_id, "in_planning", "--actor", "human:test"],
+        env=cli_env,
+    )
+    assert result.exit_code == 0
+
+    assert not output_file.exists(), "Transition hook fired for non-matching transition"
