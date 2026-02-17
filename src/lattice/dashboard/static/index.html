@@ -3936,8 +3936,11 @@ function buildWebHierarchy(graphData, gitData) {
   };
 }
 
-// Semantic zoom thresholds — detail cards appear progressively as you zoom in
-var WEB_DETAIL_ZOOM = { epic: 1.5, ticket: 2.5, task: 4.0 };
+// Semantic zoom thresholds — tasks/tickets appear first (small, need detail),
+// epics last (already large and labeled at low zoom)
+var WEB_DETAIL_ZOOM = { task: 1.5, ticket: 2.0, epic: 4.0 };
+// Cards fade in over this range past threshold (0→1 opacity ramp)
+var WEB_DETAIL_FADE_RANGE = 1.5;
 
 // Helper: truncate text to fit a max width on canvas
 function webTruncText(ctx, text, maxW) {
@@ -3979,8 +3982,9 @@ function webCardDir(node) {
 }
 
 // Draw a detail card on canvas next to a node.
-// lines: [{text, bold, color}], statusColor, actColor
-function webDrawCard(ctx, node, radius, globalScale, lines, statusColor, actColor) {
+// lines: [{text, bold, color}], statusColor, actColor, fadeAlpha (0-1)
+function webDrawCard(ctx, node, radius, globalScale, lines, statusColor, actColor, fadeAlpha) {
+  var fa = (fadeAlpha != null) ? fadeAlpha : 1;
   var fs = 10 / globalScale;
   if (fs > 12) fs = 12;
   var lineH = fs * 1.35;
@@ -3991,15 +3995,16 @@ function webDrawCard(ctx, node, radius, globalScale, lines, statusColor, actColo
 
   // Pick direction: card fans outward from graph center
   var dir = webCardDir(node);
-  var gap = (radius + 6) / globalScale * globalScale; // keep gap in graph units
-  gap = radius + 6;
+  var gap = radius + 6;
   var cx = node.x + dir.dx * (gap + cardW / 2);
   var cy = node.y + dir.dy * (gap + cardH / 2);
   var cardX = cx - cardW / 2;
   var cardY = cy - cardH / 2;
 
-  // Card background
   ctx.save();
+  ctx.globalAlpha = ctx.globalAlpha * fa;
+
+  // Card background
   webRoundRect(ctx, cardX, cardY, cardW, cardH, cornerR);
   ctx.fillStyle = "rgba(30,30,40,0.88)";
   ctx.fill();
@@ -4026,7 +4031,6 @@ function webDrawCard(ctx, node, radius, globalScale, lines, statusColor, actColo
   ctx.moveTo(node.x + dir.dx * radius, node.y + dir.dy * radius);
   ctx.lineTo(cardX + cardW / 2 - dir.dx * cardW / 2, cardY + cardH / 2 - dir.dy * cardH / 2);
   ctx.strokeStyle = "rgba(255,255,255,0.15)";
-  ctx.lineWidth = 0.5 / globalScale * globalScale;
   ctx.lineWidth = 0.5;
   ctx.stroke();
 
@@ -4098,8 +4102,11 @@ function drawWebNode(node, ctx, globalScale) {
   var textColor = getComputedStyle(document.documentElement)
     .getPropertyValue("--text-primary").trim() || "#212529";
 
-  // Semantic zoom: detail card threshold check
-  var showCard = globalScale >= (WEB_DETAIL_ZOOM[tier] || 4.0);
+  // Semantic zoom: detail card threshold + fade-in
+  var zoomThreshold = WEB_DETAIL_ZOOM[tier] || 4.0;
+  var showCard = globalScale >= zoomThreshold;
+  // Fade: 0 at threshold, ramps to 1 over WEB_DETAIL_FADE_RANGE zoom units
+  var cardFade = showCard ? Math.min(1, (globalScale - zoomThreshold) / WEB_DETAIL_FADE_RANGE) : 0;
 
   if (showCard) {
     // Build card lines based on tier
@@ -4132,7 +4139,7 @@ function drawWebNode(node, ctx, globalScale) {
       lines.push({ text: statusLabel, bold: false, color: color });
     }
 
-    webDrawCard(ctx, node, radius, globalScale, lines, color, actColor);
+    webDrawCard(ctx, node, radius, globalScale, lines, color, actColor, cardFade);
 
     // Still draw the short label below the circle at all zoom levels
     var fontSize = (tier === "epic" ? 12 : tier === "ticket" ? 10 : 8) / globalScale;
