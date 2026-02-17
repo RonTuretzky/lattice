@@ -760,7 +760,7 @@ Here is the anatomy of a `.lattice/` directory -- the complete on-disk structure
   locks/                           # Internal lock files
 ```
 
-Everything is plain text. You can `git add .lattice/` to version-control your task management. Use `.gitignore` to exclude sensitive artifact payloads and lock files. The filesystem is the interface, the database, and the API -- all at once.
+Everything is plain text, committed alongside your code by default. Event logs are append-only JSONL that merge cleanly. Snapshots are deterministic JSON, rebuildable from events. Use a `.lattice/.gitignore` for sensitive artifact payloads. The filesystem is the interface, the database, and the API -- all at once.
 
 ---
 

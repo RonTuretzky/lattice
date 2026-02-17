@@ -29,13 +29,9 @@ Your CI environment needs:
 
 ### The `.lattice/` directory in CI
 
-Lattice stores state in `.lattice/` at the project root. If your project gitignores this directory (the default recommendation), CI pipelines won't have task state to read or write. You have two options:
+Lattice stores state in `.lattice/` at the project root. By default, this directory is committed to the repo -- task state lives alongside code, versioned and accessible to CI like any other project file. Event logs are append-only JSONL that merge cleanly, and snapshots are deterministic JSON rebuildable from events.
 
-1. **Commit `.lattice/` to the repo.** Remove it from `.gitignore`. Task state becomes versioned alongside code. Simple, but creates noise in diffs. Best for small projects where task state is lightweight.
-
-2. **Initialize a fresh instance in CI.** Run `lattice init` in the pipeline. Useful when CI only needs to *write* events (e.g., posting comments) and a separate system aggregates them. Less common.
-
-For most projects, option 1 is the practical choice. The event log files (JSONL) are append-only and merge cleanly.
+No special setup is needed. If your repo has a `.lattice/` directory, CI can read and write to it immediately after checkout.
 
 ## CI → Lattice: Updating task state from pipelines
 

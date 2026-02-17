@@ -66,7 +66,9 @@ This creates a `.lattice/` directory in your project:
 └── locks/               # Concurrency control
 ```
 
-The `.lattice/` directory should be added to `.gitignore` -- it is runtime state, not source code.
+The `.lattice/` directory is committed to the repo by default. Task state lives alongside your code -- versioned, visible to CI, and accessible to every tool and collaborator. The event logs are append-only JSONL files that merge cleanly, and snapshots are deterministic JSON that can be rebuilt from events at any time.
+
+Use a `.lattice/.gitignore` to exclude transient files (lock files are already excluded by the lock implementation). For sensitive artifact payloads, use the `--sensitive` flag on `lattice attach`.
 
 ## Create your first task
 

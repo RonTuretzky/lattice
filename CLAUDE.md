@@ -80,7 +80,7 @@ lattice list
 This project **dogfoods itself**. There are two distinct things called "Lattice" in this directory:
 
 1. **The Lattice source code** — the Python project under `src/lattice/` that you build, test, and modify. This is what `git` tracks.
-2. **The `.lattice/` data directory** — a live Lattice instance initialized in this repo for tracking development tasks. This is `.gitignore`d runtime state, not source code.
+2. **The `.lattice/` data directory** — a live Lattice instance initialized in this repo for tracking development tasks. In most projects `.lattice/` is committed to the repo (coordination state that other minds and CI need to see). In *this* repo it is gitignored because the Lattice source code repo generates heavy test/dev churn that would pollute diffs.
 
 When someone says "is Lattice set up?" they could mean either. Clarify which:
 - **"Is the dev environment set up?"** → Can you run `uv run lattice --help`? Are deps installed?
