@@ -7,6 +7,7 @@
 <style>
 /* === Theme Variables === */
 :root,[data-theme="classic"]{
+  --col-min-w:250px;--scroll-shadow:rgba(0,0,0,.1);
   --bg-base:#f8f9fa;--surface:#ffffff;--surface-hover:#e9ecef;--surface-raised:#e9ecef;--surface-card:#f8f9fa;
   --border:#dee2e6;--border-subtle:#e9ecef;--border-row:#f0f0f0;
   --text-primary:#212529;--text-secondary:#495057;--text-muted:#6c757d;--text-on-accent:#fff;
@@ -462,8 +463,15 @@ a:hover{text-decoration:underline}
 .toast-error{background:var(--color-danger)}
 @keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
 
-/* Board view */
-.board{display:grid;gap:12px;align-items:start}
+/* Board view — scroll wrapper with edge shadows */
+.board-scroll-outer{position:relative}
+.board-scroll-outer::before,.board-scroll-outer::after{content:"";position:absolute;top:0;bottom:0;width:28px;pointer-events:none;z-index:2;opacity:0;transition:opacity .2s}
+.board-scroll-outer::before{left:0;background:linear-gradient(to right,var(--scroll-shadow),transparent)}
+.board-scroll-outer::after{right:0;background:linear-gradient(to left,var(--scroll-shadow),transparent)}
+.board-scroll-outer.shadow-left::before{opacity:1}
+.board-scroll-outer.shadow-right::after{opacity:1}
+.board-scroll{overflow-x:auto;overflow-y:visible;-webkit-overflow-scrolling:touch}
+.board{display:grid;gap:12px;align-items:start;min-width:max-content}
 .board-col{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);min-height:auto;transition:box-shadow .2s,border-color .2s}
 .board-col-header{padding:8px 12px;font-weight:600;font-size:.875rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;border-radius:var(--radius-md) var(--radius-md) 0 0;position:relative}
 .board-col-header .count{font-weight:400;color:var(--text-on-lane-muted);font-size:.75rem}
@@ -2838,8 +2846,7 @@ select.form-control{cursor:pointer}
 /* Floating detail panel — slides in from right on Board/List card click */
 .detail-panel{position:fixed;top:var(--nav-h,52px);right:0;width:480px;max-width:92vw;height:calc(100vh - var(--nav-h,52px));background:var(--surface);border-left:1px solid var(--border);box-shadow:-4px 0 24px rgba(0,0,0,0.18);z-index:100;transform:translateX(100%);transition:transform .25s ease;overflow-y:auto;padding:0}
 .detail-panel.open{transform:translateX(0)}
-.detail-panel-overlay{position:fixed;top:var(--nav-h,52px);left:0;right:0;bottom:0;z-index:99;display:none}
-.detail-panel-overlay.open{display:block}
+/* detail-panel-overlay removed — board stays interactive when panel is open */
 .dp-header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--surface);z-index:1}
 .dp-header h2{font-size:1rem;font-weight:700;margin:0;display:flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis}
 .dp-header-actions{display:flex;gap:4px;flex-shrink:0}
@@ -2941,8 +2948,7 @@ select.form-control{cursor:pointer}
 </div>
 
 <!-- Floating detail panel (slides from right, overlays Board/List) -->
-<div class="detail-panel-overlay" id="detail-panel-overlay"></div>
-<div class="detail-panel" id="detail-panel" role="dialog" aria-modal="true" aria-label="Task detail">
+<div class="detail-panel" id="detail-panel" role="dialog" aria-label="Task detail">
   <div class="dp-header">
     <h2 id="dp-title">Task</h2>
     <div class="dp-header-actions">
@@ -4888,7 +4894,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
 function openDetailPanel(taskId) {
   var pane = document.getElementById("detail-panel");
-  var overlay = document.getElementById("detail-panel-overlay");
   var body = document.getElementById("dp-body");
   var title = document.getElementById("dp-title");
 
@@ -4903,7 +4908,6 @@ function openDetailPanel(taskId) {
   body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
   title.textContent = "Loading\u2026";
   pane.classList.add("open");
-  overlay.classList.add("open");
 
   var openGeneration = taskId; // stale-callback guard
 
@@ -4922,9 +4926,7 @@ function openDetailPanel(taskId) {
 
 function closeDetailPanel() {
   var pane = document.getElementById("detail-panel");
-  var overlay = document.getElementById("detail-panel-overlay");
   if (pane) pane.classList.remove("open");
-  if (overlay) overlay.classList.remove("open");
 
   // Restore focus
   if (_detailPanelTrigger && _detailPanelTrigger.focus) {
@@ -5309,8 +5311,6 @@ async function _refreshAfterPanelEdit(taskId) {
 document.addEventListener("DOMContentLoaded", function() {
   var closeBtn = document.getElementById("dp-close");
   if (closeBtn) closeBtn.addEventListener("click", closeDetailPanel);
-  var overlay = document.getElementById("detail-panel-overlay");
-  if (overlay) overlay.addEventListener("click", closeDetailPanel);
 
   // Escape key closes panel (unless user is in an active inline edit)
   document.addEventListener("keydown", function(e) {
@@ -5777,7 +5777,8 @@ function renderBoard() {
   html += '<svg id="epic-threads" class="epic-threads-svg"></svg>';
 
   // Board columns (Row 3)
-  html += '<div class="board" style="grid-template-columns:repeat(' + colCount + ',1fr)">';
+  html += '<div class="board-scroll-outer"><div class="board-scroll">';
+  html += '<div class="board" style="grid-template-columns:repeat(' + colCount + ',minmax(var(--col-min-w),1fr))">';
   allStatuses.forEach(function(status) {
     var items = grouped[status] || [];
     var cls = "status-" + status.replace(/\s+/g,"_");
@@ -5827,6 +5828,7 @@ function renderBoard() {
     html += "</div></div>";
   });
   html += "</div>"; // close .board
+  html += "</div></div>"; // close .board-scroll + .board-scroll-outer
   html += "</div>"; // close .board-wrapper
 
   app.innerHTML = html;
@@ -5856,6 +5858,23 @@ function renderBoard() {
     var restoreId = selectedEpicId;
     selectedEpicId = null;  // Reset so toggleEpicSelection selects (not deselects)
     toggleEpicSelection(restoreId, epicChildMap);
+  }
+
+  // Board horizontal scroll — edge shadow indicators
+  var scrollEl = app.querySelector(".board-scroll");
+  var outerEl = app.querySelector(".board-scroll-outer");
+  if (scrollEl && outerEl) {
+    var updateShadows = function() {
+      var sl = scrollEl.scrollLeft;
+      var maxScroll = scrollEl.scrollWidth - scrollEl.clientWidth;
+      outerEl.classList.toggle("shadow-left", sl > 2);
+      outerEl.classList.toggle("shadow-right", sl < maxScroll - 2);
+    };
+    scrollEl.addEventListener("scroll", updateShadows, { passive: true });
+    // Initial check (deferred so layout is settled)
+    requestAnimationFrame(updateShadows);
+    // Re-check on resize
+    window.addEventListener("resize", updateShadows, { passive: true });
   }
 
 }
