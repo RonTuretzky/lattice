@@ -5,6 +5,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 
 # ---------------------------------------------------------------------------
 # Helper to add a comment and get its event ID
@@ -299,3 +301,71 @@ class TestCommentRole:
         assert result.exit_code == 0
         snapshot = json.loads(result.output)["data"]
         assert snapshot.get("comment_role_refs", []) == []
+
+
+# ---------------------------------------------------------------------------
+# Role validation (LAT-137)
+# ---------------------------------------------------------------------------
+
+
+class TestCommentRoleValidation:
+    @pytest.fixture(autouse=True)
+    def _add_completion_policy(self, initialized_root) -> None:
+        """Inject a completion policy with require_roles: [review]."""
+        from lattice.storage.fs import LATTICE_DIR
+
+        config_path = initialized_root / LATTICE_DIR / "config.json"
+        config = json.loads(config_path.read_text())
+        config["workflow"]["completion_policies"] = {
+            "done": {"require_roles": ["review"]}
+        }
+        config_path.write_text(json.dumps(config, sort_keys=True, indent=2) + "\n")
+
+    def test_typo_role_rejected(self, invoke, create_task) -> None:
+        """Typo'd role produces an error with valid role list."""
+        task = create_task("Role validation")
+        result = invoke(
+            "comment", task["id"], "looks good",
+            "--role", "reveiw",
+            "--actor", "human:test",
+            "--json",
+        )
+        assert result.exit_code != 0
+        parsed = json.loads(result.output)
+        assert parsed["ok"] is False
+        assert parsed["error"]["code"] == "INVALID_ROLE"
+        assert "reveiw" in parsed["error"]["message"]
+        assert "review" in parsed["error"]["message"]
+
+    def test_valid_role_accepted(self, invoke, create_task) -> None:
+        """Valid role (matching completion policy) succeeds."""
+        task = create_task("Role validation OK")
+        result = invoke(
+            "comment", task["id"], "all good",
+            "--role", "review",
+            "--actor", "human:test",
+            "--json",
+        )
+        assert result.exit_code == 0
+
+    def test_no_role_no_validation(self, invoke, create_task) -> None:
+        """Comment without --role skips role validation."""
+        task = create_task("No role")
+        result = invoke(
+            "comment", task["id"], "just a note",
+            "--actor", "human:test",
+        )
+        assert result.exit_code == 0
+
+
+class TestCommentRoleNoPolicies:
+    """When no completion policies exist, any role is accepted."""
+
+    def test_any_role_accepted_without_policies(self, invoke, create_task) -> None:
+        task = create_task("No policies")
+        result = invoke(
+            "comment", task["id"], "all good",
+            "--role", "anything_goes",
+            "--actor", "human:test",
+        )
+        assert result.exit_code == 0

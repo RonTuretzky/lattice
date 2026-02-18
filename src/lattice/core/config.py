@@ -370,3 +370,17 @@ def validate_completion_policy(
         failures.append("Task must be assigned")
 
     return (len(failures) == 0, failures)
+
+
+def get_configured_roles(config: LatticeConfig) -> set[str]:
+    """Collect all role strings from require_roles across all completion policies.
+
+    Returns an empty set if no completion policies or no require_roles are configured.
+    """
+    roles: set[str] = set()
+    workflow = config.get("workflow", {})
+    policies = workflow.get("completion_policies", {})
+    for policy in policies.values():
+        for role in policy.get("require_roles", []):
+            roles.add(role)
+    return roles

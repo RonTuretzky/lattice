@@ -91,6 +91,19 @@ def attach(
     if on_behalf_of is not None:
         validate_actor_or_exit(on_behalf_of, is_json)
 
+    # Validate role against configured completion policy roles
+    if role is not None:
+        from lattice.core.config import get_configured_roles
+
+        configured_roles = get_configured_roles(config)
+        if configured_roles and role not in configured_roles:
+            output_error(
+                f"Unknown role: '{role}'. "
+                f"Valid roles: {', '.join(sorted(configured_roles))}.",
+                "INVALID_ROLE",
+                is_json,
+            )
+
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 
     # Validate task exists

@@ -32,6 +32,7 @@ from lattice.core.config import (
     VALID_COMPLEXITIES,
     VALID_PRIORITIES,
     VALID_URGENCIES,
+    get_configured_roles,
     get_valid_transitions,
     validate_completion_policy,
     validate_status,
@@ -759,6 +760,17 @@ def comment(
         text = validate_comment_body(text)
     except ValueError as exc:
         output_error(str(exc), "VALIDATION_ERROR", is_json)
+
+    # Validate role against configured completion policy roles
+    if role is not None:
+        configured_roles = get_configured_roles(config)
+        if configured_roles and role not in configured_roles:
+            output_error(
+                f"Unknown role: '{role}'. "
+                f"Valid roles: {', '.join(sorted(configured_roles))}.",
+                "INVALID_ROLE",
+                is_json,
+            )
 
     event_data: dict = {"body": text}
     if reply_to is not None:

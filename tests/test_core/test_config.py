@@ -8,6 +8,7 @@ from lattice.core.config import (
     VALID_PRIORITIES,
     VALID_URGENCIES,
     default_config,
+    get_configured_roles,
     get_wip_limit,
     load_config,
     serialize_config,
@@ -481,3 +482,43 @@ class TestValidateCompletionPolicy:
         snap = _snap_with_artifacts(["art_A"])
         ok, failures = validate_completion_policy(config, snap, "done")
         assert ok is False
+
+
+# ---------------------------------------------------------------------------
+# get_configured_roles (LAT-137)
+# ---------------------------------------------------------------------------
+
+
+class TestGetConfiguredRoles:
+    def test_no_policies_returns_empty(self) -> None:
+        config = default_config()
+        assert get_configured_roles(config) == set()
+
+    def test_single_policy_single_role(self) -> None:
+        config = default_config()
+        config["workflow"]["completion_policies"] = {
+            "done": {"require_roles": ["review"]},
+        }
+        assert get_configured_roles(config) == {"review"}
+
+    def test_multiple_policies_multiple_roles(self) -> None:
+        config = default_config()
+        config["workflow"]["completion_policies"] = {
+            "done": {"require_roles": ["review", "sign_off"]},
+            "review": {"require_roles": ["triage"]},
+        }
+        assert get_configured_roles(config) == {"review", "sign_off", "triage"}
+
+    def test_empty_require_roles(self) -> None:
+        config = default_config()
+        config["workflow"]["completion_policies"] = {
+            "done": {"require_roles": []},
+        }
+        assert get_configured_roles(config) == set()
+
+    def test_policy_without_require_roles(self) -> None:
+        config = default_config()
+        config["workflow"]["completion_policies"] = {
+            "done": {"require_assigned": True},
+        }
+        assert get_configured_roles(config) == set()

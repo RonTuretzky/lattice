@@ -6,6 +6,8 @@ import glob
 import json
 import tempfile
 
+import pytest
+
 from lattice.storage.fs import LATTICE_DIR
 
 
@@ -732,5 +734,82 @@ class TestInlineTempFileCleanup:
             "--actor", _ACTOR,
         )
         assert result.exit_code == 0
+        leaked = set(_inline_temp_files()) - before
+        assert not leaked, f"Leaked temp files: {leaked}"
+
+
+# ---------------------------------------------------------------------------
+# Role validation (LAT-137)
+# ---------------------------------------------------------------------------
+
+
+class TestAttachRoleValidation:
+    @pytest.fixture(autouse=True)
+    def _add_completion_policy(self, initialized_root) -> None:
+        """Inject a completion policy with require_roles: [review]."""
+        config_path = initialized_root / LATTICE_DIR / "config.json"
+        config = json.loads(config_path.read_text())
+        config["workflow"]["completion_policies"] = {
+            "done": {"require_roles": ["review"]}
+        }
+        config_path.write_text(json.dumps(config, sort_keys=True, indent=2) + "\n")
+
+    def test_typo_role_rejected(self, invoke, create_task, tmp_path) -> None:
+        """Typo'd role on attach produces INVALID_ROLE error."""
+        task = create_task("Role validation")
+        src = tmp_path / "file.txt"
+        src.write_text("content")
+        result = invoke(
+            "attach", task["id"], str(src),
+            "--role", "reveiw",
+            "--actor", _ACTOR,
+            "--json",
+        )
+        assert result.exit_code != 0
+        parsed = json.loads(result.output)
+        assert parsed["ok"] is False
+        assert parsed["error"]["code"] == "INVALID_ROLE"
+        assert "reveiw" in parsed["error"]["message"]
+        assert "review" in parsed["error"]["message"]
+
+    def test_valid_role_accepted(self, invoke, create_task, tmp_path) -> None:
+        """Valid role on attach succeeds."""
+        task = create_task("Role validation OK")
+        src = tmp_path / "file.txt"
+        src.write_text("content")
+        result = invoke(
+            "attach", task["id"], str(src),
+            "--role", "review",
+            "--actor", _ACTOR,
+            "--json",
+        )
+        assert result.exit_code == 0
+
+    def test_no_role_no_validation(self, invoke, create_task, tmp_path) -> None:
+        """Attach without --role skips role validation."""
+        task = create_task("No role")
+        src = tmp_path / "file.txt"
+        src.write_text("content")
+        result = invoke(
+            "attach", task["id"], str(src),
+            "--actor", _ACTOR,
+        )
+        assert result.exit_code == 0
+
+    def test_inline_typo_role_rejected(self, invoke, create_task) -> None:
+        """Typo'd role on --inline attach is caught before temp file creation."""
+        task = create_task("Inline role validation")
+        before = set(_inline_temp_files())
+        result = invoke(
+            "attach", task["id"],
+            "--inline", "review text",
+            "--role", "reveiw",
+            "--actor", _ACTOR,
+            "--json",
+        )
+        assert result.exit_code != 0
+        parsed = json.loads(result.output)
+        assert parsed["error"]["code"] == "INVALID_ROLE"
+        # No temp file leaked since validation happens before temp file creation
         leaked = set(_inline_temp_files()) - before
         assert not leaked, f"Leaked temp files: {leaked}"
