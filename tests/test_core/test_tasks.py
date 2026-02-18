@@ -1009,26 +1009,29 @@ class TestCompactSnapshot:
 # ---------------------------------------------------------------------------
 
 
+_TASK_EVENT_TYPES = sorted(BUILTIN_EVENT_TYPES - RESOURCE_EVENT_TYPES)
+_COVERED_TYPES = (
+    set(_MUTATION_HANDLERS.keys()) | set(_NOOP_EVENT_TYPES) | {"task_created"}
+)
+
+
 class TestMutationRegistryCompleteness:
     """Every BUILTIN_EVENT_TYPES entry is either in the handler registry,
     the noop set, or is ``task_created`` (handled in the main switch)."""
 
-    def test_all_builtin_types_covered(self) -> None:
-        handled = set(_MUTATION_HANDLERS.keys())
-        noop = set(_NOOP_EVENT_TYPES)
-        init_type = {"task_created"}  # handled separately in apply_event_to_snapshot
+    @pytest.mark.parametrize("etype", _TASK_EVENT_TYPES)
+    def test_builtin_type_is_handled(self, etype: str) -> None:
+        """Each built-in task event type has a handler, is noop, or is task_created."""
+        assert etype in _COVERED_TYPES, (
+            f"Event type '{etype}' has no mutation handler and is not in _NOOP_EVENT_TYPES"
+        )
 
-        covered = handled | noop | init_type
-        # Resource event types are handled by a separate materialization path
-        # (core/resources.py), not by the task snapshot materializer.
-        task_event_types = BUILTIN_EVENT_TYPES - RESOURCE_EVENT_TYPES
-        missing = task_event_types - covered
-        assert not missing, f"Unhandled builtin event types: {missing}"
-
-    def test_no_handler_also_in_noop(self) -> None:
-        """A type should not be in both the handler registry and the noop set."""
-        overlap = set(_MUTATION_HANDLERS.keys()) & _NOOP_EVENT_TYPES
-        assert not overlap, f"Types in both handler and noop: {overlap}"
+    @pytest.mark.parametrize("etype", sorted(_MUTATION_HANDLERS.keys()))
+    def test_handler_not_also_noop(self, etype: str) -> None:
+        """A type with a mutation handler should not also be in the noop set."""
+        assert etype not in _NOOP_EVENT_TYPES, (
+            f"Event type '{etype}' is in both handler registry and noop set"
+        )
 
 
 # ---------------------------------------------------------------------------

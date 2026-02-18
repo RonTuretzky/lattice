@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from lattice.core.config import (
     VALID_PRIORITIES,
     VALID_URGENCIES,
@@ -540,3 +542,56 @@ class TestGetConfiguredRoles:
             "done": {"require_assigned": True},
         }
         assert get_configured_roles(config) == set()
+
+
+# ---------------------------------------------------------------------------
+# Workflow invariants (parametrized)
+# ---------------------------------------------------------------------------
+
+_DEFAULT_CONFIG = default_config()
+_ALL_STATUSES = _DEFAULT_CONFIG["workflow"]["statuses"]
+_TRANSITIONS = _DEFAULT_CONFIG["workflow"]["transitions"]
+_UNIVERSAL_TARGETS = _DEFAULT_CONFIG["workflow"]["universal_targets"]
+_TERMINAL_STATUSES = {"done", "cancelled"}
+
+
+class TestWorkflowInvariants:
+    """Parametrized tests ensuring the default workflow is internally consistent."""
+
+    @pytest.mark.parametrize("status", _ALL_STATUSES)
+    def test_every_status_has_transition_entry(self, status: str) -> None:
+        """Every defined status has an entry in the transitions dict."""
+        assert status in _TRANSITIONS, f"Status '{status}' missing from transitions"
+
+    @pytest.mark.parametrize("status", _ALL_STATUSES)
+    def test_every_status_is_reachable_or_initial(self, status: str) -> None:
+        """Every status is either the default, a universal target, or reachable
+        from at least one other status via explicit transitions."""
+        if status == _DEFAULT_CONFIG["default_status"]:
+            return  # initial status is reachable by creation
+        if status in _UNIVERSAL_TARGETS:
+            return  # universal targets are reachable from any status
+        # Check if any other status can transition to this one
+        reachable_from = [
+            src for src, targets in _TRANSITIONS.items() if status in targets
+        ]
+        assert reachable_from, f"Status '{status}' is unreachable — no status transitions to it"
+
+    @pytest.mark.parametrize("status", _ALL_STATUSES)
+    def test_non_terminal_statuses_have_outbound_transitions(self, status: str) -> None:
+        """Non-terminal statuses must have at least one outbound transition
+        (explicit or via universal targets)."""
+        if status in _TERMINAL_STATUSES:
+            return  # terminal statuses are allowed to have empty transitions
+        explicit = _TRANSITIONS.get(status, [])
+        assert explicit or _UNIVERSAL_TARGETS, (
+            f"Status '{status}' has no outbound transitions and no universal targets"
+        )
+
+    @pytest.mark.parametrize("status", _ALL_STATUSES)
+    def test_transition_targets_are_valid_statuses(self, status: str) -> None:
+        """Every transition target must be a defined status."""
+        for target in _TRANSITIONS.get(status, []):
+            assert target in _ALL_STATUSES, (
+                f"Transition from '{status}' targets undefined status '{target}'"
+            )
