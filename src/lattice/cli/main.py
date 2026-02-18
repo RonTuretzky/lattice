@@ -364,6 +364,13 @@ def init(
             "Remove it and try again."
         )
 
+    # Track whether essential values came from flags (not prompts).
+    # Non-interactive mode triggers when BOTH are provided via flags,
+    # enabling scripted one-liners like the README quickstart.
+    actor_from_flag = actor is not None
+    project_code_from_flag = project_code is not None
+    non_interactive = actor_from_flag and project_code_from_flag
+
     # Prompt for default actor if not provided via flag
     if actor is None:
         actor = click.prompt(
@@ -406,54 +413,13 @@ def init(
                 "Must be 1-5 uppercase ASCII letters."
             )
 
-    # Non-interactive mode: when actor and project-code are both provided via
-    # flags, default remaining options instead of prompting. This lets the
-    # README's one-liner work without interactive prompts.
-    non_interactive = actor is not None and project_code is not None
-
-    # Prompt for heartbeat if not provided via flag
+    # Heartbeat and workflow are flag-only configuration. Sensible defaults
+    # (heartbeat off, classic workflow) work for most users. Advanced users
+    # can pass --heartbeat or --workflow opinionated, or edit config later.
     if heartbeat is None:
-        if non_interactive:
-            heartbeat = False
-        else:
-            try:
-                heartbeat = click.confirm(
-                    "Enable heartbeat? (agents auto-advance through backlog after each task)",
-                    default=True,
-                )
-            except (click.Abort, EOFError):
-                heartbeat = False
-
-    # Prompt for workflow preset if not provided via flag
+        heartbeat = False
     if workflow_preset is None:
-        if non_interactive:
-            workflow_preset = "classic"
-        else:
-            from lattice.core.config import WORKFLOW_PRESETS
-
-            click.echo("")
-            click.echo("Workflow personality — how should your board talk?")
-            click.echo("")
-            for i, (key, preset) in enumerate(WORKFLOW_PRESETS.items(), 1):
-                display_names = preset["display_names"]
-                if display_names:
-                    sample = " → ".join(
-                        display_names.get(s, s) for s in ["backlog", "in_progress", "done"]
-                    )
-                else:
-                    sample = "backlog → in_progress → done"
-                click.echo(f"  [{i}] {key}: {preset['description']}")
-                click.echo(f"      {sample}")
-            click.echo("")
-            try:
-                choice = click.prompt(
-                    "Choose a preset",
-                    type=click.IntRange(1, len(WORKFLOW_PRESETS)),
-                    default=1,
-                )
-                workflow_preset = list(WORKFLOW_PRESETS.keys())[choice - 1]
-            except (click.Abort, EOFError):
-                workflow_preset = "classic"
+        workflow_preset = "classic"
 
     try:
         # Create directory structure
@@ -496,20 +462,8 @@ def init(
         else:
             atomic_write(context_path, _CONTEXT_MD_TEMPLATE)
 
-        # Seed example tasks (requires project_code for short IDs)
-        should_seed = seed  # explicit --seed/--no-seed
-        if should_seed is None and project_code:
-            if non_interactive:
-                should_seed = False
-            else:
-                try:
-                    should_seed = click.confirm(
-                        "Seed example tasks to see the workflow in action?",
-                        default=False,
-                    )
-                except (click.Abort, EOFError):
-                    should_seed = False
-        if should_seed and project_code:
+        # Seed example tasks (requires --seed flag and project_code for short IDs)
+        if seed and project_code:
             click.echo("")
             click.echo("Seeding example tasks...")
             _seed_example_tasks(lattice_dir, config)
