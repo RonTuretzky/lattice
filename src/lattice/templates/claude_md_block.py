@@ -20,6 +20,14 @@ lattice create "<title>" --actor agent:<your-id>
 
 This is not bookkeeping. This is the minimum viable act of coordination: declaring that something is happening, and who is doing it.
 
+### Descriptions Carry Context
+
+The description should be sufficient for an agent to decide whether it needs to plan. Plan files are where agents write *how* — descriptions say *what* and *why*.
+
+- **Fully specified** (bug located, fix named, files identified): skip `in_planning`, go straight to `in_progress`. Mark `complexity: low`.
+- **Clear goal, open implementation**: go through `in_planning`. The agent figures out the approach.
+- **Decision context from conversations**: bake the decisions and rationale into the description. Without it, the next agent re-derives what was already decided.
+
 ### Status Is a Signal, Not a Chore
 
 Every status transition is an event — immutable, attributed, permanent. When you move a task, you are writing history that future minds will read to understand what happened here.
