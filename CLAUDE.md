@@ -26,6 +26,20 @@ This is not bookkeeping. This is the minimum viable act of coordination: declari
 
 When in doubt, create the task. A small task costs nothing. Lost visibility costs everything.
 
+### Writing Descriptions That Carry Context
+
+The description should be sufficient for an agent to decide whether it needs to plan. That's the bar. Plan files are where agents write *how* they'll implement — the description tells them *what* to build and *why*.
+
+Three categories of task descriptions:
+
+1. **Description IS the plan.** The bug is located, the fix is specified, the files are named. An agent claiming this should skip `in_planning` and go straight to `in_progress`. Mark these `complexity: low`. Example: "Add `comment_role_refs` to `PROTECTED_FIELDS` in `tasks.py:11-28`."
+
+2. **Description is clear, implementation needs thought.** The *what* is known, the *how* needs exploration. Agent should go through `in_planning`. Example: "Surface comment roles in `lattice show` output" — the goal is clear, but formatting decisions and which functions to modify require investigation.
+
+3. **Description needs human decision context.** When a task emerges from a conversation where decisions were made, bake the decisions and their rationale into the description. Without that context, an agent would waste time re-deriving what was already decided. Example: "Role validation: hard error (not warning) — reject unknown roles at comment/attach time, reading valid roles from completion_policies in config."
+
+Leave the plan file empty in all three cases. The description tells agents what to build; the plan file is where they write how.
+
 ### Status Is a Signal, Not a Chore
 
 Every status transition is an event — immutable, attributed, permanent. Lattice is the source of ground truth for what is happening right now.
