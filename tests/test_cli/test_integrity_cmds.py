@@ -168,7 +168,7 @@ class TestDoctor:
             "priority": "medium",
             "type": "task",
             "relationships_out": [],
-            "artifact_refs": [],
+            "evidence_refs": [],
             "custom_fields": {},
             "last_event_id": "ev_00000000000000000000000000",
         }
@@ -198,13 +198,15 @@ class TestDoctor:
         assert isinstance(parsed["data"]["findings"], list)
 
     def test_doctor_missing_artifact(self, create_task, invoke, initialized_root):
-        """Task has artifact_ref to non-existent artifact. Doctor should detect."""
+        """Task has evidence_ref to non-existent artifact. Doctor should detect."""
         task = create_task("Artifact test")
         task_id = task["id"]
 
         snap_path = initialized_root / ".lattice" / "tasks" / f"{task_id}.json"
         snap = json.loads(snap_path.read_text())
-        snap["artifact_refs"] = ["art_00000000000000000000ZZZZZZ"]
+        snap["evidence_refs"] = [
+            {"id": "art_00000000000000000000ZZZZZZ", "role": None, "source_type": "artifact"}
+        ]
         snap_path.write_text(json.dumps(snap, sort_keys=True, indent=2) + "\n")
 
         result = invoke("doctor")

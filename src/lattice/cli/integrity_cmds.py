@@ -300,9 +300,19 @@ def doctor(fix: bool, output_json: bool) -> None:
     # -----------------------------------------------------------------
     artifacts_ok = True
     for task_id, snap in snapshots.items():
-        for art_ref in snap.get("artifact_refs", []):
-            # Handle both old format (str) and new enriched format (dict)
-            art_id = art_ref["id"] if isinstance(art_ref, dict) else art_ref
+        # Read artifact refs from evidence_refs (new) or artifact_refs (legacy)
+        evidence_refs = snap.get("evidence_refs")
+        if evidence_refs is not None:
+            art_ids = [
+                ref["id"] for ref in evidence_refs
+                if ref.get("source_type") == "artifact"
+            ]
+        else:
+            art_ids = [
+                (ref["id"] if isinstance(ref, dict) else ref)
+                for ref in snap.get("artifact_refs", [])
+            ]
+        for art_id in art_ids:
             if art_id not in known_artifact_ids:
                 artifacts_ok = False
                 findings.append(

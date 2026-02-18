@@ -59,9 +59,8 @@ REQUIRED_SNAPSHOT_FIELDS = {
     "updated_at",
     "done_at",
     "comment_count",
-    "comment_role_refs",
     "relationships_out",
-    "artifact_refs",
+    "evidence_refs",
     "branch_links",
     "custom_fields",
     "last_event_id",
@@ -122,7 +121,7 @@ def test_snapshot_always_valid_after_creation(
     assert snap["created_by"] == actor
     assert snap["id"] == event["task_id"]
     assert isinstance(snap["relationships_out"], list)
-    assert isinstance(snap["artifact_refs"], list)
+    assert isinstance(snap["evidence_refs"], list)
     assert isinstance(snap["custom_fields"], dict)
 
 

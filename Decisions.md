@@ -633,3 +633,17 @@ Additional review findings that shaped this decision:
 **Implementation:** `serve_forever()` runs in a while loop. SIGHUP handler sets a flag and triggers shutdown (signal-handler safe — sets `_BaseServer__shutdown_request` directly to avoid deadlock from `shutdown()`'s internal `wait()`). After `serve_forever()` returns, the loop checks the flag: restart on SIGHUP, exit on anything else. `lattice restart` uses `lsof -ti:PORT` to find the PID and `os.kill(pid, SIGHUP)` to send the signal.
 
 **Consequence:** Unix-only (SIGHUP doesn't exist on Windows). Acceptable — the dashboard is a local dev tool and the primary audience is macOS/Linux.
+
+---
+
+## 2026-02-18: Unify artifact_refs and comment_role_refs into evidence_refs (LAT-146)
+
+**Decision:** Replace two parallel `[{id, role}]` fields (`artifact_refs` and `comment_role_refs`) with a single `evidence_refs` field that carries a `source_type` discriminator (`"artifact"` or `"comment"`). Clean break — new snapshots no longer produce the old fields.
+
+**Context:** Both fields served the same purpose: tracking evidence items with roles for completion policy validation. Having two separate fields meant two loops in policy checks, two sets of protected fields, and two code paths for every consumer. The structures were identical (`{id, role}`), differing only in source.
+
+**Schema:** `evidence_refs: [{id: str, role: str|None, source_type: "artifact"|"comment"}, ...]`
+
+**Backward compatibility:** `get_artifact_roles()`, `get_comment_role_refs()`, and all consumers check for `evidence_refs` first, falling back to the legacy field names for old snapshots that haven't been rebuilt. `rebuild --all` produces snapshots with only `evidence_refs`.
+
+**Consequence:** Completion policy validation uses a single `get_evidence_roles()` function. Future evidence types (e.g., `ci_result`, `external_review`) can be added by extending `source_type` without new snapshot fields.

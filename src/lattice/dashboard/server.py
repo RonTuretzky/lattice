@@ -2154,13 +2154,9 @@ def _read_snapshot_archive(ld: Path, task_id: str) -> dict | None:
 
 def _read_artifact_info(ld: Path, snapshot: dict) -> list[dict]:
     artifacts: list[dict] = []
-    for ref in snapshot.get("artifact_refs", []):
-        if isinstance(ref, dict):
-            art_id = ref["id"]
-            role = ref.get("role")
-        else:
-            art_id = ref
-            role = None
+    # Read from evidence_refs (new) with fallback to artifact_refs (legacy)
+    refs = _get_artifact_evidence_refs(snapshot)
+    for art_id, role in refs:
         meta_path = ld / "artifacts" / "meta" / f"{art_id}.json"
         info: dict = {"id": art_id, "role": role}
         if meta_path.is_file():
@@ -2172,6 +2168,25 @@ def _read_artifact_info(ld: Path, snapshot: dict) -> list[dict]:
                 pass
         artifacts.append(info)
     return artifacts
+
+
+def _get_artifact_evidence_refs(snapshot: dict) -> list[tuple[str, str | None]]:
+    """Extract (artifact_id, role) pairs from evidence_refs or legacy artifact_refs."""
+    evidence_refs = snapshot.get("evidence_refs")
+    if evidence_refs is not None:
+        return [
+            (ref["id"], ref.get("role"))
+            for ref in evidence_refs
+            if ref.get("source_type") == "artifact"
+        ]
+    # Legacy fallback
+    result = []
+    for ref in snapshot.get("artifact_refs", []):
+        if isinstance(ref, dict):
+            result.append((ref["id"], ref.get("role")))
+        else:
+            result.append((ref, None))
+    return result
 
 
 # ---------------------------------------------------------------------------

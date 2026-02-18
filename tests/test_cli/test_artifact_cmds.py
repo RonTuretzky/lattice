@@ -115,10 +115,11 @@ class TestAttachFile:
         result = invoke("attach", task_id, str(src_file), "--actor", _ACTOR, "--json")
         art_id = json.loads(result.output)["data"]["id"]
 
-        # Read task snapshot — artifact_refs now stores enriched dicts
+        # Read task snapshot — evidence_refs stores enriched dicts with source_type
         lattice_dir = initialized_root / LATTICE_DIR
         snap = json.loads((lattice_dir / "tasks" / f"{task_id}.json").read_text())
-        ref_ids = [r["id"] if isinstance(r, dict) else r for r in snap["artifact_refs"]]
+        art_refs = [r for r in snap["evidence_refs"] if r.get("source_type") == "artifact"]
+        ref_ids = [r["id"] for r in art_refs]
         assert art_id in ref_ids
 
     def test_attach_with_title(self, invoke, initialized_root, tmp_path) -> None:
@@ -166,9 +167,10 @@ class TestAttachFile:
         attach_event = json.loads(lines[1])
         assert attach_event["data"]["role"] == "debug_log"
 
-        # Check snapshot artifact_refs stores role
+        # Check snapshot evidence_refs stores role
         snap = json.loads((lattice_dir / "tasks" / f"{task_id}.json").read_text())
-        assert snap["artifact_refs"][0]["role"] == "debug_log"
+        art_refs = [r for r in snap["evidence_refs"] if r.get("source_type") == "artifact"]
+        assert art_refs[0]["role"] == "debug_log"
 
 
 # ---------------------------------------------------------------------------

@@ -21,7 +21,7 @@ PROTECTED_FIELDS: frozenset[str] = frozenset(
         "status",
         "assigned_to",
         "relationships_out",
-        "artifact_refs",
+        "evidence_refs",
         "branch_links",
         "comment_count",
         "custom_fields",
@@ -93,7 +93,7 @@ def compact_snapshot(snapshot: dict) -> dict:
         "done_at": snapshot.get("done_at"),
         "comment_count": snapshot.get("comment_count", 0),
         "relationships_out_count": len(snapshot.get("relationships_out", [])),
-        "artifact_ref_count": len(snapshot.get("artifact_refs", [])),
+        "evidence_ref_count": len(snapshot.get("evidence_refs", [])),
         "branch_link_count": len(snapshot.get("branch_links", [])),
     }
     short_id = snapshot.get("short_id")
@@ -127,10 +127,9 @@ def _init_snapshot(event: dict) -> dict:
         "updated_at": event["ts"],
         "done_at": event["ts"] if data.get("status") == "done" else None,
         "relationships_out": [],
-        "artifact_refs": [],
+        "evidence_refs": [],
         "branch_links": [],
         "comment_count": 0,
-        "comment_role_refs": [],
         "custom_fields": data.get("custom_fields") or {},
         "last_event_id": event["id"],
     }
@@ -239,13 +238,14 @@ def _mut_artifact_attached(snap: dict, event: dict) -> None:
     data = event["data"]
     art_id = data["artifact_id"]
     role = data.get("role")
-    refs = snap.setdefault("artifact_refs", [])
+    refs = snap.setdefault("evidence_refs", [])
     # Deduplicate by artifact ID
     for ref in refs:
-        existing_id = ref["id"] if isinstance(ref, dict) else ref
-        if existing_id == art_id:
-            return
-    refs.append({"id": art_id, "role": role})
+        if ref.get("source_type") == "artifact":
+            existing_id = ref["id"] if isinstance(ref, dict) else ref
+            if existing_id == art_id:
+                return
+    refs.append({"id": art_id, "role": role, "source_type": "artifact"})
 
 
 @_register_mutation("task_short_id_assigned")
@@ -283,27 +283,36 @@ def _mut_comment_added(snap: dict, event: dict) -> None:
     snap["comment_count"] = snap.get("comment_count", 0) + 1
     role = event.get("data", {}).get("role")
     if role is not None:
-        comment_role_refs = snap.setdefault("comment_role_refs", [])
-        comment_role_refs.append({"id": event["id"], "role": role})
+        evidence_refs = snap.setdefault("evidence_refs", [])
+        evidence_refs.append({"id": event["id"], "role": role, "source_type": "comment"})
 
 
 @_register_mutation("comment_deleted")
 def _mut_comment_deleted(snap: dict, event: dict) -> None:
     snap["comment_count"] = max(0, snap.get("comment_count", 0) - 1)
     comment_id = event.get("data", {}).get("comment_id")
-    if comment_id and "comment_role_refs" in snap:
-        snap["comment_role_refs"] = [
-            cr for cr in snap["comment_role_refs"] if cr.get("id") != comment_id
+    if comment_id and "evidence_refs" in snap:
+        snap["evidence_refs"] = [
+            er for er in snap["evidence_refs"]
+            if not (er.get("source_type") == "comment" and er.get("id") == comment_id)
         ]
 
 
 def get_artifact_roles(snapshot: dict) -> dict[str, str | None]:
-    """Return ``{artifact_id: role}`` from a snapshot's ``artifact_refs``.
+    """Return ``{artifact_id: role}`` from a snapshot's evidence refs.
 
-    Handles both the old format (bare string IDs) and the new enriched
-    format (``{"id": ..., "role": ...}``).
+    Reads from ``evidence_refs`` (source_type=="artifact") first.  Falls back
+    to the legacy ``artifact_refs`` field for old snapshots that haven't been
+    rebuilt yet.  Handles bare string IDs (old format) and enriched dicts.
     """
     result: dict[str, str | None] = {}
+    # New unified field
+    for ref in snapshot.get("evidence_refs", []):
+        if ref.get("source_type") == "artifact":
+            result[ref["id"]] = ref.get("role")
+    if result or "evidence_refs" in snapshot:
+        return result
+    # Legacy fallback
     for ref in snapshot.get("artifact_refs", []):
         if isinstance(ref, dict):
             result[ref["id"]] = ref.get("role")
@@ -313,14 +322,52 @@ def get_artifact_roles(snapshot: dict) -> dict[str, str | None]:
 
 
 def get_comment_role_refs(snapshot: dict) -> dict[str, str | None]:
-    """Return ``{comment_id: role}`` from a snapshot's ``comment_role_refs``.
+    """Return ``{comment_id: role}`` from a snapshot's evidence refs.
 
-    Comment roles are populated when ``lattice comment --role <role>`` is used.
+    Reads from ``evidence_refs`` (source_type=="comment") first.  Falls back
+    to the legacy ``comment_role_refs`` field for old snapshots.
     """
     result: dict[str, str | None] = {}
+    # New unified field
+    for ref in snapshot.get("evidence_refs", []):
+        if ref.get("source_type") == "comment":
+            result[ref["id"]] = ref.get("role")
+    if result or "evidence_refs" in snapshot:
+        return result
+    # Legacy fallback
     for ref in snapshot.get("comment_role_refs", []):
         result[ref["id"]] = ref.get("role")
     return result
+
+
+def get_evidence_roles(snapshot: dict) -> set[str]:
+    """Return the set of all non-None roles from evidence refs.
+
+    Reads from ``evidence_refs`` first.  Falls back to legacy
+    ``artifact_refs`` + ``comment_role_refs`` for old snapshots.
+    Used by completion policy validation.
+    """
+    roles: set[str] = set()
+    evidence_refs = snapshot.get("evidence_refs")
+    if evidence_refs is not None:
+        for ref in evidence_refs:
+            role = ref.get("role")
+            if role is not None:
+                roles.add(role)
+        return roles
+    # Legacy fallback: merge artifact_refs + comment_role_refs
+    for ref in snapshot.get("artifact_refs", []):
+        if isinstance(ref, dict):
+            role = ref.get("role")
+        else:
+            role = None
+        if role is not None:
+            roles.add(role)
+    for ref in snapshot.get("comment_role_refs", []):
+        role = ref.get("role")
+        if role is not None:
+            roles.add(role)
+    return roles
 
 
 # ---------------------------------------------------------------------------

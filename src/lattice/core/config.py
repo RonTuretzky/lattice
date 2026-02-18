@@ -334,7 +334,7 @@ def validate_completion_policy(
     Universal targets (``needs_human``, ``cancelled``) bypass all policies —
     they are escape hatches.
     """
-    from lattice.core.tasks import get_artifact_roles, get_comment_role_refs
+    from lattice.core.tasks import get_evidence_roles
 
     workflow = config.get("workflow", {})
 
@@ -350,13 +350,10 @@ def validate_completion_policy(
 
     failures: list[str] = []
 
-    # Check require_roles — satisfied by artifacts OR comments with matching role
+    # Check require_roles — satisfied by any evidence ref with matching role
     require_roles = policy.get("require_roles", [])
     if require_roles:
-        artifact_roles = get_artifact_roles(snapshot)
-        comment_roles = get_comment_role_refs(snapshot)
-        present_roles = {r for r in artifact_roles.values() if r is not None}
-        present_roles |= {r for r in comment_roles.values() if r is not None}
+        present_roles = get_evidence_roles(snapshot)
         for required in require_roles:
             if required not in present_roles:
                 failures.append(

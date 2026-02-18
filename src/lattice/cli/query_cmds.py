@@ -842,19 +842,14 @@ def _find_incoming_relationships(lattice_dir: Path, task_id: str) -> list[dict]:
 
 
 def _read_artifact_info(lattice_dir: Path, snapshot: dict) -> list[dict]:
-    """Read artifact metadata for each artifact ref (best effort).
+    """Read artifact metadata for each artifact evidence ref (best effort).
 
-    Handles both old format (bare string IDs) and new enriched format
-    (``{"id": ..., "role": ...}``).
+    Reads from ``evidence_refs`` (source_type=="artifact") first, falls back
+    to legacy ``artifact_refs`` for old snapshots.
     """
     artifacts: list[dict] = []
-    for ref in snapshot.get("artifact_refs", []):
-        if isinstance(ref, dict):
-            art_id = ref["id"]
-            role = ref.get("role")
-        else:
-            art_id = ref
-            role = None
+    refs = _get_artifact_evidence_refs(snapshot)
+    for art_id, role in refs:
         meta_path = lattice_dir / "artifacts" / "meta" / f"{art_id}.json"
         info: dict = {"id": art_id, "role": role}
         if meta_path.exists():
@@ -866,6 +861,25 @@ def _read_artifact_info(lattice_dir: Path, snapshot: dict) -> list[dict]:
                 pass
         artifacts.append(info)
     return artifacts
+
+
+def _get_artifact_evidence_refs(snapshot: dict) -> list[tuple[str, str | None]]:
+    """Extract (artifact_id, role) pairs from evidence_refs or legacy artifact_refs."""
+    evidence_refs = snapshot.get("evidence_refs")
+    if evidence_refs is not None:
+        return [
+            (ref["id"], ref.get("role"))
+            for ref in evidence_refs
+            if ref.get("source_type") == "artifact"
+        ]
+    # Legacy fallback
+    result = []
+    for ref in snapshot.get("artifact_refs", []):
+        if isinstance(ref, dict):
+            result.append((ref["id"], ref.get("role")))
+        else:
+            result.append((ref, None))
+    return result
 
 
 def _print_compact_show(

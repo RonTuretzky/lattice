@@ -227,7 +227,7 @@ class TestGraphNodeFields:
             "description",
             "custom_fields",
             "comments",
-            "artifact_refs",
+            "evidence_refs",
             "relationships_out",
             "created_by",
             "last_event_id",

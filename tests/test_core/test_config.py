@@ -365,11 +365,11 @@ class TestValidUrgencies:
 # ---------------------------------------------------------------------------
 
 
-def _snap_with_artifacts(artifact_refs: list, assigned_to: str | None = None) -> dict:
+def _snap_with_evidence(evidence_refs: list, assigned_to: str | None = None) -> dict:
     """Build a minimal snapshot dict for policy testing."""
     return {
         "id": "task_01EXAMPLE0000000000000000",
-        "artifact_refs": artifact_refs,
+        "evidence_refs": evidence_refs,
         "assigned_to": assigned_to,
     }
 
@@ -379,7 +379,7 @@ class TestValidateCompletionPolicy:
 
     def test_no_policy_always_passes(self) -> None:
         config = default_config()
-        snap = _snap_with_artifacts([])
+        snap = _snap_with_evidence([])
         ok, failures = validate_completion_policy(config, snap, "done")
         assert ok is True
         assert failures == []
@@ -389,17 +389,31 @@ class TestValidateCompletionPolicy:
         config["workflow"]["completion_policies"] = {
             "done": {"require_roles": ["review"]},
         }
-        snap = _snap_with_artifacts([])
+        snap = _snap_with_evidence([])
         ok, failures = validate_completion_policy(config, snap, "done")
         assert ok is False
         assert any("review" in f for f in failures)
 
-    def test_has_required_role_passes(self) -> None:
+    def test_has_required_role_via_artifact(self) -> None:
         config = default_config()
         config["workflow"]["completion_policies"] = {
             "done": {"require_roles": ["review"]},
         }
-        snap = _snap_with_artifacts([{"id": "art_A", "role": "review"}])
+        snap = _snap_with_evidence([
+            {"id": "art_A", "role": "review", "source_type": "artifact"},
+        ])
+        ok, failures = validate_completion_policy(config, snap, "done")
+        assert ok is True
+        assert failures == []
+
+    def test_has_required_role_via_comment(self) -> None:
+        config = default_config()
+        config["workflow"]["completion_policies"] = {
+            "done": {"require_roles": ["review"]},
+        }
+        snap = _snap_with_evidence([
+            {"id": "ev_C", "role": "review", "source_type": "comment"},
+        ])
         ok, failures = validate_completion_policy(config, snap, "done")
         assert ok is True
         assert failures == []
@@ -409,7 +423,9 @@ class TestValidateCompletionPolicy:
         config["workflow"]["completion_policies"] = {
             "done": {"require_roles": ["review", "security"]},
         }
-        snap = _snap_with_artifacts([{"id": "art_A", "role": "review"}])
+        snap = _snap_with_evidence([
+            {"id": "art_A", "role": "review", "source_type": "artifact"},
+        ])
         ok, failures = validate_completion_policy(config, snap, "done")
         assert ok is False
         assert any("security" in f for f in failures)
@@ -420,9 +436,9 @@ class TestValidateCompletionPolicy:
         config["workflow"]["completion_policies"] = {
             "done": {"require_roles": ["review", "security"]},
         }
-        snap = _snap_with_artifacts([
-            {"id": "art_A", "role": "review"},
-            {"id": "art_B", "role": "security"},
+        snap = _snap_with_evidence([
+            {"id": "art_A", "role": "review", "source_type": "artifact"},
+            {"id": "ev_B", "role": "security", "source_type": "comment"},
         ])
         ok, failures = validate_completion_policy(config, snap, "done")
         assert ok is True
@@ -432,7 +448,7 @@ class TestValidateCompletionPolicy:
         config["workflow"]["completion_policies"] = {
             "done": {"require_assigned": True},
         }
-        snap = _snap_with_artifacts([], assigned_to=None)
+        snap = _snap_with_evidence([], assigned_to=None)
         ok, failures = validate_completion_policy(config, snap, "done")
         assert ok is False
         assert any("assigned" in f.lower() for f in failures)
@@ -442,7 +458,7 @@ class TestValidateCompletionPolicy:
         config["workflow"]["completion_policies"] = {
             "done": {"require_assigned": True},
         }
-        snap = _snap_with_artifacts([], assigned_to="agent:claude")
+        snap = _snap_with_evidence([], assigned_to="agent:claude")
         ok, failures = validate_completion_policy(config, snap, "done")
         assert ok is True
 
@@ -451,7 +467,7 @@ class TestValidateCompletionPolicy:
         config["workflow"]["completion_policies"] = {
             "needs_human": {"require_roles": ["review"]},
         }
-        snap = _snap_with_artifacts([])
+        snap = _snap_with_evidence([])
         ok, failures = validate_completion_policy(config, snap, "needs_human")
         assert ok is True
 
@@ -460,7 +476,7 @@ class TestValidateCompletionPolicy:
         config["workflow"]["completion_policies"] = {
             "cancelled": {"require_roles": ["review"]},
         }
-        snap = _snap_with_artifacts([])
+        snap = _snap_with_evidence([])
         ok, failures = validate_completion_policy(config, snap, "cancelled")
         assert ok is True
 
@@ -469,17 +485,19 @@ class TestValidateCompletionPolicy:
         config["workflow"]["completion_policies"] = {
             "done": {"require_roles": ["review"]},
         }
-        snap = _snap_with_artifacts([])
+        snap = _snap_with_evidence([])
         ok, failures = validate_completion_policy(config, snap, "review")
         assert ok is True
 
-    def test_old_format_artifact_refs(self) -> None:
-        """Bare string artifact_refs (old format) have no role — should fail."""
+    def test_no_role_evidence_fails(self) -> None:
+        """Evidence refs without a role should not satisfy require_roles."""
         config = default_config()
         config["workflow"]["completion_policies"] = {
             "done": {"require_roles": ["review"]},
         }
-        snap = _snap_with_artifacts(["art_A"])
+        snap = _snap_with_evidence([
+            {"id": "art_A", "role": None, "source_type": "artifact"},
+        ])
         ok, failures = validate_completion_policy(config, snap, "done")
         assert ok is False
 

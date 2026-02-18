@@ -254,7 +254,7 @@ class TestCommentsReadCommand:
 
 class TestCommentRole:
     def test_comment_with_role_stored_in_snapshot(self, invoke, create_task) -> None:
-        """--role stores role in snapshot's comment_role_refs."""
+        """--role stores role in snapshot's evidence_refs."""
         task = create_task("Role test")
         task_id = task["id"]
 
@@ -266,12 +266,12 @@ class TestCommentRole:
         )
         assert result.exit_code == 0, result.output
         snapshot = json.loads(result.output)["data"]
-        refs = snapshot.get("comment_role_refs", [])
-        assert len(refs) == 1
-        assert refs[0]["role"] == "review"
+        comment_refs = [r for r in snapshot.get("evidence_refs", []) if r.get("source_type") == "comment"]
+        assert len(comment_refs) == 1
+        assert comment_refs[0]["role"] == "review"
 
     def test_comment_without_role_not_tracked(self, invoke, create_task) -> None:
-        """Comment without --role does not populate comment_role_refs."""
+        """Comment without --role does not add to evidence_refs."""
         task = create_task("No role")
         task_id = task["id"]
 
@@ -282,10 +282,11 @@ class TestCommentRole:
         )
         assert result.exit_code == 0
         snapshot = json.loads(result.output)["data"]
-        assert snapshot.get("comment_role_refs", []) == []
+        comment_refs = [r for r in snapshot.get("evidence_refs", []) if r.get("source_type") == "comment"]
+        assert comment_refs == []
 
     def test_deleted_role_comment_removed_from_refs(self, invoke, create_task) -> None:
-        """Deleting a role comment removes it from comment_role_refs."""
+        """Deleting a role comment removes it from evidence_refs."""
         task = create_task("Delete role")
         task_id = task["id"]
 
@@ -300,7 +301,8 @@ class TestCommentRole:
         result = invoke("comment-delete", task_id, comment_id, "--actor", "human:test", "--json")
         assert result.exit_code == 0
         snapshot = json.loads(result.output)["data"]
-        assert snapshot.get("comment_role_refs", []) == []
+        comment_refs = [r for r in snapshot.get("evidence_refs", []) if r.get("source_type") == "comment"]
+        assert comment_refs == []
 
 
 # ---------------------------------------------------------------------------

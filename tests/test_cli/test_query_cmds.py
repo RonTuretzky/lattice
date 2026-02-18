@@ -769,7 +769,9 @@ class TestShow:
         snap_path = lattice_dir / "tasks" / f"{task_id}.json"
         snap = json.loads(snap_path.read_text())
         art_id = "art_01J0000000000000000000000"
-        snap["artifact_refs"] = [art_id]
+        snap["evidence_refs"] = [
+            {"id": art_id, "role": None, "source_type": "artifact"}
+        ]
         snap_path.write_text(serialize_snapshot(snap))
 
         result = invoke("show", task_id)

@@ -92,7 +92,7 @@ class TestTaskCreated:
         assert snap["assigned_to"] == "agent:claude"
         assert snap["created_by"] == _ACTOR
         assert snap["relationships_out"] == []
-        assert snap["artifact_refs"] == []
+        assert snap["evidence_refs"] == []
         assert snap["branch_links"] == []
         assert snap["custom_fields"] == {"sprint": 12}
 
@@ -508,9 +508,9 @@ class TestRelationshipRemoved:
 
 
 class TestArtifactAttached:
-    def test_appended_to_artifact_refs(self) -> None:
+    def test_appended_to_evidence_refs(self) -> None:
         snap = _make_snapshot()
-        assert snap["artifact_refs"] == []
+        assert snap["evidence_refs"] == []
         ev = {
             "schema_version": 1,
             "id": _EV_2,
@@ -521,7 +521,9 @@ class TestArtifactAttached:
             "data": {"artifact_id": "art_01ARTIFACT00000000000000000"},
         }
         snap = apply_event_to_snapshot(snap, ev)
-        assert snap["artifact_refs"] == [{"id": "art_01ARTIFACT00000000000000000", "role": None}]
+        assert snap["evidence_refs"] == [
+            {"id": "art_01ARTIFACT00000000000000000", "role": None, "source_type": "artifact"}
+        ]
 
     def test_stores_role(self) -> None:
         snap = _make_snapshot()
@@ -535,8 +537,8 @@ class TestArtifactAttached:
             "data": {"artifact_id": "art_01ARTIFACT00000000000000000", "role": "review"},
         }
         snap = apply_event_to_snapshot(snap, ev)
-        assert snap["artifact_refs"] == [
-            {"id": "art_01ARTIFACT00000000000000000", "role": "review"}
+        assert snap["evidence_refs"] == [
+            {"id": "art_01ARTIFACT00000000000000000", "role": "review", "source_type": "artifact"}
         ]
 
     def test_deduplicates_by_artifact_id(self) -> None:
@@ -553,7 +555,7 @@ class TestArtifactAttached:
                 "data": {"artifact_id": art_id},
             }
             snap = apply_event_to_snapshot(snap, ev)
-        assert len(snap["artifact_refs"]) == 1
+        assert len(snap["evidence_refs"]) == 1
 
     def test_multiple_artifacts(self) -> None:
         snap = _make_snapshot()
@@ -568,7 +570,7 @@ class TestArtifactAttached:
                 "data": {"artifact_id": f"art_{idx:026d}"},
             }
             snap = apply_event_to_snapshot(snap, ev)
-        assert len(snap["artifact_refs"]) == 2
+        assert len(snap["evidence_refs"]) == 2
 
 
 # ---------------------------------------------------------------------------
@@ -581,29 +583,31 @@ class TestGetArtifactRoles:
         snap = _make_snapshot()
         assert get_artifact_roles(snap) == {}
 
-    def test_new_format(self) -> None:
+    def test_evidence_refs_format(self) -> None:
         snap = _make_snapshot()
+        snap["evidence_refs"] = [
+            {"id": "art_A", "role": "review", "source_type": "artifact"},
+            {"id": "art_B", "role": None, "source_type": "artifact"},
+            {"id": "ev_C", "role": "review", "source_type": "comment"},
+        ]
+        assert get_artifact_roles(snap) == {"art_A": "review", "art_B": None}
+
+    def test_legacy_artifact_refs_format(self) -> None:
+        """Backward compat: old artifact_refs field still works."""
+        snap = _make_snapshot()
+        del snap["evidence_refs"]
         snap["artifact_refs"] = [
             {"id": "art_A", "role": "review"},
             {"id": "art_B", "role": None},
         ]
         assert get_artifact_roles(snap) == {"art_A": "review", "art_B": None}
 
-    def test_old_format(self) -> None:
+    def test_legacy_bare_string_format(self) -> None:
         """Backward compat: bare string IDs map to None role."""
         snap = _make_snapshot()
+        del snap["evidence_refs"]
         snap["artifact_refs"] = ["art_A", "art_B"]
         assert get_artifact_roles(snap) == {"art_A": None, "art_B": None}
-
-    def test_mixed_format(self) -> None:
-        """Handle a mix of old and new format refs."""
-        snap = _make_snapshot()
-        snap["artifact_refs"] = [
-            "art_A",
-            {"id": "art_B", "role": "review"},
-        ]
-        roles = get_artifact_roles(snap)
-        assert roles == {"art_A": None, "art_B": "review"}
 
 
 # ---------------------------------------------------------------------------
@@ -934,7 +938,7 @@ class TestCompactSnapshot:
             "done_at",
             "comment_count",
             "relationships_out_count",
-            "artifact_ref_count",
+            "evidence_ref_count",
             "branch_link_count",
         }
         assert set(compact.keys()) == expected_keys
@@ -963,21 +967,21 @@ class TestCompactSnapshot:
                 "note": None,
             },
         ]
-        snap["artifact_refs"] = [
-            {"id": "art_A", "role": None},
-            {"id": "art_B", "role": "review"},
+        snap["evidence_refs"] = [
+            {"id": "art_A", "role": None, "source_type": "artifact"},
+            {"id": "art_B", "role": "review", "source_type": "artifact"},
         ]
 
         compact = compact_snapshot(snap)
         assert compact["relationships_out_count"] == 1
-        assert compact["artifact_ref_count"] == 2
+        assert compact["evidence_ref_count"] == 2
 
     def test_empty_collections(self) -> None:
         snap = _make_snapshot()
         compact = compact_snapshot(snap)
         assert compact["comment_count"] == 0
         assert compact["relationships_out_count"] == 0
-        assert compact["artifact_ref_count"] == 0
+        assert compact["evidence_ref_count"] == 0
         assert compact["branch_link_count"] == 0
 
     def test_done_at_included(self) -> None:
@@ -994,7 +998,7 @@ class TestCompactSnapshot:
         assert "created_at" not in compact
         assert "updated_at" not in compact
         assert "relationships_out" not in compact
-        assert "artifact_refs" not in compact
+        assert "evidence_refs" not in compact
         assert "branch_links" not in compact
         assert "custom_fields" not in compact
         assert "last_event_id" not in compact
