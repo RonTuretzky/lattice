@@ -56,6 +56,14 @@ class TestFullLifecycleWorkflow:
         r = invoke("status", task_id, "in_planning", "--actor", "human:test")
         assert r.exit_code == 0
 
+        # 2b. Fill in the plan so the plan gate allows progression
+        plan_path = lattice_dir / "plans" / f"{task_id}.md"
+        plan_path.write_text(
+            "# Lifecycle test task\n\n"
+            "## Approach\n\n"
+            "- Verify full lifecycle transitions work end-to-end.\n"
+        )
+
         # 3. Status: in_planning -> planned
         r = invoke("status", task_id, "planned", "--actor", "human:test")
         assert r.exit_code == 0
@@ -291,13 +299,14 @@ class TestMultiActorAttribution:
 class TestDoctorAfterLifecycle:
     """Verify that doctor reports zero issues after a full lifecycle."""
 
-    def test_doctor_passes_after_full_lifecycle(self, invoke, create_task):
+    def test_doctor_passes_after_full_lifecycle(self, invoke, create_task, fill_plan):
         """Create a task, transition it, archive it, then run doctor. Zero findings expected."""
         task = create_task("Doctor test task")
         task_id = task["id"]
 
         # Transition through states
         invoke("status", task_id, "in_planning", "--actor", "human:test")
+        fill_plan(task_id, "Doctor test task")
         invoke("status", task_id, "planned", "--actor", "human:test")
         invoke("status", task_id, "in_progress", "--actor", "human:test")
         invoke("status", task_id, "review", "--actor", "human:test")

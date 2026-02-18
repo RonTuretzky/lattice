@@ -75,8 +75,7 @@ class TestCreate:
         assert plan_path.exists()
         content = plan_path.read_text()
         assert "Plan test" in content
-        assert "## Summary" in content
-        assert "## Technical Plan" in content
+        assert "Plan test" in content
         # Notes should NOT be scaffolded on create (lazy)
         notes_path = lattice_dir / "notes" / f"{task_id}.md"
         assert not notes_path.exists()

@@ -23,13 +23,14 @@ def _config_with_policy(initialized_root, policy: dict | None = None) -> None:
 class TestCompletionPolicyGating:
     """Status transitions blocked by completion policies."""
 
-    def test_blocked_without_required_role(self, invoke, initialized_root) -> None:
+    def test_blocked_without_required_role(self, invoke, initialized_root, fill_plan) -> None:
         _config_with_policy(initialized_root, {"done": {"require_roles": ["review"]}})
 
         # Create a task and move to review
         r = invoke("create", "Test task", "--actor", _ACTOR, "--json")
         task_id = json.loads(r.output)["data"]["id"]
         invoke("status", task_id, "in_planning", "--actor", _ACTOR)
+        fill_plan(task_id, "Test task")
         invoke("status", task_id, "planned", "--actor", _ACTOR)
         invoke("status", task_id, "in_progress", "--actor", _ACTOR)
         invoke("status", task_id, "review", "--actor", _ACTOR)
@@ -42,12 +43,13 @@ class TestCompletionPolicyGating:
         assert parsed["error"]["code"] == "COMPLETION_BLOCKED"
         assert "review" in parsed["error"]["message"]
 
-    def test_passes_with_required_role(self, invoke, initialized_root, tmp_path) -> None:
+    def test_passes_with_required_role(self, invoke, initialized_root, tmp_path, fill_plan) -> None:
         _config_with_policy(initialized_root, {"done": {"require_roles": ["review"]}})
 
         r = invoke("create", "Test task", "--actor", _ACTOR, "--json")
         task_id = json.loads(r.output)["data"]["id"]
         invoke("status", task_id, "in_planning", "--actor", _ACTOR)
+        fill_plan(task_id, "Test task")
         invoke("status", task_id, "planned", "--actor", _ACTOR)
         invoke("status", task_id, "in_progress", "--actor", _ACTOR)
         invoke("status", task_id, "review", "--actor", _ACTOR)
@@ -67,12 +69,13 @@ class TestCompletionPolicyGating:
         parsed = json.loads(r.output)
         assert parsed["ok"] is True
 
-    def test_force_override_requires_reason(self, invoke, initialized_root) -> None:
+    def test_force_override_requires_reason(self, invoke, initialized_root, fill_plan) -> None:
         _config_with_policy(initialized_root, {"done": {"require_roles": ["review"]}})
 
         r = invoke("create", "Test task", "--actor", _ACTOR, "--json")
         task_id = json.loads(r.output)["data"]["id"]
         invoke("status", task_id, "in_planning", "--actor", _ACTOR)
+        fill_plan(task_id, "Test task")
         invoke("status", task_id, "planned", "--actor", _ACTOR)
         invoke("status", task_id, "in_progress", "--actor", _ACTOR)
         invoke("status", task_id, "review", "--actor", _ACTOR)
@@ -83,12 +86,13 @@ class TestCompletionPolicyGating:
         parsed = json.loads(r.output)
         assert parsed["error"]["code"] == "VALIDATION_ERROR"
 
-    def test_force_with_reason_overrides(self, invoke, initialized_root) -> None:
+    def test_force_with_reason_overrides(self, invoke, initialized_root, fill_plan) -> None:
         _config_with_policy(initialized_root, {"done": {"require_roles": ["review"]}})
 
         r = invoke("create", "Test task", "--actor", _ACTOR, "--json")
         task_id = json.loads(r.output)["data"]["id"]
         invoke("status", task_id, "in_planning", "--actor", _ACTOR)
+        fill_plan(task_id, "Test task")
         invoke("status", task_id, "planned", "--actor", _ACTOR)
         invoke("status", task_id, "in_progress", "--actor", _ACTOR)
         invoke("status", task_id, "review", "--actor", _ACTOR)
@@ -103,7 +107,7 @@ class TestCompletionPolicyGating:
         parsed = json.loads(r.output)
         assert parsed["ok"] is True
 
-    def test_universal_target_bypasses_policy(self, invoke, initialized_root) -> None:
+    def test_universal_target_bypasses_policy(self, invoke, initialized_root, fill_plan) -> None:
         # Even with a policy on needs_human, it should bypass
         _config_with_policy(initialized_root, {
             "done": {"require_roles": ["review"]},
@@ -113,6 +117,7 @@ class TestCompletionPolicyGating:
         r = invoke("create", "Test task", "--actor", _ACTOR, "--json")
         task_id = json.loads(r.output)["data"]["id"]
         invoke("status", task_id, "in_planning", "--actor", _ACTOR)
+        fill_plan(task_id, "Test task")
         invoke("status", task_id, "planned", "--actor", _ACTOR)
         invoke("status", task_id, "in_progress", "--actor", _ACTOR)
 
@@ -120,11 +125,12 @@ class TestCompletionPolicyGating:
         r = invoke("status", task_id, "needs_human", "--actor", _ACTOR, "--json")
         assert r.exit_code == 0
 
-    def test_no_policy_no_gating(self, invoke, initialized_root) -> None:
+    def test_no_policy_no_gating(self, invoke, initialized_root, fill_plan) -> None:
         """Without completion_policies, transitions work normally."""
         r = invoke("create", "Test task", "--actor", _ACTOR, "--json")
         task_id = json.loads(r.output)["data"]["id"]
         invoke("status", task_id, "in_planning", "--actor", _ACTOR)
+        fill_plan(task_id, "Test task")
         invoke("status", task_id, "planned", "--actor", _ACTOR)
         invoke("status", task_id, "in_progress", "--actor", _ACTOR)
         invoke("status", task_id, "review", "--actor", _ACTOR)
@@ -132,12 +138,13 @@ class TestCompletionPolicyGating:
         r = invoke("status", task_id, "done", "--actor", _ACTOR, "--json")
         assert r.exit_code == 0
 
-    def test_require_assigned_blocks(self, invoke, initialized_root) -> None:
+    def test_require_assigned_blocks(self, invoke, initialized_root, fill_plan) -> None:
         _config_with_policy(initialized_root, {"done": {"require_assigned": True}})
 
         r = invoke("create", "Test task", "--actor", _ACTOR, "--json")
         task_id = json.loads(r.output)["data"]["id"]
         invoke("status", task_id, "in_planning", "--actor", _ACTOR)
+        fill_plan(task_id, "Test task")
         invoke("status", task_id, "planned", "--actor", _ACTOR)
         invoke("status", task_id, "in_progress", "--actor", _ACTOR)
         invoke("status", task_id, "review", "--actor", _ACTOR)
@@ -148,7 +155,7 @@ class TestCompletionPolicyGating:
         assert parsed["error"]["code"] == "COMPLETION_BLOCKED"
         assert "assigned" in parsed["error"]["message"].lower()
 
-    def test_require_assigned_passes_when_assigned(self, invoke, initialized_root) -> None:
+    def test_require_assigned_passes_when_assigned(self, invoke, initialized_root, fill_plan) -> None:
         _config_with_policy(initialized_root, {"done": {"require_assigned": True}})
 
         r = invoke(
@@ -158,6 +165,7 @@ class TestCompletionPolicyGating:
         )
         task_id = json.loads(r.output)["data"]["id"]
         invoke("status", task_id, "in_planning", "--actor", _ACTOR)
+        fill_plan(task_id, "Test task")
         invoke("status", task_id, "planned", "--actor", _ACTOR)
         invoke("status", task_id, "in_progress", "--actor", _ACTOR)
         invoke("status", task_id, "review", "--actor", _ACTOR)

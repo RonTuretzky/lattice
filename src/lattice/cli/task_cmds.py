@@ -7,6 +7,7 @@ import json
 import click
 
 from lattice.cli.helpers import (
+    check_plan_gate,
     common_options,
     load_project_config,
     output_error,
@@ -14,7 +15,8 @@ from lattice.cli.helpers import (
     read_snapshot_or_exit,
     require_root,
     resolve_task_id,
-    validate_actor_or_exit,
+    require_actor,
+    validate_actor_format_or_exit,
     write_task_event,
 )
 from lattice.storage.operations import scaffold_plan
@@ -91,7 +93,6 @@ def create(
     tags: str | None,
     assigned_to: str | None,
     task_id: str | None,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -106,9 +107,9 @@ def create(
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
 
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     # Apply defaults
     if status is None:
@@ -286,7 +287,6 @@ _REDIRECT_FIELDS = {
 def update(
     task_id: str,
     pairs: tuple[str, ...],
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -300,9 +300,9 @@ def update(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 
@@ -470,7 +470,6 @@ def status_cmd(
     task_id: str,
     new_status: str,
     force: bool,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -484,9 +483,9 @@ def status_cmd(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 
@@ -580,6 +579,16 @@ def status_cmd(
                 is_json,
             )
 
+    # Planning gate: block in_progress if plan is still scaffold
+    check_plan_gate(
+        lattice_dir,
+        task_id,
+        new_status,
+        is_json,
+        force=force,
+        reason=provenance_reason,
+    )
+
     event_data: dict = {
         "from": current_status,
         "to": new_status,
@@ -627,7 +636,6 @@ _UNASSIGN_SENTINELS = frozenset({"none", "unassigned", "-"})
 def assign(
     task_id: str,
     actor_id: str,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -641,9 +649,9 @@ def assign(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 
@@ -727,7 +735,6 @@ def comment(
     file_path: str | None,
     reply_to: str | None,
     role: str | None,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -759,9 +766,9 @@ def comment(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 
@@ -836,7 +843,6 @@ def comment_edit(
     task_id: str,
     comment_id: str,
     new_text: str,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -850,9 +856,9 @@ def comment_edit(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 
@@ -909,7 +915,6 @@ def comment_edit(
 def comment_delete(
     task_id: str,
     comment_id: str,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -923,9 +928,9 @@ def comment_delete(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 
@@ -974,7 +979,6 @@ def react(
     task_id: str,
     comment_id: str,
     emoji: str,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -988,9 +992,9 @@ def react(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 
@@ -1062,7 +1066,6 @@ def unreact(
     task_id: str,
     comment_id: str,
     emoji: str,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -1076,9 +1079,9 @@ def unreact(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 

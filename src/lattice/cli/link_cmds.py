@@ -10,9 +10,10 @@ from lattice.cli.helpers import (
     output_error,
     output_result,
     read_snapshot_or_exit,
+    require_actor,
     require_root,
     resolve_task_id,
-    validate_actor_or_exit,
+    validate_actor_format_or_exit,
     write_task_event,
 )
 from lattice.cli.main import cli
@@ -66,7 +67,6 @@ def link(
     rel_type: str,
     target_task_id: str,
     note: str | None,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -80,9 +80,9 @@ def link(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
     target_task_id = resolve_task_id(lattice_dir, target_task_id, is_json)
@@ -172,7 +172,6 @@ def unlink(
     task_id: str,
     rel_type: str,
     target_task_id: str,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -186,9 +185,9 @@ def unlink(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
     target_task_id = resolve_task_id(lattice_dir, target_task_id, is_json)
@@ -265,7 +264,6 @@ def branch_link(
     task_id: str,
     branch: str,
     repo: str | None,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -285,9 +283,9 @@ def branch_link(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 
@@ -364,7 +362,6 @@ def branch_unlink(
     task_id: str,
     branch: str,
     repo: str | None,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -384,9 +381,9 @@ def branch_unlink(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 

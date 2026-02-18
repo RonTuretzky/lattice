@@ -7,7 +7,9 @@ from pathlib import Path
 
 import click
 
+from lattice.cli import helpers
 from lattice.cli.helpers import (
+    check_plan_gate,
     common_options,
     json_envelope,
     load_project_config,
@@ -15,9 +17,10 @@ from lattice.cli.helpers import (
     output_result,
     read_snapshot,
     read_snapshot_or_exit,
+    require_actor,
     require_root,
     resolve_task_id,
-    validate_actor_or_exit,
+    validate_actor_format_or_exit,
     write_task_event,
 )
 from lattice.cli.main import cli
@@ -29,7 +32,7 @@ from lattice.core.events import (
     get_actor_display,
     validate_custom_event_type,
 )
-from lattice.core.ids import extract_short_ids, validate_actor, validate_id
+from lattice.core.ids import extract_short_ids, validate_id
 from lattice.core.next import compute_claim_transitions, select_next
 from lattice.core.stats import load_all_snapshots
 from lattice.core.tasks import (
@@ -159,7 +162,6 @@ def event_cmd(
     event_type: str,
     data_str: str | None,
     ev_id: str | None,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -177,9 +179,9 @@ def event_cmd(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 
@@ -429,10 +431,13 @@ def list_cmd(
 
 @cli.command("next")
 @click.option(
-    "--actor", default=None, help="Who is asking (filters by assignment, required for --claim)."
+    "--actor", default=None, expose_value=False,
+    callback=helpers._store_actor,
+    help="Who is asking (filters by assignment, required for --claim).",
 )
 @click.option(
-    "--name", "session_name", default=None,
+    "--name", "session_name", default=None, expose_value=False,
+    callback=helpers._store_session_name, is_eager=True,
     help="Session name (e.g., Argus-3). Resolves to full identity.",
 )
 @click.option(
@@ -445,8 +450,6 @@ def list_cmd(
 @click.option("--json", "output_json", is_flag=True, help="Output structured JSON.")
 @click.option("--quiet", is_flag=True, help="Print only the task ID.")
 def next_cmd(
-    actor: str | None,
-    session_name: str | None,
     status_csv: str | None,
     claim: bool,
     output_json: bool,
@@ -463,48 +466,12 @@ def next_cmd(
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
 
-    # Resolve --name to structured actor
-    resolved_actor: str | dict | None = None
-    if session_name is not None:
-        from lattice.storage.sessions import resolve_session, touch_session
+    resolved_actor = require_actor(is_json, optional=True)
 
-        session_data = resolve_session(lattice_dir, session_name)
-        if session_data is None:
-            output_error(
-                f"No active session named '{session_name}'. "
-                "Start one with 'lattice session start'.",
-                "SESSION_NOT_FOUND",
-                is_json,
-            )
-        touch_session(lattice_dir, session_name)
-        resolved_actor = {
-            "name": session_data["name"],
-            "base_name": session_data["base_name"],
-            "serial": session_data["serial"],
-            "session": session_data["session"],
-            "model": session_data["model"],
-        }
-        if session_data.get("framework"):
-            resolved_actor["framework"] = session_data["framework"]
-        if session_data.get("agent_type"):
-            resolved_actor["agent_type"] = session_data["agent_type"]
-    elif actor is not None:
-        resolved_actor = actor
-
-    # Validate --claim requires identity
     if claim and resolved_actor is None:
         output_error(
             "--claim requires --actor or --name.",
             "VALIDATION_ERROR",
-            is_json,
-        )
-
-    # Validate legacy actor format if provided
-    if actor and not session_name and not validate_actor(actor):
-        output_error(
-            f"Invalid actor format: '{actor}'. "
-            "Expected prefix:identifier (e.g., human:atin, agent:claude).",
-            "INVALID_ACTOR",
             is_json,
         )
 
@@ -533,6 +500,9 @@ def next_cmd(
 
     # --claim: atomically assign + move to in_progress with valid transitions
     if claim:
+        # Planning gate: block if plan is still scaffold
+        check_plan_gate(lattice_dir, task_id, "in_progress", is_json)
+
         locks_dir = lattice_dir / "locks"
         lock_keys = sorted([f"events_{task_id}", f"tasks_{task_id}"])
 
@@ -641,12 +611,9 @@ def _read_plan_content_for_next(lattice_dir: Path, task_id: str) -> str | None:
 
 def _is_scaffold_plan_content(content: str) -> bool:
     """Return True when plan content still matches the default scaffold placeholders."""
-    if not content.strip():
-        return True
-    return (
-        "<!-- Implementation approach, design decisions, open questions. -->" in content
-        and "<!-- What must be true for this task to be done? -->" in content
-    )
+    from lattice.cli.helpers import is_scaffold_plan
+
+    return is_scaffold_plan(content)
 
 
 # ---------------------------------------------------------------------------

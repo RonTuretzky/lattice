@@ -15,9 +15,10 @@ from lattice.cli.helpers import (
     output_error,
     output_result,
     read_snapshot,
+    require_actor,
     require_root,
     resolve_task_id,
-    validate_actor_or_exit,
+    validate_actor_format_or_exit,
 )
 from lattice.cli.main import cli
 from lattice.core.events import create_event, serialize_event
@@ -125,7 +126,6 @@ def _archive_one(
 def archive(
     task_ids: tuple[str, ...],
     stale: bool,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -150,9 +150,9 @@ def archive(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     if stale:
         _archive_stale(
@@ -457,7 +457,6 @@ def _unarchive_one(
 @common_options
 def unarchive(
     task_ids: tuple[str, ...],
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -478,9 +477,9 @@ def unarchive(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     parsed_ids = _parse_task_ids(task_ids)
 

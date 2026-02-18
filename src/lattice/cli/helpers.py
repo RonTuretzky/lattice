@@ -15,6 +15,32 @@ from lattice.storage.short_ids import resolve_short_id as _resolve_short
 
 
 # ---------------------------------------------------------------------------
+# Session → actor dict helper (single source of truth)
+# ---------------------------------------------------------------------------
+
+
+def _build_actor_dict(session_data: dict) -> dict:
+    """Build a structured actor dict from session data.
+
+    This is the single place that maps session fields to the actor
+    identity dict stored in events.  All session resolution paths
+    must use this function.
+    """
+    d: dict = {
+        "name": session_data["name"],
+        "base_name": session_data["base_name"],
+        "serial": session_data["serial"],
+        "session": session_data["session"],
+        "model": session_data["model"],
+    }
+    if session_data.get("framework"):
+        d["framework"] = session_data["framework"]
+    if session_data.get("agent_type"):
+        d["agent_type"] = session_data["agent_type"]
+    return d
+
+
+# ---------------------------------------------------------------------------
 # Root & config
 # ---------------------------------------------------------------------------
 
@@ -127,73 +153,75 @@ def resolve_task_id(
 
 
 # ---------------------------------------------------------------------------
-# Validation helpers
+# Actor resolution
 # ---------------------------------------------------------------------------
 
 
-def validate_actor_or_exit(actor: str | None, is_json: bool) -> str | dict:
-    """Validate and resolve actor identity.
+def require_actor(is_json: bool, *, optional: bool = False) -> str | dict | None:
+    """Resolve actor identity from Click context.  Caches the result.
 
-    If ``--name`` was provided (via Click context), resolves the session
-    and returns a structured actor dict.  If ``--actor`` was provided,
-    validates the format and returns the string.  Exits with error if
-    neither is available.
+    Reads ``--name`` and ``--actor`` from the Click context (stored by
+    ``_store_session_name`` and ``_store_actor`` callbacks in
+    ``common_options``).  Returns a structured dict (from session) or
+    a validated legacy string.
 
-    Commands should use the return value as the resolved actor::
-
-        actor = validate_actor_or_exit(actor, is_json)
+    Set *optional* to ``True`` for commands where identity is not
+    required (e.g., ``lattice next`` without ``--claim``).  Returns
+    ``None`` when no identity flags were provided.
     """
     from lattice.storage.sessions import resolve_session, touch_session
 
-    # Check if --name was provided via context
-    ctx = click.get_current_context(silent=True)
-    if ctx is not None:
-        ctx.ensure_object(dict)
-        session_name = ctx.obj.get("_session_name")
-        if session_name is not None:
-            # Resolve from session — need lattice_dir
-            lattice_dir = ctx.obj.get("_lattice_dir")
-            if lattice_dir is None:
-                # Try to find it
-                try:
-                    lattice_dir = require_root(is_json)
-                except SystemExit:
-                    raise
-                ctx.obj["_lattice_dir"] = lattice_dir
+    ctx = click.get_current_context()
+    ctx.ensure_object(dict)
 
-            session_data = resolve_session(lattice_dir, session_name)
-            if session_data is None:
-                output_error(
-                    f"No active session named '{session_name}'. "
-                    "Start one with 'lattice session start'.",
-                    "SESSION_NOT_FOUND",
-                    is_json,
-                )
-            # Touch last_active
-            touch_session(lattice_dir, session_name)
+    # Return cached result
+    if "_resolved_actor" in ctx.obj:
+        return ctx.obj["_resolved_actor"]
 
-            # Build structured actor dict
-            actor_dict: dict = {
-                "name": session_data["name"],
-                "base_name": session_data["base_name"],
-                "serial": session_data["serial"],
-                "session": session_data["session"],
-                "model": session_data["model"],
-            }
-            if session_data.get("framework"):
-                actor_dict["framework"] = session_data["framework"]
-            if session_data.get("agent_type"):
-                actor_dict["agent_type"] = session_data["agent_type"]
+    session_name = ctx.obj.get("_session_name")
+    actor_str = ctx.obj.get("_actor")
 
-            return actor_dict
+    if session_name is not None:
+        lattice_dir = ctx.obj.get("_lattice_dir")
+        if lattice_dir is None:
+            lattice_dir = require_root(is_json)
+            ctx.obj["_lattice_dir"] = lattice_dir
 
-    if actor is None:
-        output_error(
-            "Either --name (session) or --actor (legacy) is required.",
-            "MISSING_ACTOR",
-            is_json,
-        )
+        session_data = resolve_session(lattice_dir, session_name)
+        if session_data is None:
+            output_error(
+                f"No active session named '{session_name}'. "
+                "Start one with 'lattice session start'.",
+                "SESSION_NOT_FOUND",
+                is_json,
+            )
+        touch_session(lattice_dir, session_name)
 
+        result: str | dict = _build_actor_dict(session_data)
+        ctx.obj["_resolved_actor"] = result
+        return result
+
+    if actor_str is not None:
+        validate_actor_format_or_exit(actor_str, is_json)
+        ctx.obj["_resolved_actor"] = actor_str
+        return actor_str
+
+    if optional:
+        return None
+
+    output_error(
+        "Either --name (session) or --actor (legacy) is required.",
+        "MISSING_ACTOR",
+        is_json,
+    )
+
+
+def validate_actor_format_or_exit(actor: str, is_json: bool) -> None:
+    """Validate a legacy actor string format.  Exits on failure.
+
+    Used for secondary actor fields like ``--on-behalf-of`` where only
+    format validation is needed (no session resolution).
+    """
     if not validate_actor(actor):
         output_error(
             f"Invalid actor format: '{actor}'. "
@@ -201,8 +229,6 @@ def validate_actor_or_exit(actor: str | None, is_json: bool) -> str | dict:
             "INVALID_ACTOR",
             is_json,
         )
-
-    return actor
 
 
 # ---------------------------------------------------------------------------
@@ -216,14 +242,27 @@ def _store_session_name(ctx: click.Context, _param: click.Parameter, value: str 
     ctx.obj["_session_name"] = value
 
 
+def _store_actor(ctx: click.Context, _param: click.Parameter, value: str | None) -> None:
+    """Store --actor value on Click context for later resolution."""
+    ctx.ensure_object(dict)
+    ctx.obj["_actor"] = value
+
+
 def common_options(f):  # noqa: ANN001, ANN201
-    """Decorator adding common write-command options."""
+    """Decorator adding common write-command options.
+
+    Identity flags (``--name``, ``--actor``) are stored on the Click
+    context and resolved lazily via ``require_actor()``.  Commands
+    should call ``require_actor(is_json)`` instead of reading an
+    ``actor`` parameter.
+    """
     f = click.option("--quiet", is_flag=True, help="Print only the primary ID.")(f)
     f = click.option("--json", "output_json", is_flag=True, help="Output structured JSON.")(f)
     f = click.option("--session", default=None, help="Session identifier (legacy).")(f)
     f = click.option("--model", default=None, help="Model identifier (legacy).")(f)
     f = click.option(
-        "--actor", default=None,
+        "--actor", default=None, expose_value=False,
+        callback=_store_actor,
         help="Actor (e.g., human:atin, agent:claude). Deprecated: prefer --name.",
     )(f)
     f = click.option(
@@ -239,74 +278,6 @@ def common_options(f):  # noqa: ANN001, ANN201
         f
     )
     return f
-
-
-def resolve_actor_or_exit(
-    lattice_dir: Path,
-    *,
-    actor: str | None,
-    is_json: bool,
-) -> tuple[str | dict, str | None, str | None]:
-    """Resolve actor identity from --name or --actor flags.
-
-    Checks the Click context for a ``--name`` session name (stored by
-    ``common_options``).  If present, resolves the session and returns
-    a structured actor dict.  Otherwise falls back to the legacy
-    ``--actor`` string.
-
-    Returns (actor_value, model, session) where:
-    - actor_value is either a structured dict (from session) or a legacy string
-    - model and session are for legacy agent_meta (None when using structured actor)
-
-    Exits with error if neither --name nor --actor is provided.
-    """
-    from lattice.storage.sessions import resolve_session, touch_session
-
-    # Check for --name on Click context
-    ctx = click.get_current_context(silent=True)
-    session_name = None
-    if ctx is not None:
-        ctx.ensure_object(dict)
-        session_name = ctx.obj.get("_session_name")
-
-    if session_name is not None:
-        # Resolve from session
-        session_data = resolve_session(lattice_dir, session_name)
-        if session_data is None:
-            output_error(
-                f"No active session named '{session_name}'. "
-                "Start one with 'lattice session start'.",
-                "SESSION_NOT_FOUND",
-                is_json,
-            )
-        # Touch last_active
-        touch_session(lattice_dir, session_name)
-
-        # Build structured actor dict
-        actor_dict: dict = {
-            "name": session_data["name"],
-            "base_name": session_data["base_name"],
-            "serial": session_data["serial"],
-            "session": session_data["session"],
-            "model": session_data["model"],
-        }
-        if session_data.get("framework"):
-            actor_dict["framework"] = session_data["framework"]
-        if session_data.get("agent_type"):
-            actor_dict["agent_type"] = session_data["agent_type"]
-
-        return actor_dict, None, None
-
-    if actor is not None:
-        # Legacy path
-        validate_actor_or_exit(actor, is_json)
-        return actor, None, None
-
-    output_error(
-        "Either --name (session) or --actor (legacy) is required.",
-        "MISSING_ACTOR",
-        is_json,
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -419,3 +390,88 @@ def list_all_resources(lattice_dir: Path) -> list[dict]:
         if snap_path.exists():
             results.append(json.loads(snap_path.read_text()))
     return results
+
+
+# ---------------------------------------------------------------------------
+# Plan validation helpers (shared by status + next --claim)
+# ---------------------------------------------------------------------------
+
+
+def is_scaffold_plan(content: str) -> bool:
+    """Return True when plan content still matches the default scaffold placeholders.
+
+    The scaffold is minimal: just ``# <title>`` and optionally the task
+    description as a paragraph.  A plan that has been "filled in" will
+    contain sub-headings, lists, code fences, or other structural
+    elements beyond the auto-generated heading + description.
+    """
+    stripped = content.strip()
+    if not stripped:
+        return True
+    lines = stripped.splitlines()
+    # Must start with a heading to look like a scaffold at all.
+    if not lines[0].startswith("# "):
+        return False
+    # Check remaining lines for structural content (sub-headings, lists,
+    # code fences) that would indicate an agent/human filled it in.
+    for line in lines[1:]:
+        lt = line.strip()
+        if not lt:
+            continue
+        if lt.startswith(("## ", "### ", "- ", "* ", "```")):
+            return False
+        # Numbered list items (e.g. "1. ", "2. ")
+        if len(lt) > 2 and lt[0].isdigit() and ". " in lt[:5]:
+            return False
+    return True
+
+
+def check_plan_gate(
+    lattice_dir: Path,
+    task_id: str,
+    target_status: str,
+    is_json: bool,
+    *,
+    force: bool = False,
+    reason: str | None = None,
+) -> None:
+    """Block transition to in_progress if the plan file is still scaffold.
+
+    Does nothing if *target_status* is not ``in_progress`` or if *force* is True
+    (with a reason).  Calls ``output_error`` (which raises SystemExit) when the
+    gate fires.
+    """
+    if target_status != "in_progress":
+        return
+    if force:
+        if not reason:
+            output_error(
+                "--reason is required with --force.",
+                "VALIDATION_ERROR",
+                is_json,
+            )
+        return
+
+    plan_path = lattice_dir / "plans" / f"{task_id}.md"
+    if not plan_path.exists():
+        output_error(
+            f"Plan file missing for {task_id}. "
+            "Write a plan before moving to in_progress. "
+            "Override with --force --reason.",
+            "PLAN_REQUIRED",
+            is_json,
+        )
+
+    try:
+        content = plan_path.read_text()
+    except OSError:
+        return  # Can't read → don't block (filesystem issue, not a planning issue)
+
+    if is_scaffold_plan(content):
+        output_error(
+            f"Plan for {task_id} is still scaffold. "
+            "Write the plan (even one line) before moving to in_progress. "
+            "Override with --force --reason.",
+            "PLAN_REQUIRED",
+            is_json,
+        )

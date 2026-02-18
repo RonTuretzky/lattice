@@ -105,7 +105,7 @@ class TestArchive:
         assert not plan_path.exists()
         archived_plan = lattice / "archive" / "plans" / f"{task_id}.md"
         assert archived_plan.exists()
-        assert "## Summary" in archived_plan.read_text()
+        assert "Plan test" in archived_plan.read_text()
 
     def test_archive_rejects_invalid_task_id(self, invoke):
         """Archiving with a malformed task_id should fail with INVALID_ID."""
@@ -333,7 +333,7 @@ class TestUnarchive:
 
         # Plan should be back in active
         assert plan_path.exists()
-        assert "## Summary" in plan_path.read_text()
+        assert "Plan unarchive test" in plan_path.read_text()
         assert not (lattice / "archive" / "plans" / f"{task_id}.md").exists()
 
     def test_unarchive_not_found(self, invoke):

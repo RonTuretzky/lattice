@@ -25,6 +25,10 @@ def scaffold_plan(
     Non-authoritative — this is a convenience scaffold for humans and agents
     to use as a structured planning document. Skipped silently if the file
     already exists (idempotent create).
+
+    The scaffold is intentionally minimal: just the title and description.
+    No prescribed section headings — the planning agent writes whatever
+    structure the task needs.
     """
     plan_path = lattice_dir / "plans" / f"{task_id}.md"
     if plan_path.exists():
@@ -35,23 +39,9 @@ def scaffold_plan(
     heading = f"# {short_id}: {title}" if short_id else f"# {title}"
     lines = [heading, ""]
 
-    lines.append("## Summary")
-    lines.append("")
     if description:
         lines.append(description)
-    else:
-        lines.append("<!-- What this task is and why it matters. -->")
-    lines.append("")
-
-    lines.append("## Technical Plan")
-    lines.append("")
-    lines.append("<!-- Implementation approach, design decisions, open questions. -->")
-    lines.append("")
-
-    lines.append("## Acceptance Criteria")
-    lines.append("")
-    lines.append("<!-- What must be true for this task to be done? -->")
-    lines.append("")
+        lines.append("")
 
     plan_path.write_text("\n".join(lines), encoding="utf-8")
 

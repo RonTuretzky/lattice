@@ -11,7 +11,6 @@ from lattice.cli.helpers import (
     load_project_config,
     output_error,
     require_root,
-    validate_actor_or_exit,
 )
 from lattice.cli.main import cli
 from lattice.core.config import serialize_config, validate_project_code
@@ -63,8 +62,6 @@ def backfill_ids(
     is_json = output_json
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-
-    actor = validate_actor_or_exit(actor, is_json)
 
     # Resolve project code
     existing_code = config.get("project_code")

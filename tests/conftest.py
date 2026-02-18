@@ -72,6 +72,29 @@ def invoke_json(invoke):
 
 
 @pytest.fixture()
+def fill_plan(cli_env: dict[str, str]):
+    """Write non-scaffold content into a task's plan file.
+
+    Usage::
+
+        fill_plan(task_id, "My task title")
+    """
+
+    def _fill(task_id: str, title: str = "Task") -> None:
+        plan_path = (
+            Path(cli_env["LATTICE_ROOT"])
+            / ".lattice"
+            / "plans"
+            / f"{task_id}.md"
+        )
+        plan_path.write_text(
+            f"# {title}\n\n## Approach\n\n- Implement the feature.\n"
+        )
+
+    return _fill
+
+
+@pytest.fixture()
 def create_task(cli_runner: CliRunner, cli_env: dict[str, str]):
     """Factory fixture: create a task and return its snapshot dict.
 

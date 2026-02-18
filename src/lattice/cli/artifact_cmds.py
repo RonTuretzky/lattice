@@ -15,9 +15,10 @@ from lattice.cli.helpers import (
     output_error,
     output_result,
     read_snapshot_or_exit,
+    require_actor,
     require_root,
     resolve_task_id,
-    validate_actor_or_exit,
+    validate_actor_format_or_exit,
     write_task_event,
 )
 from lattice.cli.main import cli
@@ -58,7 +59,6 @@ def attach(
     role: str | None,
     inline_text: str | None,
     art_id: str | None,
-    actor: str,
     model: str | None,
     session: str | None,
     output_json: bool,
@@ -93,9 +93,9 @@ def attach(
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
 
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     if on_behalf_of is not None:
-        validate_actor_or_exit(on_behalf_of, is_json)
+        validate_actor_format_or_exit(on_behalf_of, is_json)
 
     # Validate role against configured completion policy roles
     if role is not None:

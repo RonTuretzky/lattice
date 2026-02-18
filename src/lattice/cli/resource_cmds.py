@@ -15,9 +15,9 @@ from lattice.cli.helpers import (
     output_error,
     output_result,
     read_resource_snapshot,
+    require_actor,
     require_root,
     resolve_resource,
-    validate_actor_or_exit,
 )
 from lattice.cli.main import cli
 from lattice.core.events import create_resource_event
@@ -63,7 +63,6 @@ def resource_create(
     max_holders: int,
     ttl: int,
     resource_id: str | None,
-    actor: str,
     output_json: bool,
     quiet: bool,
     session: str | None,
@@ -75,7 +74,7 @@ def resource_create(
     """Create a new resource."""
     is_json = output_json
     lattice_dir = require_root(is_json)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
 
     # Validate ID format before locking
     if resource_id:
@@ -173,7 +172,6 @@ def resource_acquire(
     force: bool,
     do_wait: bool,
     timeout: int,
-    actor: str,
     output_json: bool,
     quiet: bool,
     session: str | None,
@@ -185,7 +183,7 @@ def resource_acquire(
     """Acquire exclusive access to a resource."""
     is_json = output_json
     lattice_dir = require_root(is_json)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     config = load_project_config(lattice_dir)
 
     # Resolve task short ID if provided
@@ -386,7 +384,6 @@ def resource_acquire(
 @common_options
 def resource_release(
     name: str,
-    actor: str,
     output_json: bool,
     quiet: bool,
     session: str | None,
@@ -398,7 +395,7 @@ def resource_release(
     """Release a held resource."""
     is_json = output_json
     lattice_dir = require_root(is_json)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     config = load_project_config(lattice_dir)
 
     # Lock: read-check-write atomically
@@ -466,7 +463,6 @@ def resource_release(
 @common_options
 def resource_heartbeat(
     name: str,
-    actor: str,
     output_json: bool,
     quiet: bool,
     session: str | None,
@@ -478,7 +474,7 @@ def resource_heartbeat(
     """Extend TTL on a held resource."""
     is_json = output_json
     lattice_dir = require_root(is_json)
-    actor = validate_actor_or_exit(actor, is_json)
+    actor = require_actor(is_json)
     config = load_project_config(lattice_dir)
 
     # Lock: read-check-write atomically

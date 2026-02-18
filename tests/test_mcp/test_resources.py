@@ -94,10 +94,10 @@ class TestResourceNotes:
         task = lattice_create(title="Notes task", actor="human:test")
         # Notes are lazy (not scaffolded on create), so create manually
         notes_path = lattice_dir / "notes" / f"{task['id']}.md"
-        notes_path.write_text("# Notes task\n\n## Summary\n\nSome notes.\n")
+        notes_path.write_text("# Notes task\n\nSome notes.\n")
         result = resource_notes(task["id"])
         assert "Notes task" in result
-        assert "## Summary" in result
+        assert "Some notes" in result
 
     def test_notes_not_found(self, lattice_env: Path, lattice_dir: Path):
         task = lattice_create(title="No notes", actor="human:test")
@@ -112,7 +112,7 @@ class TestResourcePlans:
         # Plans are scaffolded on task create
         result = resource_plans(task["id"])
         assert "Plan task" in result
-        assert "## Summary" in result
+        assert "Plan task" in result
 
     def test_plan_not_found(self, lattice_env: Path, lattice_dir: Path):
         task = lattice_create(title="No plan", actor="human:test")

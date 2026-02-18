@@ -72,10 +72,11 @@ class TestNextPriority:
 class TestNextExclusions:
     """Tasks in terminal/blocked states are excluded."""
 
-    def test_excludes_done_task(self, create_task, invoke) -> None:
+    def test_excludes_done_task(self, create_task, invoke, fill_plan) -> None:
         task = create_task("Done task")
         task_id = task["id"]
         invoke("status", task_id, "in_planning", "--actor", "human:test")
+        fill_plan(task_id, "Done task")
         invoke("status", task_id, "planned", "--actor", "human:test")
         invoke("status", task_id, "in_progress", "--actor", "human:test")
         invoke("status", task_id, "review", "--actor", "human:test")
@@ -120,7 +121,7 @@ class TestNextAssignment:
 class TestNextResume:
     """Resume-first logic via CLI."""
 
-    def test_resumes_in_progress_over_backlog(self, create_task, invoke) -> None:
+    def test_resumes_in_progress_over_backlog(self, create_task, invoke, fill_plan) -> None:
         # Create a backlog task with critical priority
         create_task("Critical backlog", "--priority", "critical")
 
@@ -129,6 +130,7 @@ class TestNextResume:
         task2_id = task2["id"]
         invoke("assign", task2_id, "agent:claude", "--actor", "human:test")
         invoke("status", task2_id, "in_planning", "--actor", "human:test")
+        fill_plan(task2_id, "In progress task")
         invoke("status", task2_id, "planned", "--actor", "human:test")
         invoke("status", task2_id, "in_progress", "--actor", "human:test")
 
@@ -140,11 +142,12 @@ class TestNextResume:
 class TestNextStatusOverride:
     """Custom --status flag."""
 
-    def test_status_override_review(self, create_task, invoke) -> None:
+    def test_status_override_review(self, create_task, invoke, fill_plan) -> None:
         # Create a task in review
         task = create_task("Review task")
         task_id = task["id"]
         invoke("status", task_id, "in_planning", "--actor", "human:test")
+        fill_plan(task_id, "Review task")
         invoke("status", task_id, "planned", "--actor", "human:test")
         invoke("status", task_id, "in_progress", "--actor", "human:test")
         invoke("status", task_id, "review", "--actor", "human:test")
@@ -167,9 +170,10 @@ class TestNextClaim:
         result = invoke("next", "--claim")
         assert result.exit_code != 0
 
-    def test_claim_assigns_and_starts(self, create_task, invoke) -> None:
+    def test_claim_assigns_and_starts(self, create_task, invoke, fill_plan) -> None:
         task = create_task("Claimable task")
         task_id = task["id"]
+        fill_plan(task_id, "Claimable task")
 
         result = invoke("next", "--actor", "agent:claude", "--claim", "--json")
         assert result.exit_code == 0
@@ -215,7 +219,7 @@ class TestNextClaim:
         assert parsed["data"]["plan_content"] is not None
         assert "Implement behavior" in parsed["data"]["plan_content"]
 
-    def test_claim_json_plan_content_null_when_plan_missing(self, create_task, invoke, cli_env) -> None:
+    def test_claim_blocked_when_plan_missing(self, create_task, invoke, cli_env) -> None:
         task = create_task("No plan file task")
         task_id = task["id"]
         plan_path = Path(cli_env["LATTICE_ROOT"]) / ".lattice" / "plans" / f"{task_id}.md"
@@ -223,30 +227,29 @@ class TestNextClaim:
             plan_path.unlink()
 
         result = invoke("next", "--actor", "agent:claude", "--claim", "--json")
-        assert result.exit_code == 0
+        assert result.exit_code != 0
         parsed = json.loads(result.output)
-        assert parsed["data"]["id"] == task_id
-        assert parsed["data"]["plan_content"] is None
+        assert parsed["error"]["code"] == "PLAN_REQUIRED"
 
-    def test_claim_json_plan_content_null_for_scaffold(self, create_task, invoke) -> None:
-        task = create_task("Scaffold plan task")
-        task_id = task["id"]
+    def test_claim_blocked_when_plan_is_scaffold(self, create_task, invoke) -> None:
+        create_task("Scaffold plan task")
+        # Plan is auto-scaffolded on create — just title, no real content
 
         result = invoke("next", "--actor", "agent:claude", "--claim", "--json")
-        assert result.exit_code == 0
+        assert result.exit_code != 0
         parsed = json.loads(result.output)
-        assert parsed["data"]["id"] == task_id
-        assert parsed["data"]["plan_content"] is None
+        assert parsed["error"]["code"] == "PLAN_REQUIRED"
 
 
 class TestNextClaimTransitions:
     """--claim emits valid intermediate transitions."""
 
-    def test_claim_planned_task_direct(self, create_task, invoke) -> None:
+    def test_claim_planned_task_direct(self, create_task, invoke, fill_plan) -> None:
         """Claiming a planned task should transition planned -> in_progress (1 hop)."""
         task = create_task("Planned task")
         task_id = task["id"]
         invoke("status", task_id, "in_planning", "--actor", "human:test")
+        fill_plan(task_id, "Planned task")
         invoke("status", task_id, "planned", "--actor", "human:test")
 
         result = invoke(
@@ -258,10 +261,11 @@ class TestNextClaimTransitions:
         assert parsed["data"]["status"] == "in_progress"
         assert parsed["data"]["assigned_to"] == "agent:claude"
 
-    def test_claim_backlog_emits_intermediate_transitions(self, create_task, invoke) -> None:
+    def test_claim_backlog_emits_intermediate_transitions(self, create_task, invoke, fill_plan) -> None:
         """Claiming a backlog task should emit backlog -> planned -> in_progress."""
         task = create_task("Backlog task")
         task_id = task["id"]
+        fill_plan(task_id, "Backlog task")
 
         result = invoke("next", "--actor", "agent:claude", "--claim", "--json")
         assert result.exit_code == 0
@@ -280,12 +284,13 @@ class TestNextClaimTransitions:
         assert status_events[-1]["data"]["from"] == "planned"
         assert status_events[-1]["data"]["to"] == "in_progress"
 
-    def test_claim_already_in_progress_is_noop(self, create_task, invoke) -> None:
+    def test_claim_already_in_progress_is_noop(self, create_task, invoke, fill_plan) -> None:
         """If resume-first returns an in_progress task, --claim should not error."""
         task = create_task("Active task")
         task_id = task["id"]
         invoke("assign", task_id, "agent:claude", "--actor", "human:test")
         invoke("status", task_id, "in_planning", "--actor", "human:test")
+        fill_plan(task_id, "Active task")
         invoke("status", task_id, "planned", "--actor", "human:test")
         invoke("status", task_id, "in_progress", "--actor", "human:test")
 
@@ -312,7 +317,7 @@ class TestNextActorValidation:
 class TestNextWithSessionName:
     """--name flag resolves session identity for next/claim."""
 
-    def test_claim_with_name(self, create_task, invoke) -> None:
+    def test_claim_with_name(self, create_task, invoke, fill_plan) -> None:
         """--name resolves to structured actor for claim."""
         # Start a session first
         result = invoke(
@@ -321,7 +326,8 @@ class TestNextWithSessionName:
         )
         assert result.exit_code == 0
 
-        create_task("Session claimable task")
+        task = create_task("Session claimable task")
+        fill_plan(task["id"], "Session claimable task")
         result = invoke("next", "--name", "Argus-1", "--claim", "--json")
         assert result.exit_code == 0
         parsed = json.loads(result.output)
@@ -346,7 +352,7 @@ class TestNextWithSessionName:
         parsed = json.loads(result.output)
         assert parsed["error"]["code"] == "SESSION_NOT_FOUND"
 
-    def test_resume_with_name(self, create_task, invoke) -> None:
+    def test_resume_with_name(self, create_task, invoke, fill_plan) -> None:
         """Resume-first logic works with structured actor from --name."""
         # Start session
         invoke(
@@ -355,7 +361,8 @@ class TestNextWithSessionName:
         )
 
         # Create and claim a task using session identity
-        create_task("Resume target")
+        task = create_task("Resume target")
+        fill_plan(task["id"], "Resume target")
         claim_result = invoke("next", "--name", "Beacon-1", "--claim", "--json")
         assert claim_result.exit_code == 0
         parsed = json.loads(claim_result.output)

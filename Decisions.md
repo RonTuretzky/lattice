@@ -714,3 +714,19 @@ Additionally, `lattice advance N` processed multiple tasks in a single context w
 - Always scan all refs with `--all`: rejected for now to keep behavior aligned with the explicit `git log --grep=<short_id>` intent and limit read cost.
 
 **Consequence:** `lattice show` gains an additive read-only section and optional JSON field, while continuing to degrade gracefully when git is unavailable or when the directory is not a git repository. No new events or persisted snapshot fields are introduced.
+
+---
+
+## 2026-02-18: Actor identity is a structured primitive (LAT-160)
+
+- **Decision:** Actor identity is now a structured dict (name, base_name, serial, session, model, framework, etc.) stored directly in the event `actor` field. The `model` field doubles as type indicator: `model: "human"` = human, anything else = agent. `--name` replaces `--actor` as the primary identity flag; `--actor` is deprecated but still accepted.
+- **Rationale:** Free-form `prefix:identifier` strings couldn't distinguish two runtimes of the same model (e.g., two Claude Code tabs both using `agent:claude-cli`). This caused concurrent task claims and branch collisions. Structured identity with session ULIDs makes every runtime unique.
+- **Consequence:** Events store either a legacy string or a structured dict in `actor`. All comparison logic uses `get_actor_display()` for compatibility. Session state lives in `.lattice/sessions/`. Serial counters are append-only and never recycle. Plan files (`.lattice/plans/`) are the canonical home for per-task design decisions.
+
+---
+
+## 2026-02-18: Plan file is the core traveling document for a task
+
+- **Decision:** The plan file (`.lattice/plans/<task_id>.md`) is the canonical home for all task-level context: scope, design decisions, acceptance criteria, and rationale. Design decisions that are scoped to a single task belong in the plan file, not in `Decisions.md`.
+- **Rationale:** The plan file is linked by task ID, travels with the task through archive, and is what agents read when picking up work. Scattering task-level decisions across `Decisions.md` dilutes both documents.
+- **Consequence:** `Decisions.md` is reserved for cross-cutting architectural decisions that affect the system as a whole. Plan scaffolding is intentionally minimal (title + description only) — the planning agent writes whatever structure the task needs.

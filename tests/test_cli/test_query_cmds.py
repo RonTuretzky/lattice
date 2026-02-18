@@ -803,9 +803,7 @@ class TestShow:
         assert not notes_path.exists(), "Notes file should NOT be scaffolded on create"
 
         content = plan_path.read_text()
-        assert "## Summary" in content
-        assert "## Technical Plan" in content
-        assert "## Acceptance Criteria" in content
+        assert "Plan scaffold test" in content
 
     def test_plan_path_shown_when_exists(self, invoke, create_task, cli_env):
         """Plan path is displayed when the plan file exists."""
@@ -833,8 +831,7 @@ class TestShow:
 
         result = invoke("plan", task_id)
         assert result.exit_code == 0
-        assert "## Summary" in result.output
-        assert "## Technical Plan" in result.output
+        assert "Task for plan cmd" in result.output
 
     def test_plan_command_json(self, invoke, create_task, cli_env):
         """lattice plan <task> --json returns plan content."""
@@ -846,7 +843,7 @@ class TestShow:
         parsed = json.loads(result.output)
         assert parsed["ok"] is True
         assert "content" in parsed["data"]
-        assert "## Summary" in parsed["data"]["content"]
+        assert "Task for plan json" in parsed["data"]["content"]
 
     def test_plan_command_not_found(self, invoke, create_task, cli_env):
         """lattice plan for task with no plan file reports not found."""
