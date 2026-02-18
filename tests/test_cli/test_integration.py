@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import glob
 import json
+import tempfile
 from pathlib import Path
 
 
@@ -24,6 +26,11 @@ def _read_events(lattice_dir: Path, task_id: str, archived: bool = False) -> lis
             if stripped:
                 events.append(json.loads(stripped))
     return events
+
+
+def _inline_temp_files() -> list[str]:
+    """Return all lattice-inline-* temp files in the system temp dir."""
+    return glob.glob(str(tempfile.gettempdir()) + "/lattice-inline-*")
 
 
 # ---------------------------------------------------------------------------
@@ -118,6 +125,111 @@ class TestFullLifecycleWorkflow:
         # Verify archived snapshot exists, active snapshot removed
         assert not (lattice_dir / "tasks" / f"{task_id}.json").exists()
         assert (lattice_dir / "archive" / "tasks" / f"{task_id}.json").exists()
+
+
+# ---------------------------------------------------------------------------
+# Role evidence integration
+# ---------------------------------------------------------------------------
+
+
+class TestRoleEvidenceIntegration:
+    def test_comment_role_review_updates_snapshot_evidence(self, invoke, create_task) -> None:
+        """comment --role review must write comment evidence to the task snapshot."""
+        task = create_task("Role comment integration")
+        task_id = task["id"]
+
+        result = invoke(
+            "comment",
+            task_id,
+            "Review complete",
+            "--role",
+            "review",
+            "--actor",
+            "human:test",
+            "--json",
+        )
+        assert result.exit_code == 0, result.output
+        snapshot = json.loads(result.output)["data"]
+
+        comment_refs = [
+            ref for ref in snapshot.get("evidence_refs", [])
+            if ref.get("source_type") == "comment"
+        ]
+        assert len(comment_refs) == 1
+        assert comment_refs[0]["role"] == "review"
+
+    def test_inline_attach_role_review_creates_artifact_and_cleans_temp(
+        self, invoke, create_task, initialized_root
+    ) -> None:
+        """attach --inline with role writes evidence and leaves no temp files behind."""
+        task = create_task("Inline role integration")
+        task_id = task["id"]
+
+        before = set(_inline_temp_files())
+        result = invoke(
+            "attach",
+            task_id,
+            "--inline",
+            "Reviewed in detail. Approved.",
+            "--role",
+            "review",
+            "--actor",
+            "human:test",
+            "--json",
+        )
+        assert result.exit_code == 0, result.output
+        artifact_id = json.loads(result.output)["data"]["id"]
+
+        snapshot_path = initialized_root / ".lattice" / "tasks" / f"{task_id}.json"
+        snapshot = json.loads(snapshot_path.read_text())
+        artifact_refs = [
+            ref for ref in snapshot.get("evidence_refs", [])
+            if ref.get("source_type") == "artifact"
+        ]
+        assert any(ref["id"] == artifact_id and ref.get("role") == "review" for ref in artifact_refs)
+
+        leaked = set(_inline_temp_files()) - before
+        assert not leaked, f"Leaked temp files: {leaked}"
+
+    def test_done_policy_satisfied_by_review_comment(self, invoke, initialized_root) -> None:
+        """A review-role comment satisfies require_roles policy for done transition."""
+        config_path = initialized_root / ".lattice" / "config.json"
+        config = json.loads(config_path.read_text())
+        config["workflow"]["completion_policies"] = {
+            "done": {"require_roles": ["review"]}
+        }
+        config_path.write_text(json.dumps(config, sort_keys=True, indent=2) + "\n")
+
+        created = invoke("create", "Policy integration", "--actor", "human:test", "--json")
+        assert created.exit_code == 0, created.output
+        task_id = json.loads(created.output)["data"]["id"]
+
+        invoke(
+            "status",
+            task_id,
+            "in_progress",
+            "--force",
+            "--reason",
+            "integration setup",
+            "--actor",
+            "human:test",
+        )
+        invoke("status", task_id, "review", "--actor", "human:test")
+
+        review_comment = invoke(
+            "comment",
+            task_id,
+            "LGTM",
+            "--role",
+            "review",
+            "--actor",
+            "human:test",
+        )
+        assert review_comment.exit_code == 0, review_comment.output
+
+        done = invoke("status", task_id, "done", "--actor", "human:test", "--json")
+        assert done.exit_code == 0, done.output
+        assert json.loads(done.output)["ok"] is True
 
 
 # ---------------------------------------------------------------------------

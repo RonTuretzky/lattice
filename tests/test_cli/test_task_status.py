@@ -216,3 +216,39 @@ class TestCompletionPolicyGating:
         r = invoke("status", task_id, "done", "--actor", _ACTOR, "--json")
         assert r.exit_code == 0, r.output
         assert json.loads(r.output)["ok"] is True
+
+    def test_done_remains_after_review_comment_deleted(self, invoke, initialized_root) -> None:
+        """Deleting review evidence after done must not reopen the task."""
+        _config_with_policy(initialized_root, {"done": {"require_roles": ["review"]}})
+
+        r = invoke("create", "Done remains terminal", "--actor", _ACTOR, "--json")
+        task_id = json.loads(r.output)["data"]["id"]
+        invoke("status", task_id, "in_progress", "--actor", _ACTOR, "--force", "--reason", "skip")
+        invoke("status", task_id, "review", "--actor", _ACTOR)
+
+        r = invoke(
+            "comment",
+            task_id,
+            "Final review",
+            "--role",
+            "review",
+            "--actor",
+            _ACTOR,
+            "--json",
+        )
+        assert r.exit_code == 0, r.output
+        comment_id = json.loads(r.output)["data"]["last_event_id"]
+
+        done = invoke("status", task_id, "done", "--actor", _ACTOR, "--json")
+        assert done.exit_code == 0, done.output
+        assert json.loads(done.output)["data"]["status"] == "done"
+
+        deleted = invoke("comment-delete", task_id, comment_id, "--actor", _ACTOR, "--json")
+        assert deleted.exit_code == 0, deleted.output
+        snapshot = json.loads(deleted.output)["data"]
+        assert snapshot["status"] == "done"
+        comment_refs = [
+            ref for ref in snapshot.get("evidence_refs", [])
+            if ref.get("source_type") == "comment"
+        ]
+        assert comment_refs == []

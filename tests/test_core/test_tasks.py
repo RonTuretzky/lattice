@@ -15,6 +15,7 @@ from lattice.core.tasks import (
     compact_snapshot,
     compute_epic_derived_status,
     get_artifact_roles,
+    get_comment_role_refs,
     serialize_snapshot,
 )
 
@@ -648,6 +649,57 @@ class TestGetArtifactRoles:
         del snap["evidence_refs"]
         snap["artifact_refs"] = ["art_A", "art_B"]
         assert get_artifact_roles(snap) == {"art_A": None, "art_B": None}
+
+
+# ---------------------------------------------------------------------------
+# get_comment_role_refs helper
+# ---------------------------------------------------------------------------
+
+
+class TestGetCommentRoleRefs:
+    def test_rebuild_from_created_event_initializes_empty_evidence_refs(self) -> None:
+        """Replaying legacy task_created events always materializes evidence_refs."""
+        created = _created_event()
+
+        # Simulate an on-disk legacy snapshot from before evidence_refs existed.
+        legacy_snapshot = apply_event_to_snapshot(None, created)
+        del legacy_snapshot["evidence_refs"]
+        assert "evidence_refs" not in legacy_snapshot
+
+        rebuilt = apply_event_to_snapshot(None, created)
+        assert rebuilt["evidence_refs"] == []
+        assert get_comment_role_refs(rebuilt) == {}
+
+    def test_rebuild_with_role_comment_preserves_comment_role_mapping(self) -> None:
+        """Replay with role comments reconstructs comment role evidence deterministically."""
+        created = _created_event()
+        comment = {
+            "schema_version": 1,
+            "id": _EV_2,
+            "ts": _TS_2,
+            "type": "comment_added",
+            "task_id": _TASK_ID,
+            "actor": _ACTOR,
+            "data": {"body": "Review complete", "role": "review"},
+        }
+
+        rebuilt = apply_event_to_snapshot(None, created)
+        rebuilt = apply_event_to_snapshot(rebuilt, comment)
+
+        assert get_comment_role_refs(rebuilt) == {_EV_2: "review"}
+        assert rebuilt["evidence_refs"] == [
+            {"id": _EV_2, "role": "review", "source_type": "comment"}
+        ]
+
+    def test_legacy_comment_role_refs_fallback(self) -> None:
+        """Backward compat: old comment_role_refs field still works when evidence_refs absent."""
+        snap = _make_snapshot()
+        del snap["evidence_refs"]
+        snap["comment_role_refs"] = [
+            {"id": "ev_A", "role": "review"},
+            {"id": "ev_B", "role": None},
+        ]
+        assert get_comment_role_refs(snap) == {"ev_A": "review", "ev_B": None}
 
 
 # ---------------------------------------------------------------------------

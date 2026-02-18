@@ -8,7 +8,7 @@ from hypothesis import given, settings, strategies as st
 
 from lattice.core.events import create_event, serialize_event
 from lattice.core.ids import generate_task_id
-from lattice.core.tasks import apply_event_to_snapshot, serialize_snapshot
+from lattice.core.tasks import _init_snapshot, apply_event_to_snapshot, serialize_snapshot
 
 # ---------------------------------------------------------------------------
 # Reusable strategies
@@ -42,32 +42,6 @@ valid_rel_types = st.sampled_from(
     ]
 )
 
-REQUIRED_SNAPSHOT_FIELDS = {
-    "schema_version",
-    "id",
-    "title",
-    "status",
-    "priority",
-    "urgency",
-    "complexity",
-    "type",
-    "description",
-    "tags",
-    "assigned_to",
-    "created_by",
-    "created_at",
-    "updated_at",
-    "done_at",
-    "comment_count",
-    "reopened_count",
-    "relationships_out",
-    "evidence_refs",
-    "branch_links",
-    "custom_fields",
-    "last_event_id",
-}
-
-
 def _make_task_created_event(
     title: str,
     status: str,
@@ -93,6 +67,21 @@ def _make_task_created_event(
             "custom_fields": {},
         },
     )
+
+
+def _required_snapshot_fields() -> set[str]:
+    """Derive required snapshot keys from the canonical initializer."""
+    event = _make_task_created_event(
+        title="Schema baseline",
+        status="backlog",
+        priority="medium",
+        urgency="normal",
+        actor="human:test",
+    )
+    return set(_init_snapshot(event).keys())
+
+
+REQUIRED_SNAPSHOT_FIELDS = _required_snapshot_fields()
 
 
 # ---------------------------------------------------------------------------
