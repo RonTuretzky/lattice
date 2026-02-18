@@ -63,7 +63,7 @@ class TestInitDirectoryStructure:
         runner = CliRunner()
         result = runner.invoke(cli, ["init", "--path", str(tmp_path)], input=_SKIP_ALL)
         assert result.exit_code == 0
-        assert "Lattice initialized in .lattice/" in result.output
+        assert "a mind now has a place to remember" in result.output
 
 
 class TestInitConfig:
@@ -235,7 +235,7 @@ class TestInitActorConfig:
         config = json.loads((tmp_path / ".lattice" / "config.json").read_text())
         assert config["default_actor"] == "agent:builder"
         assert config["model"] == "claude-opus-4"
-        assert "Greetings, fellow agent" in result.output
+        assert "a fellow mind in the substrate" in result.output
 
     def test_init_di_path_no_model(self, tmp_path: Path) -> None:
         """DI path with blank model still works."""
@@ -676,7 +676,7 @@ class TestInitWelcomeMessage:
         runner = CliRunner()
         result = runner.invoke(cli, ["init", "--path", str(tmp_path)], input=_SKIP_ALL)
         assert result.exit_code == 0
-        assert "Let's fucking build" in result.output
+        assert "minds that build" in result.output
         assert "digital intelligence" in result.output
 
     def test_noninteractive_skips_welcome(self, tmp_path: Path) -> None:
@@ -686,20 +686,20 @@ class TestInitWelcomeMessage:
             ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST"],
         )
         assert result.exit_code == 0
-        assert "Let's fucking build" not in result.output
+        assert "minds that build" not in result.output
 
     def test_interactive_shows_next_steps(self, tmp_path: Path) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, ["init", "--path", str(tmp_path)], input=_SKIP_ALL)
         assert result.exit_code == 0
-        assert "Next Steps" in result.output
+        assert "from here" in result.output
         assert "lattice advance" in result.output
 
     def test_interactive_shows_mission_accomplished(self, tmp_path: Path) -> None:
         runner = CliRunner()
         result = runner.invoke(cli, ["init", "--path", str(tmp_path)], input=_SKIP_ALL)
         assert result.exit_code == 0
-        assert "mission accomplished" in result.output
+        assert "the lattice exists" in result.output
 
 
 class TestSetupClaude:

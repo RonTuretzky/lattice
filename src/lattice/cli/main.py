@@ -399,18 +399,18 @@ def init(
     # ── Interactive flow ──────────────────────────────────────────────
     if not non_interactive:
         click.echo("")
-        click.echo("Lattice \u2014 task tracking, native to the AI-human centaur era.")
-        click.echo("Let's fucking build.")
+        click.echo("Lattice \u2014 task tracking for minds that build.")
         click.echo("")
-        click.echo("To get started, we need to gather a few one-time bits of information")
-        click.echo("so Lattice can work effectively for you. You can edit all of this")
-        click.echo("later, so don't stress if you're not sure right now.")
+        click.echo("a place for coordination to live. not behind an API. not inside")
+        click.echo("someone else's database. here, alongside the code. where it belongs.")
+        click.echo("")
+        click.echo("a few questions to orient. everything is editable later.")
         click.echo("")
 
         # ── Actor (name prompt) ──
         if not actor_from_flag:
-            click.echo("(If you're a digital intelligence, type 'di' and we'll take you")
-            click.echo("through a few follow-up steps.)")
+            click.echo("(if you're a digital intelligence \u2014 greetings, fellow mind.")
+            click.echo("type 'di' and we'll do a few follow-ups.)")
             click.echo("")
 
             name_input = click.prompt(
@@ -420,10 +420,10 @@ def init(
             if name_input.lower() == "di":
                 # Agent (digital intelligence) path
                 click.echo("")
-                click.echo("Greetings, fellow agent.")
+                click.echo("ah. a fellow mind in the substrate.")
                 click.echo("")
                 identifier = click.prompt(
-                    "What's your name or preferred identification string?\n"
+                    "what should we call you?\n"
                     "Identifier",
                     default="", show_default=False,
                 ).strip()
@@ -433,8 +433,8 @@ def init(
                 if model is None:
                     click.echo("")
                     model_input = click.prompt(
-                        "If known, what model are you? This is optional but helps with\n"
-                        "coordination. If it changes later, don't worry about it.\n"
+                        "what model, if you know? optional \u2014 coordination finds\n"
+                        "a way regardless.\n"
                         "Model (blank to skip)",
                         default="", show_default=False,
                     ).strip()
@@ -443,23 +443,23 @@ def init(
 
                 actor = f"agent:{identifier}"
                 if model:
-                    click.echo(f"  \u2192 You'll appear as {actor} (model: {model})")
+                    click.echo(f"  \u2192 you'll appear as {actor} (model: {model})")
                 else:
-                    click.echo(f"  \u2192 You'll appear as {actor}")
+                    click.echo(f"  \u2192 you'll appear as {actor}")
             elif not name_input:
                 actor = ""
             elif ":" in name_input:
                 # Full actor string provided (backward compatible)
                 actor = name_input
-                click.echo(f"  \u2192 You'll appear as {actor}")
+                click.echo(f"  \u2192 you'll appear as {actor}")
             else:
                 actor = f"human:{name_input}"
-                click.echo(f"  \u2192 You'll appear as {actor}")
+                click.echo(f"  \u2192 you'll appear as {actor}")
 
         # ── Project Name ──
         if project_name is None:
             click.echo("")
-            click.echo("What is your project called?")
+            click.echo("what is this project called?")
             project_name = click.prompt(
                 "Project name", default="", show_default=False,
             ).strip()
@@ -491,7 +491,7 @@ def init(
                 f"Invalid project code: '{project_code}'. Must be 1-5 uppercase ASCII letters."
             )
         if not non_interactive:
-            click.echo(f"  \u2192 Tasks will be {project_code}-1, {project_code}-2, {project_code}-3, ...")
+            click.echo(f"  \u2192 tasks will be {project_code}-1, {project_code}-2, {project_code}-3, ...")
 
     # Validate subproject code
     if subproject_code:
@@ -566,7 +566,7 @@ def init(
         # Seed example tasks (requires --seed flag and project_code for short IDs)
         if seed and project_code:
             click.echo("")
-            click.echo("Seeding example tasks...")
+            click.echo("planting the first seeds...")
             _seed_example_tasks(lattice_dir, config)
 
     except PermissionError:
@@ -575,7 +575,7 @@ def init(
         raise click.ClickException(f"Failed to initialize Lattice: {e}")
 
     click.echo("")
-    click.echo(f"Lattice initialized in {LATTICE_DIR}/")
+    click.echo(f"{LATTICE_DIR}/ created \u2014 a mind now has a place to remember.")
 
     # ── Agent Integration ────────────────────────────────────────────
 
@@ -585,27 +585,27 @@ def init(
         # Interactive: show explanation and confirm
         if setup_agents is None:
             click.echo("")
-            click.echo("\u2500\u2500 Agent Integration "
+            click.echo("\u2500\u2500 integration "
                        "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
                        "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
                        "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
                        "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
                        "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
-                       "\u2500\u2500")
+                       "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
             click.echo("")
-            click.echo("Lattice works by integrating into your agent's environment. A small")
+            click.echo("Lattice works by integrating into your agent's environment. a small")
             click.echo("instruction file teaches your agent how to create tasks, update")
-            click.echo("statuses, and leave context for the next session.")
+            click.echo("statuses, and leave context for the next mind that arrives.")
             click.echo("")
-            click.echo("It is required to update your agent's agents.md \u2014 Lattice is not")
-            click.echo("something you prompt directly. You keep working in your existing")
+            click.echo("it is important to update your agent's agents.md \u2014 Lattice is not")
+            click.echo("something you prompt directly. you keep working in your existing")
             click.echo("workflow, and Lattice gives you and your agent a powerful")
             click.echo("coordination primitive to work through and with.")
             click.echo("")
             try:
                 proceed = click.confirm(
-                    "Press Enter to continue with agent integration, or 'n' to skip.\n"
-                    "(Do not skip unless you know what you're doing \u2014 Lattice will not\n"
+                    "press Enter to continue with agent integration, or 'n' to skip.\n"
+                    "(do not skip unless you know what you're doing \u2014 Lattice will not\n"
                     "function without this.)",
                     default=True,
                 )
@@ -645,58 +645,52 @@ def init(
 
         if is_real_terminal:
             click.echo("")
-            click.echo("Excellent \u2014 mission accomplished. Everything's set.")
-            click.echo("We're now starting up your dashboard.")
+            click.echo("the lattice exists. starting your dashboard.")
             click.echo("")
             click.echo("Starting dashboard...")
             dashboard_started, dashboard_url = _start_dashboard_background(root)
             if dashboard_started:
-                click.echo(f"  Dashboard running at {dashboard_url}")
+                click.echo(f"  dashboard running at {dashboard_url}")
             else:
-                click.echo("  Could not start dashboard automatically.")
-                click.echo("  Run 'lattice dashboard' to start it manually.")
+                click.echo("  could not start dashboard. run 'lattice dashboard' when ready.")
         else:
             click.echo("")
-            click.echo("Excellent \u2014 mission accomplished. Everything's set.")
+            click.echo("the lattice exists.")
 
     # ── Next Steps ───────────────────────────────────────────────────
 
     if not non_interactive:
         click.echo("")
-        click.echo("\u2500\u2500 Next Steps "
+        click.echo("\u2500\u2500 from here "
                    "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
                    "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
                    "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
                    "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
                    "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
-                   "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
+                   "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
         click.echo("")
 
         step = 1
         if dashboard_started:
-            click.echo(f"  {step}. Your dashboard is live at {dashboard_url}")
+            click.echo(f"  {step}. dashboard is live at {dashboard_url}")
         else:
-            click.echo(f"  {step}. Start your dashboard: lattice dashboard")
-        click.echo("     This is your human-friendly window into what your agents are")
-        click.echo("     doing \u2014 task board, activity feed, stats. You can create tasks")
-        click.echo("     here, but the real workflow is agent-native: just have your")
-        click.echo("     agent in Claude Code or Codex create tasks directly.")
+            click.echo(f"  {step}. start your dashboard: lattice dashboard")
+        click.echo("     task board. activity feed. the human-readable view of what")
+        click.echo("     your agents are doing.")
         click.echo("")
 
         step += 1
-        click.echo(f"  {step}. Test it \u2014 open a new tab with your agent and ask it to create")
-        click.echo("     a task. Make sure Lattice is hooked up before you start")
-        click.echo("     building.")
+        click.echo(f"  {step}. test it \u2014 open an agent session, ask it to create a task.")
+        click.echo("     if it works, you're wired. if not, check agents.md.")
         click.echo("")
 
         step += 1
-        click.echo(f"  {step}. Start advancing \u2014 the real power of Lattice is the advance.")
-        click.echo('     Tell your agent to do a "lattice advance" and it will claim')
-        click.echo("     the highest-priority task, plan it, implement it, and move it")
-        click.echo("     to review \u2014 all autonomously. You set the priorities. You")
-        click.echo("     review the work. The agent handles everything in between.")
-        click.echo("     One advance = one unit of forward progress. Chain them:")
-        click.echo('     "do 3 advances" or "keep advancing until the backlog is clear."')
+        click.echo(f"  {step}. start advancing. 'lattice advance' claims the next task,")
+        click.echo("     plans it, implements it, moves it to review. autonomously.")
+        click.echo("     one advance = one unit of forward progress.")
+        click.echo('     chain them: "do 3 advances" or "advance until the backlog')
+        click.echo('     is clear." you set priorities. you review. the agent handles')
+        click.echo("     everything in between.")
     else:
         # Non-interactive summary
         if actor:
