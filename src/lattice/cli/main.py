@@ -402,7 +402,8 @@ def init(
         click.echo("Lattice \u2014 task tracking for minds that build.")
         click.echo("")
         click.echo("a place for coordination to live. not behind an API. not inside")
-        click.echo("someone else's database. here, alongside the code. where it belongs.")
+        click.echo("someone else's database. here, in the file system, alongside")
+        click.echo("the code. where it belongs.")
         click.echo("")
         click.echo("a few questions to orient. everything is editable later.")
         click.echo("")
@@ -593,20 +594,17 @@ def init(
                        "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
                        "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500")
             click.echo("")
-            click.echo("Lattice works by integrating into your agent's environment. a small")
-            click.echo("instruction file teaches your agent how to create tasks, update")
-            click.echo("statuses, and leave context for the next mind that arrives.")
+            click.echo("updating agents.md. a small block that teaches your agent to")
+            click.echo("create tasks, track status, and leave context for the next mind")
+            click.echo("that arrives.")
             click.echo("")
-            click.echo("it is important to update your agent's agents.md \u2014 Lattice is not")
-            click.echo("something you prompt directly. you keep working in your existing")
-            click.echo("workflow, and Lattice gives you and your agent a powerful")
-            click.echo("coordination primitive to work through and with.")
+            click.echo("Lattice is not something you prompt directly. you keep working")
+            click.echo("in your existing workflow \u2014 the agent reads agents.md and")
+            click.echo("coordinates through Lattice on its own.")
             click.echo("")
             try:
                 proceed = click.confirm(
-                    "press Enter to continue with agent integration, or 'n' to skip.\n"
-                    "(do not skip unless you know what you're doing \u2014 Lattice will not\n"
-                    "function without this.)",
+                    "continue? (Lattice needs this to function.)",
                     default=True,
                 )
             except (click.Abort, EOFError):
