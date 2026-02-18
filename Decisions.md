@@ -647,3 +647,18 @@ Additional review findings that shaped this decision:
 **Backward compatibility:** `get_artifact_roles()`, `get_comment_role_refs()`, and all consumers check for `evidence_refs` first, falling back to the legacy field names for old snapshots that haven't been rebuilt. `rebuild --all` produces snapshots with only `evidence_refs`.
 
 **Consequence:** Completion policy validation uses a single `get_evidence_roles()` function. Future evidence types (e.g., `ci_result`, `external_review`) can be added by extending `source_type` without new snapshot fields.
+
+---
+
+## 2026-02-18: Auto-detect task commits in `lattice show` (LAT-144)
+
+**Decision:** `lattice show` now performs read-only git commit discovery by task short code. When a task has a short ID (for example `LAT-144`), show runs `git log --grep=<short_id>` and renders matches in a `Commits:` section. JSON output includes `auto_detected_commits` when matches are found.
+
+**Context:** Lattice previously tracked explicit branch links but had no visibility into the commit trail associated with a task. Commit references already exist by convention in commit messages, so runtime detection provides useful context without adding write-time ceremony or schema/event churn.
+
+**Alternatives considered:**
+- New event type for commit linkage: rejected because commits are external VCS state and would introduce stale write-time data plus event-model complexity.
+- Manual command to attach commit IDs: rejected as agent/human overhead for information already derivable from git history.
+- Always scan all refs with `--all`: rejected for now to keep behavior aligned with the explicit `git log --grep=<short_id>` intent and limit read cost.
+
+**Consequence:** `lattice show` gains an additive read-only section and optional JSON field, while continuing to degrade gracefully when git is unavailable or when the directory is not a git repository. No new events or persisted snapshot fields are introduced.

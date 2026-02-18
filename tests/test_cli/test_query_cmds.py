@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from subprocess import CompletedProcess
 
 from lattice.core.ids import generate_event_id
 from lattice.core.tasks import serialize_snapshot
@@ -551,6 +552,130 @@ class TestShow:
         assert data["title"] == "Test task"
         assert "events" in data
         assert isinstance(data["events"], list)
+
+    def test_show_includes_commits_section_when_matches_found(
+        self, invoke, create_task, cli_env, monkeypatch
+    ):
+        """Show renders auto-detected commits when git lookup returns matches."""
+        from lattice.cli import query_cmds
+
+        task = create_task("Task with commits")
+        task_id = task["id"]
+        short_id = "LAT-144"
+
+        root = Path(cli_env["LATTICE_ROOT"])
+        snap_path = root / ".lattice" / "tasks" / f"{task_id}.json"
+        snap = json.loads(snap_path.read_text())
+        snap["short_id"] = short_id
+        snap_path.write_text(serialize_snapshot(snap))
+
+        def fake_auto_detect_commits(
+            incoming_short_id: str | None, lattice_dir: Path
+        ) -> list[dict[str, str]]:
+            assert incoming_short_id == short_id
+            return [
+                {
+                    "sha": "abc1234",
+                    "date": "2026-02-18",
+                    "subject": f"{short_id} implement feature",
+                }
+            ]
+
+        monkeypatch.setattr(query_cmds, "_auto_detect_commits", fake_auto_detect_commits)
+
+        result = invoke("show", task_id)
+        assert result.exit_code == 0
+        assert "Commits:" in result.output
+        assert "abc1234  2026-02-18" in result.output
+        assert f"{short_id} implement feature" in result.output
+
+    def test_show_json_includes_auto_detected_commits(
+        self, invoke, create_task, cli_env, monkeypatch
+    ):
+        """JSON output includes auto_detected_commits when matches are found."""
+        from lattice.cli import query_cmds
+
+        task = create_task("Task with commits json")
+        task_id = task["id"]
+
+        root = Path(cli_env["LATTICE_ROOT"])
+        snap_path = root / ".lattice" / "tasks" / f"{task_id}.json"
+        snap = json.loads(snap_path.read_text())
+        snap["short_id"] = "LAT-145"
+        snap_path.write_text(serialize_snapshot(snap))
+
+        monkeypatch.setattr(
+            query_cmds,
+            "_auto_detect_commits",
+            lambda short_id, lattice_dir: [
+                {"sha": "def5678", "date": "2026-02-18", "subject": "LAT-9 fix bug"}
+            ],
+        )
+
+        result = invoke("show", task_id, "--json")
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["data"]["auto_detected_commits"] == [
+            {"sha": "def5678", "date": "2026-02-18", "subject": "LAT-9 fix bug"}
+        ]
+
+    def test_auto_detect_commits_returns_empty_when_git_missing(
+        self, monkeypatch, cli_env
+    ):
+        """Commit auto-detection degrades cleanly when git is unavailable."""
+        from lattice.cli import query_cmds
+
+        lattice_dir = Path(cli_env["LATTICE_ROOT"]) / ".lattice"
+        monkeypatch.setattr("shutil.which", lambda name: None)
+
+        commits = query_cmds._auto_detect_commits("LAT-144", lattice_dir)
+        assert commits == []
+
+    def test_auto_detect_commits_returns_empty_when_not_a_repo(
+        self, monkeypatch, cli_env
+    ):
+        """Commit auto-detection degrades cleanly outside a git repository."""
+        from lattice.cli import query_cmds
+
+        lattice_dir = Path(cli_env["LATTICE_ROOT"]) / ".lattice"
+        monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/git")
+        monkeypatch.setattr(
+            "subprocess.run",
+            lambda *args, **kwargs: CompletedProcess(args[0], 128, "", "fatal: not a git repository"),
+        )
+
+        commits = query_cmds._auto_detect_commits("LAT-144", lattice_dir)
+        assert commits == []
+
+    def test_auto_detect_commits_parses_git_log_output(
+        self, monkeypatch, cli_env
+    ):
+        """Commit auto-detection parses git log output into structured commits."""
+        from lattice.cli import query_cmds
+
+        lattice_dir = Path(cli_env["LATTICE_ROOT"]) / ".lattice"
+        calls: list[list[str]] = []
+
+        def fake_run(args, **kwargs):
+            calls.append(args)
+            return CompletedProcess(
+                args,
+                0,
+                "abc1234\x1f2026-02-18\x1fLAT-144 add parser\n"
+                "def5678\x1f2026-02-17\x1fLAT-144 add tests",
+                "",
+            )
+
+        monkeypatch.setattr("shutil.which", lambda name: "/usr/bin/git")
+        monkeypatch.setattr("subprocess.run", fake_run)
+
+        commits = query_cmds._auto_detect_commits("LAT-144", lattice_dir)
+        assert commits == [
+            {"sha": "abc1234", "date": "2026-02-18", "subject": "LAT-144 add parser"},
+            {"sha": "def5678", "date": "2026-02-17", "subject": "LAT-144 add tests"},
+        ]
+        assert calls, "Expected git log to run"
+        assert any(part.startswith("--grep=LAT-144") for part in calls[0])
 
     def test_compact_output(self, invoke, create_task):
         """--compact shows only compact fields."""

@@ -714,6 +714,7 @@ def show_cmd(
     explicit_branches = [bl["branch"] for bl in snapshot.get("branch_links", [])]
     all_branches = _get_all_git_branches(lattice_dir)
     auto_branches = _auto_detect_branch_links(short_id, explicit_branches, all_branches)
+    auto_commits = _auto_detect_commits(short_id, lattice_dir)
 
     if is_json:
         data: dict = dict(snapshot)
@@ -730,6 +731,8 @@ def show_cmd(
         data["artifact_info"] = artifact_info
         if auto_branches:
             data["auto_detected_branches"] = auto_branches
+        if auto_commits:
+            data["auto_detected_commits"] = auto_commits
         if reopened_warning:
             data["reopened_warning"] = reopened_warning
             data["latest_reopen"] = latest_reopen
@@ -750,6 +753,7 @@ def show_cmd(
             full,
             valid_transitions,
             auto_branches,
+            auto_commits,
             config=config,
             reopened_warning=reopened_warning,
         )
@@ -836,6 +840,53 @@ def _auto_detect_branch_links(
             matches.append(branch)
 
     return matches
+
+
+def _auto_detect_commits(short_id: str | None, lattice_dir: Path) -> list[dict[str, str]]:
+    """Find commits whose message contains *short_id*.
+
+    Uses ``git log --grep=<short_id>`` and returns commit summaries in reverse
+    chronological order. Returns an empty list when git is unavailable, the
+    directory is not in a git repo, or any git error occurs.
+    """
+    import shutil
+    import subprocess
+
+    if not short_id or not shutil.which("git"):
+        return []
+
+    repo_root = lattice_dir.parent
+    fmt = "%h%x1f%ad%x1f%s"
+
+    try:
+        result = subprocess.run(
+            [
+                "git",
+                "log",
+                f"--grep={short_id}",
+                "--fixed-strings",
+                "--regexp-ignore-case",
+                "--date=short",
+                f"--pretty=format:{fmt}",
+            ],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return []
+
+    if result.returncode != 0:
+        return []
+
+    commits: list[dict[str, str]] = []
+    for line in result.stdout.splitlines():
+        sha, date, subject = (line.split("\x1f", 2) + ["", "", ""])[:3]
+        if not sha:
+            continue
+        commits.append({"sha": sha, "date": date, "subject": subject})
+    return commits
 
 
 def _read_events(lattice_dir: Path, task_id: str, is_archived: bool) -> list[dict]:
@@ -1013,6 +1064,7 @@ def _print_human_show(
     full: bool,
     valid_transitions: list[str] | None = None,
     auto_detected_branches: list[str] | None = None,
+    auto_detected_commits: list[dict[str, str]] | None = None,
     config: dict | None = None,
     reopened_warning: str | None = None,
 ) -> None:
@@ -1127,6 +1179,15 @@ def _print_human_show(
         if auto_detected_branches:
             for branch in auto_detected_branches:
                 click.echo(f"  {branch} (auto-detected)")
+
+    if auto_detected_commits:
+        click.echo("")
+        click.echo("Commits:")
+        for commit in auto_detected_commits:
+            sha = commit.get("sha", "?")
+            date = commit.get("date", "?")
+            subject = commit.get("subject", "")
+            click.echo(f"  {sha}  {date}  {subject}")
 
     if has_plan:
         click.echo("")
