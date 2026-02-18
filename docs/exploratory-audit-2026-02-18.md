@@ -1,61 +1,123 @@
-# Lattice Exploratory Audit (Simplicity + Extensibility + Recursive Primitive)
+# Lattice Exploratory Audit — Validated
 
-Date: 2026-02-18 18:10 EST  
-Scope: `src/`, `tests/`, `scripts/`, `docs/`, site/package shape  
+Date: 2026-02-18 18:10 EST (original), validated 2026-02-18 (second pass)
+Scope: `src/`, `tests/`, `scripts/`, `docs/`, site/package shape
 Checks run:
 - `uv run mypy src` -> **412 errors across 33 files**
 - `uv run ruff check src tests` -> **pass**
 - `uv run pytest` -> **1 failed, 1535 passed** (`tests/test_dashboard/test_server.py:510`)
 
-## Prioritized Numbered Actions
+Validation method: Five parallel research agents traced every line-number claim back to the source code. Items marked CONFIRMED were verified against the actual codebase. Items that were false, overstated, or aspirational with no concrete finding were removed.
 
-1. **[Blocker][CHANGE] Unify status-transition policy across CLI and MCP.** MCP status writes (`src/lattice/mcp/tools.py:359`) can drift from CLI policy enforcement (`src/lattice/cli/task_cmds.py:469`, `src/lattice/core/config.py:326`). Move validation into one shared write pipeline.
-2. **[Blocker][CHANGE] Extract task mutation logic out of HTTP handlers.** Dashboard task writes currently live in transport handlers (`src/lattice/dashboard/server.py:819`, `src/lattice/dashboard/server.py:1328`, `src/lattice/dashboard/server.py:1710`) instead of a shared domain service.
-3. **[Blocker][CHANGE] Split the dashboard monolith into router + services.** `LatticeHandler` centralizes routing, validation, storage writes, and response shaping (`src/lattice/dashboard/server.py:75`, `src/lattice/dashboard/server.py:114`). This is the largest hidden coupling point.
-4. **[Blocker][CHANGE] Move archive transaction flow out of HTTP layer.** `_handle_post_task_archive` mixes lock lifecycle, events, file moves, and hooks (`src/lattice/dashboard/server.py:1467`). Extract to reusable archive operation.
-5. **[Blocker][REMOVE] Remove OS shell-launch side effects from dashboard API.** HTTP endpoints open editors/filesystem tools directly (`src/lattice/dashboard/server.py:1906`, `src/lattice/dashboard/server.py:1949`). Keep server pure; move launch behavior to client/CLI.
-6. **[Blocker][CHANGE] Refactor `next --claim` to use one atomic storage/core operation.** Current implementation manually does lock/read/mutate/write/hook orchestration (`src/lattice/cli/query_cmds.py:443`) and duplicates low-level persistence paths.
-7. **[Blocker][CHANGE] Refactor `resource acquire` into a dedicated resource service.** One handler owns locking, eviction, wait/backoff, and write semantics (`src/lattice/cli/resource_cmds.py:170`), making policy changes brittle.
-8. **[Blocker][CHANGE] Move archive/unarchive file orchestration into storage/core API.** Raw filesystem lifecycle logic remains in CLI commands (`src/lattice/cli/archive_cmds.py:125`, `src/lattice/cli/archive_cmds.py:458`).
-9. **[Blocker][EDIT] Resolve dashboard bind-error contract mismatch.** Test expects `BIND_ERROR` but runtime emits `PORT_IN_USE` (`tests/test_dashboard/test_server.py:483`, `tests/test_dashboard/test_server.py:510`). Standardize one public error contract.
-10. **[Blocker][ADD] Add CLI/MCP parity tests for status policy and transition rules.** Current drift risk is architectural; contract tests should enforce identical invariants on both interfaces (`src/lattice/cli/task_cmds.py:469`, `src/lattice/mcp/tools.py:359`).
-11. **[Blocker][CHANGE] Decide and enforce a type-safety strategy.** Project advertises strict typing but currently has 412 mypy failures; either gate on targeted modules first or reduce claim of strictness.
-12. **[Blocker][CHANGE] Break up ultra-large modules that accumulate mixed concerns.** Largest hotspots are `src/lattice/dashboard/server.py` (2215 LOC), `src/lattice/mcp/tools.py` (1338), `src/lattice/cli/query_cmds.py` (1256), `src/lattice/cli/main.py` (1176), `src/lattice/cli/task_cmds.py` (1148).
+---
 
-13. **[Important][CHANGE] Remove duplicate snapshot listing/filter logic across interfaces.** MCP and CLI both implement similar traversal/filtering (`src/lattice/mcp/resources.py:40`, `src/lattice/cli/query_cmds.py:307`).
-14. **[Important][CHANGE] Consolidate task detail assembly in one reader path.** MCP detail route and CLI show path are parallel but separate (`src/lattice/mcp/resources.py:85`, `src/lattice/cli/query_cmds.py:627`).
-15. **[Important][CHANGE] Deduplicate hook execution orchestration for task/resource events.** Two near-identical flows diverge over time risk (`src/lattice/storage/hooks.py:14`, `src/lattice/storage/hooks.py:134`).
-16. **[Important][CHANGE] Collapse duplicate evidence-role extraction helpers into one iterator model.** Three helper functions currently re-loop and fallback similarly (`src/lattice/core/tasks.py:342`, `src/lattice/core/tasks.py:365`, `src/lattice/core/tasks.py:384`).
-17. **[Important][CHANGE] Stop rebuilding comment state for each comment validation call.** Comment map rebuild happens repeatedly via wrapper path (`src/lattice/core/comments.py:33`, `src/lattice/core/comments.py:146`).
-18. **[Important][CHANGE] Avoid rebuilding relationship adjacency on each epic status derivation.** Current recursive derivation rebuilds graph links per call (`src/lattice/core/tasks.py:430`).
-19. **[Important][CHANGE] Parse holder timestamps once per resource evaluation pass.** Staleness and availability checks repeatedly parse timestamps (`src/lattice/core/resources.py:58`, `src/lattice/core/resources.py:71`, `src/lattice/core/resources.py:84`).
-20. **[Important][CHANGE] Centralize config loading for dashboard writes.** `config.json` is repeatedly loaded across handlers (`src/lattice/dashboard/server.py:263`, `src/lattice/dashboard/server.py:1751`, `src/lattice/dashboard/server.py:1846`).
-21. **[Important][CHANGE] Move dashboard activity aggregation/filtering into shared core module.** Event collection/faceting/filtering lives only in server module (`src/lattice/dashboard/server.py:2005`, `src/lattice/dashboard/server.py:2040`, `src/lattice/dashboard/server.py:2078`).
-22. **[Important][CHANGE] Harden plugin loading against `BaseException` shutdown paths.** Plugin/template discovery catches `Exception` only (`src/lattice/plugins.py:30`, `src/lattice/plugins.py:58`), so `SystemExit` can kill startup.
-23. **[Important][CHANGE] Replace manual command-module side-effect imports with registry/discovery.** Static import block is brittle (`src/lattice/cli/main.py:1152`).
-24. **[Important][CHANGE] Decouple plugin load timing from import-time CLI construction.** Plugin loading happens immediately after manual imports (`src/lattice/cli/main.py:1169`), reducing composability.
-25. **[Important][CHANGE] Make `init` side effects explicit/optional.** `init` mixes setup with agent-doc updates/dashboard behavior (`src/lattice/cli/main.py:585`). Keep base initialization minimal.
-26. **[Important][REMOVE] Move non-core reporting commands behind optional plugin boundary.** Weather command expands surface area beyond core primitive (`src/lattice/cli/weather_cmds.py:435`, wired in `src/lattice/cli/main.py:1163`).
-27. **[Important][REMOVE] Move demo scaffolding behind optional plugin boundary.** Demo command should not inflate the default operator surface (`src/lattice/cli/demo_cmd.py`, wired in `src/lattice/cli/main.py:1165`).
-28. **[Important][CHANGE] Separate runtime package from agent/docs payload.** Agent skill/template assets ship with runtime (`src/lattice/skills/lattice/SKILL.md`, `src/lattice/templates/claude_md_block.py`); consider optional extra package.
-29. **[Important][ADD] Add architecture guardrails around interface boundaries.** Establish explicit rule: core/storage owns mutation semantics; CLI/MCP/dashboard only adapt IO + formatting.
-30. **[Important][ADD] Add complexity budget checks in CI for key modules.** Prevent further growth of already-large files listed in item 12.
+## Validated Actions
 
-31. **[Potential][CHANGE] Rebuild dashboard fixtures using canonical event writers instead of handcrafted JSON.** Current fixture path can drift from real contracts (`tests/test_dashboard/conftest.py:20`).
-32. **[Potential][ADD] Add recursion stress tests for deep parent/child and nested comments.** Current recursive intent is strong, but should be protected with explicit depth/performance tests (`src/lattice/core/tasks.py:430`, `src/lattice/core/comments.py:33`).
-33. **[Potential][ADD] Add contract tests for archive lifecycle parity across CLI/dashboard.** Archive semantics are implemented in multiple surfaces (`src/lattice/cli/archive_cmds.py:125`, `src/lattice/dashboard/server.py:1467`).
-34. **[Potential][EDIT] Prune or relocate stale documentation variants in `archive/`.** Multiple versioned philosophy/user-guide docs can obscure canonical guidance (`archive/Philosophy_v1.md`, `archive/user-guide-v0.md`).
-35. **[Potential][EDIT] Prune or relocate playful scripts from core repo root workflow.** Scripts appear non-essential and lightly integrated (`scripts/dead_letters.py`, `scripts/fizzbuzz.py`, `scripts/status_haikus.py`, `scripts/lattice_art.py`).
-36. **[Potential][EDIT] Replace default Astro starter README with project-specific docs.** `site/README.md:1` still contains template content, which reduces signal for contributors.
-37. **[Potential][ADD] Introduce explicit API versioning for plugin/template extension points.** Helps preserve mutation space without breaking adopters (`src/lattice/plugins.py:30`, `src/lattice/plugins.py:58`).
-38. **[Potential][ADD] Introduce a minimal-core mode profile (`task`, `status`, `assign`, `link`, `query`) for default installs.** Keeps opinions strong but surface area small; optional modules can layer on top.
-39. **[Potential][ADD] Create a single “task write transaction” abstraction used by CLI, MCP, and dashboard.** This is the key recursion/extensibility primitive and removes duplicate lock/write/hook choreography.
-40. **[Potential][ADD] Publish and enforce a boundary map in docs (`core`, `storage`, `interfaces`, `optional`).** This will make future mutation intentional instead of accidental sprawl.
+### Tier 1 — Real Bugs and Contract Violations
+
+1. **[CHANGE] Unify completion-policy enforcement across CLI and MCP.**
+   MCP status writes (`src/lattice/mcp/tools.py:359`) share `validate_status()` and `validate_transition()` with the CLI — but **skip `validate_completion_policy()`** entirely. The CLI enforces evidence-gating at `src/lattice/cli/task_cmds.py:566`; MCP does not. This means an MCP caller can transition to `done` without satisfying evidence requirements. The drift is narrow (completion policy only) but real.
+
+2. **[EDIT] Fix dashboard bind-error contract mismatch.**
+   Test expects `BIND_ERROR` but runtime emits `PORT_IN_USE` for `errno.EADDRINUSE` (`src/lattice/cli/dashboard_cmd.py:97`). Test at `tests/test_dashboard/test_server.py:510` asserts the wrong code. Quick fix — align the test or the error code.
+
+3. **[ADD] Add CLI/MCP parity tests for completion policy.**
+   The drift in item 1 should be enforced by contract tests. Without them, the gap will reopen even if fixed today.
+
+### Tier 2 — Structural Issues (Dashboard)
+
+The dashboard server (`src/lattice/dashboard/server.py`, 2215 LOC) is the largest coupling hotspot. All claims confirmed:
+
+4. **[CHANGE] Extract task mutation logic out of HTTP handlers.**
+   Status changes (line 819), task updates (line 1328), and reactions (line 1710) all embed event creation, snapshot application, and `write_task_event()` calls directly inside handler methods. Should flow through a shared domain service.
+
+5. **[CHANGE] Move archive transaction flow out of HTTP layer.**
+   `_handle_post_task_archive` (line 1467) implements its own lock/event/write/move sequence inline — unlike other handlers that delegate to `write_task_event()`. Mixes lock lifecycle, event creation, file moves (`shutil.move`), and hook execution in one handler.
+
+6. **[REMOVE] Remove OS shell-launch side effects from dashboard API.**
+   `_handle_post_open_notes` (line 1906) and `_handle_post_open_plans` (line 1949) directly call `subprocess.Popen(["open", ...])` from inside HTTP handlers. Move launch behavior to client-side or CLI.
+
+7. **[CHANGE] Centralize config loading for dashboard writes.**
+   `config.json` is read from disk independently in at least 5 handlers (lines 263, 1484, 1751, 1846, and others). No central config cache or loader.
+
+8. **[CHANGE] Move activity aggregation/filtering into shared core module.**
+   `_collect_events()` (line 2005), `_build_facets()` (line 2040), and `_apply_activity_filters()` (line 2078) are server-module-only utilities with no abstraction to core/ or storage/ layers. Grep confirmed no definitions exist outside server.py.
+
+### Tier 3 — Structural Issues (CLI)
+
+9. **[CHANGE] Refactor `resource acquire` into a dedicated resource service.**
+    One ~200-line handler (`src/lattice/cli/resource_cmds.py:170`) owns locking, stale eviction, force eviction, exponential backoff with timeout, and write semantics. All responsibilities in one function.
+
+10. **[CHANGE] Move archive/unarchive file orchestration into storage/core API.**
+    `_archive_one` (line 80) and `_unarchive_one` (line 416) in `src/lattice/cli/archive_cmds.py` call `shutil.move()`, `atomic_write()`, and `jsonl_append()` directly under `multi_lock()`. No storage-layer abstraction.
+
+### Tier 4 — Module Size
+
+11. **[INFO] Large module inventory (confirmed line counts).**
+    These are real and worth tracking, but are consequences of the structural issues above, not independent problems:
+    - `src/lattice/dashboard/server.py` — 2215 LOC
+    - `src/lattice/mcp/tools.py` — 1338 LOC
+    - `src/lattice/cli/query_cmds.py` — 1319 LOC
+    - `src/lattice/cli/main.py` — 1176 LOC
+    - `src/lattice/cli/task_cmds.py` — 1148 LOC
+    - `src/lattice/cli/demo_cmd.py` — 1479 LOC
+
+### Tier 5 — Surface Area Trimming
+
+12. **[REMOVE] Move weather command behind optional plugin boundary.**
+    `src/lattice/cli/weather_cmds.py` (449 lines) is wired in at `src/lattice/cli/main.py:1163`. Not core to the task-tracking primitive.
+
+13. **[REMOVE] Move demo scaffolding behind optional plugin boundary.**
+    `src/lattice/cli/demo_cmd.py` (1479 lines) is wired in at `src/lattice/cli/main.py:1165`. Significant code surface for a demo/onboarding feature.
+
+14. **[EDIT] Replace default Astro starter README.**
+    `site/README.md` still contains unmodified Astro "Starter Kit: Minimal" boilerplate with "Delete this file. Have fun!" Trivial cleanup.
+
+15. **[INFO] Playful scripts in `scripts/`.**
+    `dead_letters.py`, `fizzbuzz.py`, `status_haikus.py`, `lattice_art.py` all exist. Non-essential but they live in `scripts/`, not in core — low harm. Consider whether they belong in the repo long-term.
+
+### Tier 6 — Minor Confirmed Issues
+
+16. **[CHANGE] Deduplicate hook execution for task/resource events.**
+    `execute_hooks()` (line 14) and `execute_resource_hooks()` (line 134) in `src/lattice/storage/hooks.py` are structurally similar. The resource version omits transition handling. Reasonable given different event domains, but worth consolidating if hooks grow.
+
+17. **[CHANGE] `init` bundles multiple concerns.**
+    The `init` command at `src/lattice/cli/main.py:585` handles infrastructure setup, agent-doc updates, CLAUDE.md updates, and dashboard auto-start in one function. This is intentional UX (onboarding should be holistic), but makes the init path harder to test or compose. Not a blocker — more of a note for when init gets more complex.
+
+---
+
+## Removed Items (Not Validated)
+
+The following items from the original audit were removed after investigation:
+
+| Original # | Claim | Why Removed |
+|-------------|-------|-------------|
+| 6 | `next --claim` duplicates low-level persistence | **Necessary for correctness.** Manual lock/read/mutate/write avoids deadlocks — `write_task_event()` acquires its own locks internally. Not a defect. |
+| 13 | Duplicate snapshot listing/filter across MCP and CLI | **Not duplication.** MCP has basic listing (~25 lines, no filtering). CLI has advanced filtering (5 filters, AND logic). Different feature levels, not parallel implementations. |
+| 14 | Parallel task detail assembly in MCP and CLI | **Not duplication.** MCP detail is 25 lines (snapshot + events). CLI detail is 135+ lines with transitions, relationships, artifacts, branch links, commits. Intentionally different depth. |
+| 16 | Evidence-role extraction helpers re-loop similarly | **Intentional backward compatibility.** Three functions handle new `evidence_refs` field with fallback to legacy `artifact_refs` / `comment_role_refs`. This is a migration bridge, not redundant logic. |
+| 17 | Comment map rebuild happens repeatedly | **Once per call, not repeated.** `_build_comments_map()` is called once per validation function. No tight-loop rebuilding. Negligible overhead. |
+| 18 | Epic status derivation rebuilds graph links per call | **False.** Graph links are built once and traversed recursively. No per-call rebuilding occurs. |
+| 19 | Staleness checks repeatedly parse timestamps | **Mostly false.** Staleness checks use string comparisons. Timestamp parsing only occurs in display-formatting functions, called on demand. |
+| 22 | Plugin loading should catch `BaseException` | **Edge case.** `SystemExit` killing startup during plugin load is theoretically possible but not a practical concern for v0. |
+| 23 | Static import block is brittle | **Not brittle.** Uses underscore-prefixed aliases with explicit `# noqa: F401`. This is standard Click pattern — imports register commands via decorators as side effects. |
+| 24 | Plugin load timing reduces composability | **Standard pattern.** Loading plugins after built-in command registration is the expected approach for Click apps. |
+| 25 | `init` side effects should be optional | Merged into item 17 above with accurate framing. |
+| 28 | Agent assets ship with runtime | **Partially true but not a v0 concern.** Templates ship via `claude_md_block.py`; skills directory is a stub. Separating into an optional package is premature. |
+| 29, 30, 37, 38, 40 | Aspirational recommendations (guardrails, CI checks, API versioning, minimal-core mode, boundary map) | **No concrete findings.** These are architecture ideals with nothing broken behind them. Good ideas for a future roadmap doc, not audit findings. |
+| 31 | Dashboard fixtures use handcrafted JSON | **Partially true.** Event records use canonical `create_event()`. Some artifact metadata uses raw JSON. Mixed, not systematic. |
+| 32, 33 | Missing recursion stress tests, archive parity tests | **Reasonable suggestions but not findings.** No existing bug or drift was demonstrated. Nice-to-haves for test coverage expansion. |
+| 34 | Stale docs in `archive/` | **Working as designed.** CLAUDE.md explicitly documents `archive/` as "off-limits, historical record only." Versioned docs there are intentional. |
+| 11 (original) | 412 mypy failures as "Blocker" | **Valid observation, wrong severity.** The project works fine without mypy gating. This belongs in a separate type-safety initiative, not an audit blocker. Mypy adoption is a strategic choice, not a bug. |
+
+---
 
 ## Suggested Execution Order
 
-1. Stabilize contracts: items 1, 9, 10.
-2. Carve out shared mutation service: items 2, 4, 6, 7, 8, 39.
-3. Reduce interface duplication: items 13, 14, 15, 20, 21, 23, 24.
-4. Trim optional/non-core surface: items 5, 26, 27, 28, 34, 35, 36.
-5. Lock in maintainability guardrails: items 11, 12, 29, 30, 31, 32, 33, 37, 40.
+1. **Quick wins:** Items 2 (bind-error fix), 14 (Astro README).
+2. **Close the policy gap:** Items 1 (completion policy in MCP), 3 (parity tests).
+3. **Extract shared mutation service:** Items 4, 5, 8, 10 — the dashboard and CLI archive paths converge on a single task-write-transaction abstraction.
+4. **Dashboard decomposition:** Items 6, 7, 8 — remove side effects and repeated loading from HTTP handlers.
+5. **Resource service extraction:** Item 9.
+6. **Trim surface area:** Items 12, 13 (weather + demo to plugins), 15 (scripts audit).
+7. **Consolidation:** Item 16 (hooks), 17 (init).
