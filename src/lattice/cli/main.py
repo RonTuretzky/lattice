@@ -324,6 +324,12 @@ def cli(ctx: click.Context) -> None:
     default=None,
     help="Create or update CLAUDE.md with Lattice agent integration.",
 )
+@click.option(
+    "--seed/--no-seed",
+    "seed",
+    default=None,
+    help="Seed example tasks to demonstrate the workflow (default: off).",
+)
 def init(
     target_path: str,
     actor: str | None,
@@ -333,6 +339,7 @@ def init(
     heartbeat: bool | None,
     workflow_preset: str | None,
     setup_claude: bool | None,
+    seed: bool | None,
 ) -> None:
     """Initialize a new Lattice project."""
     root = Path(target_path)
@@ -471,7 +478,19 @@ def init(
         atomic_write(context_path, _CONTEXT_MD_TEMPLATE)
 
         # Seed example tasks (requires project_code for short IDs)
-        if project_code:
+        should_seed = seed  # explicit --seed/--no-seed
+        if should_seed is None and project_code:
+            if non_interactive:
+                should_seed = False
+            else:
+                try:
+                    should_seed = click.confirm(
+                        "Seed example tasks to see the workflow in action?",
+                        default=False,
+                    )
+                except (click.Abort, EOFError):
+                    should_seed = False
+        if should_seed and project_code:
             click.echo("")
             click.echo("Seeding example tasks...")
             _seed_example_tasks(lattice_dir, config)
@@ -501,6 +520,15 @@ def init(
     elif setup_claude:
         _offer_claude_md(root, auto_accept=True)
     # else: --no-setup-claude, skip entirely
+
+    # Next steps guidance
+    click.echo("")
+    click.echo("Next steps:")
+    click.echo(f"  1. Fill in {LATTICE_DIR}/context.md with your project's purpose")
+    click.echo("  2. Create your first task: lattice create \"<title>\"" + (
+        f" --actor {actor}" if actor else " --actor <your-id>"
+    ))
+    click.echo("  3. Open the dashboard: lattice dashboard")
 
 
 def _compose_claude_md_blocks() -> tuple[str, str]:

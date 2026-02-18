@@ -125,11 +125,22 @@ lattice create "<title>" --actor agent:<id>
 lattice status <task> <status> --actor agent:<id>
 lattice assign <task> <actor> --actor agent:<id>
 lattice comment <task> "<text>" --actor agent:<id>
+lattice link <task> <type> <target> --actor agent:<id>
 lattice branch-link <task> <branch> --actor agent:<id>
 lattice next [--actor agent:<id>] [--claim]
 lattice show <task>
 lattice list
 ```
+
+**Useful flags:**
+- `--quiet` — prints only the task ID (essential for scripting: `TASK=$(lattice create "..." --quiet)`)
+- `--json` — structured output: `{"ok": true, "data": ...}` or `{"ok": false, "error": ...}`
+- `lattice list --status in_progress` — filter by status
+- `lattice list --assigned agent:<id>` — filter by assignee
+- `lattice list --tag <tag>` — filter by tag
+- `lattice link <task> subtask_of|depends_on|blocks <target>` — express task relationships
+
+For the full CLI reference (all commands, flags, error codes, and workflow examples), see the `/lattice` skill.
 """
 
 # Marker comment used to detect if the block was already added
