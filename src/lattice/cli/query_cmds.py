@@ -570,8 +570,12 @@ def next_cmd(
                 execute_hooks(config, lattice_dir, task_id, event)
 
     display_id = selected.get("short_id") or task_id
+    result_data = selected
+    if is_json:
+        result_data = dict(selected)
+        result_data["plan_content"] = _read_plan_content_for_next(lattice_dir, task_id)
     output_result(
-        data=selected,
+        data=result_data,
         human_message=(
             f"{display_id}  {selected.get('status', '?')}  "
             f'{selected.get("priority", "?")}  "{selected.get("title", "?")}"'
@@ -579,6 +583,33 @@ def next_cmd(
         quiet_value=display_id,
         is_json=is_json,
         is_quiet=quiet,
+    )
+
+
+def _read_plan_content_for_next(lattice_dir: Path, task_id: str) -> str | None:
+    """Return plan markdown for *task_id* if present and non-scaffold; else None."""
+    plan_path = lattice_dir / "plans" / f"{task_id}.md"
+    if not plan_path.exists():
+        return None
+    try:
+        content = plan_path.read_text()
+    except OSError:
+        return None
+    if _is_scaffold_plan_content(content):
+        return None
+    stripped = content.strip()
+    if not stripped:
+        return None
+    return content
+
+
+def _is_scaffold_plan_content(content: str) -> bool:
+    """Return True when plan content still matches the default scaffold placeholders."""
+    if not content.strip():
+        return True
+    return (
+        "<!-- Implementation approach, design decisions, open questions. -->" in content
+        and "<!-- What must be true for this task to be done? -->" in content
     )
 
 

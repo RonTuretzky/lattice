@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 
 class TestNextBasic:
@@ -192,6 +193,50 @@ class TestNextClaim:
     def test_claim_invalid_actor_format(self, invoke) -> None:
         result = invoke("next", "--actor", "badformat", "--claim")
         assert result.exit_code != 0
+
+    def test_claim_json_includes_plan_content_when_non_scaffold(self, create_task, invoke, cli_env) -> None:
+        task = create_task("Plan content task")
+        task_id = task["id"]
+        plan_path = Path(cli_env["LATTICE_ROOT"]) / ".lattice" / "plans" / f"{task_id}.md"
+        plan_path.write_text(
+            f"# {task_id}\n\n"
+            "## Summary\n\n"
+            "Useful summary.\n\n"
+            "## Technical Plan\n\n"
+            "- Implement behavior\n\n"
+            "## Acceptance Criteria\n\n"
+            "- Includes plan content in next JSON\n"
+        )
+
+        result = invoke("next", "--actor", "agent:claude", "--claim", "--json")
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["data"]["id"] == task_id
+        assert parsed["data"]["plan_content"] is not None
+        assert "Implement behavior" in parsed["data"]["plan_content"]
+
+    def test_claim_json_plan_content_null_when_plan_missing(self, create_task, invoke, cli_env) -> None:
+        task = create_task("No plan file task")
+        task_id = task["id"]
+        plan_path = Path(cli_env["LATTICE_ROOT"]) / ".lattice" / "plans" / f"{task_id}.md"
+        if plan_path.exists():
+            plan_path.unlink()
+
+        result = invoke("next", "--actor", "agent:claude", "--claim", "--json")
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["data"]["id"] == task_id
+        assert parsed["data"]["plan_content"] is None
+
+    def test_claim_json_plan_content_null_for_scaffold(self, create_task, invoke) -> None:
+        task = create_task("Scaffold plan task")
+        task_id = task["id"]
+
+        result = invoke("next", "--actor", "agent:claude", "--claim", "--json")
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["data"]["id"] == task_id
+        assert parsed["data"]["plan_content"] is None
 
 
 class TestNextClaimTransitions:
