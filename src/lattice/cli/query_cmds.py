@@ -996,6 +996,21 @@ def _print_human_show(
             else:
                 click.echo(f"  {art_id}{suffix}")
 
+    # Review evidence summary — roles satisfied by comments or artifacts
+    evidence_refs = snapshot.get("evidence_refs", [])
+    role_sources: dict[str, list[str]] = {}
+    for ref in evidence_refs:
+        role = ref.get("role")
+        if role:
+            source_type = ref.get("source_type", "unknown")
+            role_sources.setdefault(role, []).append(source_type)
+    if role_sources:
+        click.echo("")
+        click.echo("Review evidence:")
+        for role, sources in sorted(role_sources.items()):
+            source_summary = ", ".join(f"{s} x{sources.count(s)}" if sources.count(s) > 1 else s for s in sorted(set(sources)))
+            click.echo(f"  {role}: {source_summary}")
+
     branch_links = snapshot.get("branch_links", [])
     has_branch_section = branch_links or auto_detected_branches
     if has_branch_section:
@@ -1065,7 +1080,9 @@ def _event_summary(event: dict, full: bool) -> str:
         body = data.get("body", "")
         if len(body) > 60:
             body = body[:57] + "..."
-        return f'"{body}"'
+        role = data.get("role")
+        role_tag = f" [role: {role}]" if role else ""
+        return f'"{body}"{role_tag}'
     elif etype == "comment_edited":
         cid = data.get("comment_id", "?")
         return f"edited comment {cid[:20]}..."

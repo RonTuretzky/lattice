@@ -899,3 +899,34 @@ class TestShow:
         for line in result.output.splitlines():
             if line.startswith("    ") and "reason:" in line:
                 raise AssertionError("Unexpected provenance line found")
+
+    def test_comment_role_shown_inline(self, invoke, create_task):
+        """Comment with --role shows [role: X] tag in event summary."""
+        task = create_task("Role display test")
+        task_id = task["id"]
+        invoke("comment", task_id, "LGTM", "--role", "review", "--actor", "human:test")
+
+        result = invoke("show", task_id)
+        assert result.exit_code == 0
+        assert "[role: review]" in result.output
+
+    def test_comment_without_role_no_tag(self, invoke, create_task):
+        """Comment without --role does NOT show [role: ...] tag."""
+        task = create_task("No role display")
+        task_id = task["id"]
+        invoke("comment", task_id, "Plain note", "--actor", "human:test")
+
+        result = invoke("show", task_id)
+        assert result.exit_code == 0
+        assert "[role:" not in result.output
+
+    def test_review_evidence_section(self, invoke, create_task):
+        """Show includes 'Review evidence' section when evidence_refs have roles."""
+        task = create_task("Evidence display")
+        task_id = task["id"]
+        invoke("comment", task_id, "Review pass", "--role", "review", "--actor", "human:test")
+
+        result = invoke("show", task_id)
+        assert result.exit_code == 0
+        assert "Review evidence:" in result.output
+        assert "review:" in result.output
