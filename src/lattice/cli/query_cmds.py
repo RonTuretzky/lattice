@@ -26,6 +26,7 @@ from lattice.core.config import get_valid_transitions, validate_status
 from lattice.core.events import (
     BUILTIN_EVENT_TYPES,
     create_event,
+    get_actor_display,
     validate_custom_event_type,
 )
 from lattice.core.ids import extract_short_ids, validate_actor, validate_id
@@ -176,7 +177,7 @@ def event_cmd(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    validate_actor_or_exit(actor, is_json)
+    actor = validate_actor_or_exit(actor, is_json)
     if on_behalf_of is not None:
         validate_actor_or_exit(on_behalf_of, is_json)
 
@@ -874,7 +875,7 @@ def _scan_backward_status_transitions(
         latest = {
             "ts": ts,
             "date": date,
-            "actor": event.get("actor", "?"),
+            "actor": get_actor_display(event.get("actor", "?")),
             "from": from_status,
             "to": to_status,
         }
@@ -986,7 +987,8 @@ def _print_compact_show(
     status = snapshot.get("status", "?")
     priority = snapshot.get("priority", "?")
     task_type = snapshot.get("type", "?")
-    assigned_to = snapshot.get("assigned_to") or "unassigned"
+    raw_assigned = snapshot.get("assigned_to")
+    assigned_to = get_actor_display(raw_assigned) if raw_assigned else "unassigned"
 
     archived_note = "  [ARCHIVED]" if is_archived else ""
     header = f"{short_id} ({task_id})" if short_id else task_id
@@ -1023,8 +1025,9 @@ def _print_human_show(
     status_display = get_display_name(config or {}, status)
     priority = snapshot.get("priority", "?")
     task_type = snapshot.get("type", "?")
-    assigned_to = snapshot.get("assigned_to") or "unassigned"
-    created_by = snapshot.get("created_by", "?")
+    raw_assigned = snapshot.get("assigned_to")
+    assigned_to = get_actor_display(raw_assigned) if raw_assigned else "unassigned"
+    created_by = get_actor_display(snapshot.get("created_by", "?"))
     created_at = snapshot.get("created_at", "?")
     updated_at = snapshot.get("updated_at", "?")
     description = snapshot.get("description")
@@ -1141,7 +1144,7 @@ def _print_human_show(
         for ev in reversed(events):
             ts = ev.get("ts", "?")
             etype = ev.get("type", "?")
-            ev_actor = ev.get("actor", "?")
+            ev_actor = get_actor_display(ev.get("actor", "?"))
             summary = _event_summary(ev, full)
             click.echo(f"  {ts}  {etype}  {summary}  by {ev_actor}")
             # Provenance line

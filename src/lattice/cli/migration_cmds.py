@@ -64,7 +64,7 @@ def backfill_ids(
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
 
-    validate_actor_or_exit(actor, is_json)
+    actor = validate_actor_or_exit(actor, is_json)
 
     # Resolve project code
     existing_code = config.get("project_code")

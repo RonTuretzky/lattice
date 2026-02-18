@@ -150,7 +150,7 @@ def archive(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    validate_actor_or_exit(actor, is_json)
+    actor = validate_actor_or_exit(actor, is_json)
     if on_behalf_of is not None:
         validate_actor_or_exit(on_behalf_of, is_json)
 
@@ -478,7 +478,7 @@ def unarchive(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    validate_actor_or_exit(actor, is_json)
+    actor = validate_actor_or_exit(actor, is_json)
     if on_behalf_of is not None:
         validate_actor_or_exit(on_behalf_of, is_json)
 

@@ -75,7 +75,7 @@ def resource_create(
     """Create a new resource."""
     is_json = output_json
     lattice_dir = require_root(is_json)
-    validate_actor_or_exit(actor, is_json)
+    actor = validate_actor_or_exit(actor, is_json)
 
     # Validate ID format before locking
     if resource_id:
@@ -185,7 +185,7 @@ def resource_acquire(
     """Acquire exclusive access to a resource."""
     is_json = output_json
     lattice_dir = require_root(is_json)
-    validate_actor_or_exit(actor, is_json)
+    actor = validate_actor_or_exit(actor, is_json)
     config = load_project_config(lattice_dir)
 
     # Resolve task short ID if provided
@@ -398,7 +398,7 @@ def resource_release(
     """Release a held resource."""
     is_json = output_json
     lattice_dir = require_root(is_json)
-    validate_actor_or_exit(actor, is_json)
+    actor = validate_actor_or_exit(actor, is_json)
     config = load_project_config(lattice_dir)
 
     # Lock: read-check-write atomically
@@ -478,7 +478,7 @@ def resource_heartbeat(
     """Extend TTL on a held resource."""
     is_json = output_json
     lattice_dir = require_root(is_json)
-    validate_actor_or_exit(actor, is_json)
+    actor = validate_actor_or_exit(actor, is_json)
     config = load_project_config(lattice_dir)
 
     # Lock: read-check-write atomically

@@ -80,7 +80,7 @@ def link(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    validate_actor_or_exit(actor, is_json)
+    actor = validate_actor_or_exit(actor, is_json)
     if on_behalf_of is not None:
         validate_actor_or_exit(on_behalf_of, is_json)
 
@@ -186,7 +186,7 @@ def unlink(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    validate_actor_or_exit(actor, is_json)
+    actor = validate_actor_or_exit(actor, is_json)
     if on_behalf_of is not None:
         validate_actor_or_exit(on_behalf_of, is_json)
 
@@ -285,7 +285,7 @@ def branch_link(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    validate_actor_or_exit(actor, is_json)
+    actor = validate_actor_or_exit(actor, is_json)
     if on_behalf_of is not None:
         validate_actor_or_exit(on_behalf_of, is_json)
 
@@ -384,7 +384,7 @@ def branch_unlink(
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
-    validate_actor_or_exit(actor, is_json)
+    actor = validate_actor_or_exit(actor, is_json)
     if on_behalf_of is not None:
         validate_actor_or_exit(on_behalf_of, is_json)
 

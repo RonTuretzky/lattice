@@ -131,8 +131,69 @@ def resolve_task_id(
 # ---------------------------------------------------------------------------
 
 
-def validate_actor_or_exit(actor: str, is_json: bool) -> None:
-    """Validate actor format or exit with error."""
+def validate_actor_or_exit(actor: str | None, is_json: bool) -> str | dict:
+    """Validate and resolve actor identity.
+
+    If ``--name`` was provided (via Click context), resolves the session
+    and returns a structured actor dict.  If ``--actor`` was provided,
+    validates the format and returns the string.  Exits with error if
+    neither is available.
+
+    Commands should use the return value as the resolved actor::
+
+        actor = validate_actor_or_exit(actor, is_json)
+    """
+    from lattice.storage.sessions import resolve_session, touch_session
+
+    # Check if --name was provided via context
+    ctx = click.get_current_context(silent=True)
+    if ctx is not None:
+        ctx.ensure_object(dict)
+        session_name = ctx.obj.get("_session_name")
+        if session_name is not None:
+            # Resolve from session — need lattice_dir
+            lattice_dir = ctx.obj.get("_lattice_dir")
+            if lattice_dir is None:
+                # Try to find it
+                try:
+                    lattice_dir = require_root(is_json)
+                except SystemExit:
+                    raise
+                ctx.obj["_lattice_dir"] = lattice_dir
+
+            session_data = resolve_session(lattice_dir, session_name)
+            if session_data is None:
+                output_error(
+                    f"No active session named '{session_name}'. "
+                    "Start one with 'lattice session start'.",
+                    "SESSION_NOT_FOUND",
+                    is_json,
+                )
+            # Touch last_active
+            touch_session(lattice_dir, session_name)
+
+            # Build structured actor dict
+            actor_dict: dict = {
+                "name": session_data["name"],
+                "base_name": session_data["base_name"],
+                "serial": session_data["serial"],
+                "session": session_data["session"],
+                "model": session_data["model"],
+            }
+            if session_data.get("framework"):
+                actor_dict["framework"] = session_data["framework"]
+            if session_data.get("agent_type"):
+                actor_dict["agent_type"] = session_data["agent_type"]
+
+            return actor_dict
+
+    if actor is None:
+        output_error(
+            "Either --name (session) or --actor (legacy) is required.",
+            "MISSING_ACTOR",
+            is_json,
+        )
+
     if not validate_actor(actor):
         output_error(
             f"Invalid actor format: '{actor}'. "
@@ -141,19 +202,35 @@ def validate_actor_or_exit(actor: str, is_json: bool) -> None:
             is_json,
         )
 
+    return actor
+
 
 # ---------------------------------------------------------------------------
 # Click decorator
 # ---------------------------------------------------------------------------
 
 
+def _store_session_name(ctx: click.Context, _param: click.Parameter, value: str | None) -> None:
+    """Store --name value on Click context for later resolution."""
+    ctx.ensure_object(dict)
+    ctx.obj["_session_name"] = value
+
+
 def common_options(f):  # noqa: ANN001, ANN201
     """Decorator adding common write-command options."""
     f = click.option("--quiet", is_flag=True, help="Print only the primary ID.")(f)
     f = click.option("--json", "output_json", is_flag=True, help="Output structured JSON.")(f)
-    f = click.option("--session", default=None, help="Session identifier.")(f)
-    f = click.option("--model", default=None, help="Model identifier.")(f)
-    f = click.option("--actor", required=True, help="Actor (e.g., human:atin, agent:claude).")(f)
+    f = click.option("--session", default=None, help="Session identifier (legacy).")(f)
+    f = click.option("--model", default=None, help="Model identifier (legacy).")(f)
+    f = click.option(
+        "--actor", default=None,
+        help="Actor (e.g., human:atin, agent:claude). Deprecated: prefer --name.",
+    )(f)
+    f = click.option(
+        "--name", "session_name", default=None, expose_value=False,
+        callback=_store_session_name, is_eager=True,
+        help="Session name (e.g., Argus-3). Resolves to full identity.",
+    )(f)
     f = click.option("--reason", "provenance_reason", default=None, help="Reason (provenance).")(f)
     f = click.option(
         "--on-behalf-of", default=None, help="Actor on whose behalf this action is taken."
@@ -162,6 +239,74 @@ def common_options(f):  # noqa: ANN001, ANN201
         f
     )
     return f
+
+
+def resolve_actor_or_exit(
+    lattice_dir: Path,
+    *,
+    actor: str | None,
+    is_json: bool,
+) -> tuple[str | dict, str | None, str | None]:
+    """Resolve actor identity from --name or --actor flags.
+
+    Checks the Click context for a ``--name`` session name (stored by
+    ``common_options``).  If present, resolves the session and returns
+    a structured actor dict.  Otherwise falls back to the legacy
+    ``--actor`` string.
+
+    Returns (actor_value, model, session) where:
+    - actor_value is either a structured dict (from session) or a legacy string
+    - model and session are for legacy agent_meta (None when using structured actor)
+
+    Exits with error if neither --name nor --actor is provided.
+    """
+    from lattice.storage.sessions import resolve_session, touch_session
+
+    # Check for --name on Click context
+    ctx = click.get_current_context(silent=True)
+    session_name = None
+    if ctx is not None:
+        ctx.ensure_object(dict)
+        session_name = ctx.obj.get("_session_name")
+
+    if session_name is not None:
+        # Resolve from session
+        session_data = resolve_session(lattice_dir, session_name)
+        if session_data is None:
+            output_error(
+                f"No active session named '{session_name}'. "
+                "Start one with 'lattice session start'.",
+                "SESSION_NOT_FOUND",
+                is_json,
+            )
+        # Touch last_active
+        touch_session(lattice_dir, session_name)
+
+        # Build structured actor dict
+        actor_dict: dict = {
+            "name": session_data["name"],
+            "base_name": session_data["base_name"],
+            "serial": session_data["serial"],
+            "session": session_data["session"],
+            "model": session_data["model"],
+        }
+        if session_data.get("framework"):
+            actor_dict["framework"] = session_data["framework"]
+        if session_data.get("agent_type"):
+            actor_dict["agent_type"] = session_data["agent_type"]
+
+        return actor_dict, None, None
+
+    if actor is not None:
+        # Legacy path
+        validate_actor_or_exit(actor, is_json)
+        return actor, None, None
+
+    output_error(
+        "Either --name (session) or --actor (legacy) is required.",
+        "MISSING_ACTOR",
+        is_json,
+    )
 
 
 # ---------------------------------------------------------------------------
