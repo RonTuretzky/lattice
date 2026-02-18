@@ -371,3 +371,69 @@ class TestCommentRoleNoPolicies:
             "--actor", "human:test",
         )
         assert result.exit_code == 0
+
+
+# ---------------------------------------------------------------------------
+# lattice comment --file
+# ---------------------------------------------------------------------------
+
+
+class TestCommentFile:
+    """Tests for --file option on lattice comment."""
+
+    def test_comment_from_file(self, invoke, create_task, tmp_path) -> None:
+        """--file reads comment body from a file."""
+        task = create_task("File comment")
+        body_file = tmp_path / "review.md"
+        body_file.write_text("Detailed review findings here.")
+
+        result = invoke(
+            "comment", task["id"],
+            "--file", str(body_file),
+            "--actor", "human:test",
+            "--json",
+        )
+        assert result.exit_code == 0
+        snapshot = json.loads(result.output)["data"]
+        assert snapshot["comment_count"] == 1
+
+    def test_file_and_text_mutually_exclusive(self, invoke, create_task, tmp_path) -> None:
+        """Providing both TEXT and --file is an error."""
+        task = create_task("Mutual exclusion")
+        body_file = tmp_path / "body.txt"
+        body_file.write_text("content")
+
+        result = invoke(
+            "comment", task["id"], "inline text",
+            "--file", str(body_file),
+            "--actor", "human:test",
+        )
+        assert result.exit_code != 0
+        assert "not both" in result.output.lower() or "VALIDATION_ERROR" in result.output
+
+    def test_neither_text_nor_file_is_error(self, invoke, create_task) -> None:
+        """Providing neither TEXT nor --file is an error."""
+        result = invoke(
+            "comment", create_task("No body")["id"],
+            "--actor", "human:test",
+        )
+        assert result.exit_code != 0
+
+    def test_file_with_role(self, invoke, create_task, tmp_path) -> None:
+        """--file works with --role."""
+        task = create_task("File + role")
+        body_file = tmp_path / "review.md"
+        body_file.write_text("LGTM — all checks pass.")
+
+        result = invoke(
+            "comment", task["id"],
+            "--file", str(body_file),
+            "--role", "review",
+            "--actor", "human:test",
+            "--json",
+        )
+        assert result.exit_code == 0
+        snapshot = json.loads(result.output)["data"]
+        comment_refs = [r for r in snapshot.get("evidence_refs", []) if r.get("source_type") == "comment"]
+        assert len(comment_refs) == 1
+        assert comment_refs[0]["role"] == "review"

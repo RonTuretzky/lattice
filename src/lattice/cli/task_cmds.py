@@ -716,13 +716,15 @@ def assign(
 
 @cli.command()
 @click.argument("task_id")
-@click.argument("text")
+@click.argument("text", required=False, default=None)
+@click.option("--file", "file_path", default=None, type=click.Path(exists=True), help="Read comment body from a file.")
 @click.option("--reply-to", default=None, help="Event ID of the comment to reply to.")
 @click.option("--role", default=None, help="Role of this comment (e.g., 'review'). Satisfies completion policies.")
 @common_options
 def comment(
     task_id: str,
-    text: str,
+    text: str | None,
+    file_path: str | None,
     reply_to: str | None,
     role: str | None,
     actor: str,
@@ -736,6 +738,24 @@ def comment(
 ) -> None:
     """Add a comment to a task."""
     is_json = output_json
+
+    # Resolve body from text or --file (mutually exclusive, one required)
+    if text is not None and file_path is not None:
+        output_error(
+            "Provide either TEXT or --file, not both.",
+            "VALIDATION_ERROR",
+            is_json,
+        )
+    if text is None and file_path is None:
+        output_error(
+            "Provide comment text as an argument or via --file.",
+            "VALIDATION_ERROR",
+            is_json,
+        )
+    if file_path is not None:
+        from pathlib import Path
+
+        text = Path(file_path).read_text()
 
     lattice_dir = require_root(is_json)
     config = load_project_config(lattice_dir)
