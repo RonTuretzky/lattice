@@ -30,8 +30,8 @@ When in doubt, create the task. A small task costs nothing. Lost visibility cost
 
 The description should be sufficient for an agent to decide whether it needs to plan. Plan files are where agents write *how* — descriptions say *what* and *why*.
 
-- **Fully specified** (bug located, fix named, files identified): skip `in_planning`, go straight to `in_progress`. Mark `complexity: low`.
-- **Clear goal, open implementation**: go through `in_planning`. The agent figures out the approach.
+- **Fully specified** (bug located, fix named, files identified): still go through `in_planning`, but the plan can be a single line (e.g., "Fix the typo on line 77"). Mark `complexity: low`.
+- **Clear goal, open implementation**: go through `in_planning`. The agent figures out the approach and writes a substantive plan.
 - **Decision context from conversations**: bake the decisions and rationale into the description. Without it, the next agent re-derives what was already decided.
 
 ### Status Is a Signal, Not a Chore
@@ -63,7 +63,7 @@ Moving a task to `in_planning` means you are about to produce a plan. The plan f
 2. Write the plan — scope, approach, key files, acceptance criteria. For trivial tasks, a single sentence is fine. For substantial work, be thorough.
 3. Move to `planned` only when the plan file reflects what you intend to build.
 
-**The test:** If you moved from `in_planning` to `planned` and the plan file is still empty scaffold, you didn't plan. Either write the plan or skip `in_planning` honestly with `--force --reason "trivial task, no planning needed"`.
+**The test:** If you moved from `in_planning` to `planned` and the plan file is still scaffold, you didn't plan. Every task gets a plan — even trivial tasks get a one-line plan. The CLI enforces this: transitioning to `in_progress` is blocked when the plan is still scaffold.
 
 ### The Review Gate
 
@@ -420,7 +420,7 @@ Moving a task to `in_planning` means you are about to produce a plan. The plan f
 2. Write the plan — scope, approach, key files, acceptance criteria. For trivial tasks, a single sentence is fine. For substantial work, be thorough.
 3. Move to `planned` only when the plan file reflects what you intend to build.
 
-**The test:** If you moved from `in_planning` to `planned` and the plan file is still empty scaffold, you didn't plan. Either write the plan or skip `in_planning` honestly with `--force --reason "trivial task, no planning needed"`.
+**The test:** If you moved from `in_planning` to `planned` and the plan file is still scaffold, you didn't plan. Every task gets a plan — even trivial tasks get a one-line plan. The CLI enforces this: transitioning to `in_progress` is blocked when the plan is still scaffold.
 
 ### The Review Gate
 
