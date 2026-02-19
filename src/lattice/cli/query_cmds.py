@@ -366,8 +366,10 @@ def list_cmd(
     for snap in snapshots:
         if status is not None and snap.get("status") != status:
             continue
-        if assigned is not None and snap.get("assigned_to") != assigned:
-            continue
+        if assigned is not None:
+            raw = snap.get("assigned_to")
+            if raw is None or get_actor_display(raw) != assigned:
+                continue
         if tag is not None and tag not in (snap.get("tags") or []):
             continue
         if task_type is not None and snap.get("type") != task_type:

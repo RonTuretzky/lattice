@@ -397,13 +397,19 @@ def list_all_resources(lattice_dir: Path) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 
-def is_scaffold_plan(content: str) -> bool:
+def is_scaffold_plan(content: str, *, description: str | None = None) -> bool:
     """Return True when plan content still matches the default scaffold placeholders.
 
     The scaffold is minimal: just ``# <title>`` and optionally the task
     description as a paragraph.  A plan that has been "filled in" will
     contain sub-headings, lists, code fences, or other structural
-    elements beyond the auto-generated heading + description.
+    elements — OR plain-text content that differs from the auto-generated
+    description paragraph.
+
+    When *description* is provided, a plan consisting only of heading +
+    that exact description text is still considered scaffold.  Without
+    *description*, any non-empty text beyond the heading is accepted as
+    a real plan (one-line plans are valid).
     """
     stripped = content.strip()
     if not stripped:
@@ -412,18 +418,33 @@ def is_scaffold_plan(content: str) -> bool:
     # Must start with a heading to look like a scaffold at all.
     if not lines[0].startswith("# "):
         return False
-    # Check remaining lines for structural content (sub-headings, lists,
-    # code fences) that would indicate an agent/human filled it in.
-    for line in lines[1:]:
-        lt = line.strip()
-        if not lt:
-            continue
+
+    # Collect non-empty, non-heading body lines.
+    body_lines = [lt for line in lines[1:] if (lt := line.strip())]
+
+    if not body_lines:
+        # Only a heading, no body → still scaffold.
+        return True
+
+    # If there's structural markdown content, it's definitely filled in.
+    for lt in body_lines:
         if lt.startswith(("## ", "### ", "- ", "* ", "```")):
             return False
-        # Numbered list items (e.g. "1. ", "2. ")
         if len(lt) > 2 and lt[0].isdigit() and ". " in lt[:5]:
             return False
-    return True
+
+    # Plain text exists. If we have the original description, check whether
+    # the body is just the auto-generated description (still scaffold).
+    if description:
+        body_text = "\n".join(body_lines)
+        desc_text = "\n".join(
+            lt for line in description.strip().splitlines() if (lt := line.strip())
+        )
+        if body_text == desc_text:
+            return True  # Body is just the description → scaffold.
+
+    # Plain text that isn't the auto-generated description → real plan.
+    return False
 
 
 def check_plan_gate(
@@ -467,7 +488,17 @@ def check_plan_gate(
     except OSError:
         return  # Can't read → don't block (filesystem issue, not a planning issue)
 
-    if is_scaffold_plan(content):
+    # Load the task description so we can distinguish "plan is just the
+    # auto-generated description" from "plan has real content".
+    description: str | None = None
+    snap_path = lattice_dir / "tasks" / f"{task_id}.json"
+    try:
+        snap = json.loads(snap_path.read_text())
+        description = snap.get("description")
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        pass
+
+    if is_scaffold_plan(content, description=description):
         output_error(
             f"Plan for {task_id} is still scaffold. "
             "Write the plan (even one line) before moving to in_progress. "

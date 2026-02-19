@@ -2039,6 +2039,8 @@ def _collect_events(ld: Path, *, full_scan: bool = False, tail_n: int = 10) -> l
 
 def _build_facets(events: list[dict], ld: Path) -> dict:
     """Extract distinct types, actors, and tasks from a set of events."""
+    from lattice.core.events import get_actor_display
+
     types: set[str] = set()
     actors: set[str] = set()
     task_ids: set[str] = set()
@@ -2047,7 +2049,7 @@ def _build_facets(events: list[dict], ld: Path) -> dict:
         if ev.get("type"):
             types.add(ev["type"])
         if ev.get("actor"):
-            actors.add(ev["actor"])
+            actors.add(get_actor_display(ev["actor"]))
         if ev.get("task_id"):
             task_ids.add(ev["task_id"])
 
@@ -2096,7 +2098,12 @@ def _apply_activity_filters(
         result = [e for e in result if e.get("task_id") == task_filter]
 
     if actor_filter:
-        result = [e for e in result if e.get("actor") == actor_filter]
+        from lattice.core.events import get_actor_display
+
+        result = [
+            e for e in result
+            if e.get("actor") and get_actor_display(e["actor"]) == actor_filter
+        ]
 
     if after:
         result = [e for e in result if (e.get("ts") or "") > after]
@@ -2108,13 +2115,16 @@ def _apply_activity_filters(
         search_lower = search.lower()
 
         def _matches(ev: dict) -> bool:
+            from lattice.core.events import get_actor_display
+
             # Search in event data values (comment bodies, field values, etc.)
             data = ev.get("data") or {}
             for v in data.values():
                 if isinstance(v, str) and search_lower in v.lower():
                     return True
             # Also search in actor and type
-            if search_lower in (ev.get("actor") or "").lower():
+            actor_str = get_actor_display(ev["actor"]) if ev.get("actor") else ""
+            if search_lower in actor_str.lower():
                 return True
             if search_lower in (ev.get("type") or "").lower():
                 return True

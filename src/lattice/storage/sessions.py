@@ -199,9 +199,10 @@ def resolve_session(lattice_dir: Path, name: str) -> dict | None:
 def touch_session(lattice_dir: Path, name: str) -> bool:
     """Update ``last_active`` on a session.  Returns False if session not found."""
     path = lattice_dir / _SESSIONS_DIR / f"{name}.json"
-    if not path.exists():
+    try:
+        data = json.loads(path.read_text())
+    except (FileNotFoundError, OSError):
         return False
-    data = json.loads(path.read_text())
     data["last_active"] = utc_now()
     atomic_write(path, json.dumps(data, sort_keys=True, indent=2) + "\n")
     return True

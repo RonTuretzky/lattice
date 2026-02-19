@@ -255,11 +255,13 @@ def _compute_agent_activity(events: list[dict]) -> list[dict]:
 
     Returns list of {actor, event_count} dicts, sorted by count desc. Top 10.
     """
+    from lattice.core.events import get_actor_display
+
     actor_counts: Counter = Counter()
     for ev in events:
         actor = ev.get("actor")
         if actor:
-            actor_counts[actor] += 1
+            actor_counts[get_actor_display(actor)] += 1
 
     return [
         {"actor": actor, "event_count": count} for actor, count in actor_counts.most_common(10)
@@ -286,7 +288,13 @@ def build_stats(lattice_dir: Path, config: dict) -> dict:
         status_counts[snap.get("status", "unknown")] += 1
         priority_counts[snap.get("priority", "unset")] += 1
         type_counts[snap.get("type", "unset")] += 1
-        assignee_counts[snap.get("assigned_to") or "unassigned"] += 1
+        raw_assignee = snap.get("assigned_to")
+        if raw_assignee:
+            from lattice.core.events import get_actor_display
+
+            assignee_counts[get_actor_display(raw_assignee)] += 1
+        else:
+            assignee_counts["unassigned"] += 1
         for tag in snap.get("tags") or []:
             tag_counts[tag] += 1
 

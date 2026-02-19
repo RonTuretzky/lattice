@@ -33,6 +33,7 @@ from lattice.core.config import (
 from lattice.core.events import (
     BUILTIN_EVENT_TYPES,
     create_event,
+    get_actor_display,
     serialize_event,
     validate_custom_event_type,
 )
@@ -1212,8 +1213,10 @@ def lattice_list(
     for snap in snapshots:
         if status is not None and snap.get("status") != status:
             continue
-        if assigned is not None and snap.get("assigned_to") != assigned:
-            continue
+        if assigned is not None:
+            raw = snap.get("assigned_to")
+            if raw is None or get_actor_display(raw) != assigned:
+                continue
         if tag is not None and tag not in (snap.get("tags") or []):
             continue
         if task_type is not None and snap.get("type") != task_type:
