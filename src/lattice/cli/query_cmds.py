@@ -512,12 +512,30 @@ def next_cmd(
             if snapshot is None:
                 output_error(f"Task {task_id} not found.", "NOT_FOUND", is_json)
 
-            events = []
-
-            # Assignment event (if not already assigned to this actor)
+            # Concurrent claim guard: reject if another agent claimed
+            # this task between our select_next() and lock acquisition.
             from lattice.core.next import _actors_match
 
             current_assigned = snapshot.get("assigned_to")
+            current_status = snapshot.get("status", "")
+            if current_assigned is not None and not _actors_match(current_assigned, resolved_actor):
+                owner = get_actor_display(current_assigned)
+                output_error(
+                    f"Task already claimed by {owner}.",
+                    "ALREADY_CLAIMED",
+                    is_json,
+                )
+            if current_status in ("in_progress", "review", "done", "cancelled"):
+                if not _actors_match(current_assigned, resolved_actor):
+                    output_error(
+                        f"Task already in {current_status}.",
+                        "ALREADY_CLAIMED",
+                        is_json,
+                    )
+
+            events = []
+
+            # Assignment event (if not already assigned to this actor)
             if not _actors_match(current_assigned, resolved_actor):
                 assign_event = create_event(
                     type="assignment_changed",

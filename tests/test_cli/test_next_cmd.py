@@ -377,3 +377,143 @@ class TestNextWithSessionName:
         assert result.exit_code == 0
         parsed = json.loads(result.output)
         assert parsed["data"]["id"] == task_id
+
+
+class TestNextClaimConcurrency:
+    """Concurrent claim guard — reject when another agent already claimed.
+
+    The guard fires inside the file lock, after re-reading the snapshot.
+    In a real race, both agents call select_next() and pick the same task
+    (both see it unassigned), then serialize through the lock.  The first
+    writes assignment + status; the second re-reads and should see the
+    first's claim.
+
+    To simulate this without threads, we:
+    1. Let agent:alpha claim the task normally (select → lock → write).
+    2. Manually mutate the snapshot back to 'backlog' + unassigned so
+       select_next() picks it again for agent:bravo.
+    3. agent:bravo calls next --claim, select_next sees the faked
+       snapshot (unassigned/backlog), but the lock path re-reads the
+       REAL snapshot (assigned to alpha, in_progress) and rejects.
+    """
+
+    def test_guard_rejects_when_snapshot_shows_other_owner(self, create_task, invoke, fill_plan, cli_env, monkeypatch) -> None:
+        """Patch read_snapshot to return a claimed snapshot inside the lock.
+
+        select_next uses load_all_snapshots (not read_snapshot), so the only
+        read_snapshot call for our task_id is the re-read inside the lock.
+        We patch that single call to simulate another agent having claimed
+        the task between selection and lock acquisition.
+        """
+        task = create_task("Race task")
+        task_id = task["id"]
+        fill_plan(task_id, "Race task")
+
+        import lattice.cli.query_cmds as qmod
+        original_read = qmod.read_snapshot
+
+        def patched_read(lattice_dir, tid):
+            snap = original_read(lattice_dir, tid)
+            if tid == task_id and snap is not None:
+                # Simulate: alpha claimed between select and lock
+                snap = dict(snap)
+                snap["assigned_to"] = "agent:alpha"
+                snap["status"] = "in_progress"
+            return snap
+
+        monkeypatch.setattr(qmod, "read_snapshot", patched_read)
+
+        result = invoke("next", "--actor", "agent:bravo", "--claim", "--json")
+        assert result.exit_code != 0
+        parsed = json.loads(result.output)
+        assert parsed["ok"] is False
+        assert parsed["error"]["code"] == "ALREADY_CLAIMED"
+        assert "alpha" in parsed["error"]["message"]
+
+    def test_guard_allows_reclaim_by_same_actor(self, create_task, invoke, fill_plan, cli_env, monkeypatch) -> None:
+        """If the snapshot shows the SAME actor, claim should proceed (no false reject)."""
+        task = create_task("Own task")
+        task_id = task["id"]
+        fill_plan(task_id, "Own task")
+
+        import lattice.cli.query_cmds as qmod
+        original_read = qmod.read_snapshot
+
+        def patched_read(lattice_dir, tid):
+            snap = original_read(lattice_dir, tid)
+            if tid == task_id and snap is not None:
+                snap = dict(snap)
+                snap["assigned_to"] = "agent:claude"
+                snap["status"] = "in_progress"
+            return snap
+
+        monkeypatch.setattr(qmod, "read_snapshot", patched_read)
+
+        result = invoke("next", "--actor", "agent:claude", "--claim", "--json")
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["data"]["id"] == task_id
+
+    def test_claim_rejects_when_in_progress_by_other(self, create_task, invoke, fill_plan) -> None:
+        """If task is already in_progress by another agent, bravo picks the next task."""
+        task = create_task("Active task")
+        task_id = task["id"]
+        fill_plan(task_id, "Active task")
+
+        # agent:alpha claims
+        invoke("next", "--actor", "agent:alpha", "--claim")
+
+        # Create a second task for bravo to pick up
+        task2 = create_task("Second task")
+        task2_id = task2["id"]
+        fill_plan(task2_id, "Second task")
+
+        # bravo should get the second task, not the first
+        result = invoke("next", "--actor", "agent:bravo", "--claim", "--json")
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["data"]["id"] == task2_id
+        assert parsed["data"]["assigned_to"] == "agent:bravo"
+
+    def test_claim_succeeds_when_assigned_to_self(self, create_task, invoke, fill_plan) -> None:
+        """Re-claiming your own task should work (no regression)."""
+        task = create_task("My task")
+        task_id = task["id"]
+        fill_plan(task_id, "My task")
+
+        # First claim
+        result = invoke("next", "--actor", "agent:claude", "--claim", "--json")
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["data"]["id"] == task_id
+        assert parsed["data"]["status"] == "in_progress"
+
+        # Second claim by same actor (resume path)
+        result = invoke("next", "--actor", "agent:claude", "--claim", "--json")
+        assert result.exit_code == 0
+        parsed = json.loads(result.output)
+        assert parsed["data"]["id"] == task_id
+        assert parsed["data"]["status"] == "in_progress"
+
+    def test_guard_human_readable_error(self, create_task, invoke, fill_plan, monkeypatch) -> None:
+        """Non-JSON mode should also show the ALREADY_CLAIMED error."""
+        task = create_task("Contested HR task")
+        task_id = task["id"]
+        fill_plan(task_id, "Contested HR task")
+
+        import lattice.cli.query_cmds as qmod
+        original_read = qmod.read_snapshot
+
+        def patched_read(lattice_dir, tid):
+            snap = original_read(lattice_dir, tid)
+            if tid == task_id and snap is not None:
+                snap = dict(snap)
+                snap["assigned_to"] = "agent:alpha"
+                snap["status"] = "in_progress"
+            return snap
+
+        monkeypatch.setattr(qmod, "read_snapshot", patched_read)
+
+        result = invoke("next", "--actor", "agent:bravo", "--claim")
+        assert result.exit_code != 0
+        assert "already claimed" in result.output.lower()
