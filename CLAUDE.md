@@ -76,6 +76,12 @@ git branch --show-current
 
 This check is cheap (one shell command) and prevents a class of failure that is expensive to recover from — work committed to the wrong branch, implementations built against wrong code, or merge conflicts from branch contamination.
 
+### Git Worktrees — Hard Constraint
+
+If this project uses git worktrees for multi-agent isolation, every worktree **MUST** share the primary checkout's `.lattice/` directory via the `LATTICE_ROOT` environment variable. Running Lattice commands in a worktree without this creates divergent coordination state — tasks, events, and plans invisible to all other agents, unrecoverable without manual intervention.
+
+**Before creating, entering, or tearing down any git worktree, invoke `/lattice-worktree` for the full protocol.**
+
 ### Sub-Agent Execution Model
 
 Each lifecycle stage gets its own sub-agent with fresh context. This is the default execution pattern — not a suggestion, not complexity-gated. Every task, every time.
@@ -462,6 +468,10 @@ backlog → in_planning → planned → in_progress → review → done
 In multi-agent environments, another agent or user can switch the git branch out from under you. An agent that doesn't notice will implement against wrong code, commit to the wrong branch, or both.
 
 **Record the branch when you start a task** (`git branch --show-current`). **Verify it hasn't changed** before every `lattice status` transition, before every `git commit`, and whenever you encounter unexpected file changes. **If the branch changed: stop immediately** — do not commit, do not continue. Surface the problem to the user.
+
+### Git Worktrees — Hard Constraint
+
+Every worktree **MUST** share the primary checkout's `.lattice/` via `LATTICE_ROOT`. Before any worktree operation, invoke `/lattice-worktree` for the full setup and teardown protocol.
 
 ### Sub-Agent Execution Model
 
