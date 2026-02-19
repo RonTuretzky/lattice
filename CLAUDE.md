@@ -437,14 +437,36 @@ backlog → in_planning → planned → in_progress → review → done
                                     blocked      needs_human
 ```
 
+### Sub-Agent Execution Model
+
+Each lifecycle stage gets its own sub-agent with fresh context. This is the default execution pattern — not a suggestion, not complexity-gated. Every task, every time.
+
+**Why this matters:** When a planning agent writes a plan and a separate implementation agent reads it, the plan *must* be clear and complete — there's no shared context to fall back on. This forces better plans. When a review agent reads the diff cold, it catches things the implementer's context-polluted mind would miss. The Lattice lifecycle stages are natural agent boundaries. The plan file and git diff are the handoff artifacts.
+
+**The three sub-agents:**
+
+| Stage | Sub-agent does | Reads | Produces |
+|-------|---------------|-------|----------|
+| **Plan** | Explore codebase, write plan, move to `planned` | Task description | Plan file |
+| **Implement** | Read plan, build it, test, commit, move to `review` | Plan file | Committed code |
+| **Review** | Read diff cold, review against acceptance criteria, record findings | Git diff + plan | Review comment (`--role review`), move to `done` |
+
+**The parent orchestrator** (the main agent session) manages the lifecycle:
+1. Move the task to `in_planning` before spawning the planning sub-agent.
+2. After the planner finishes, move to `in_progress` and spawn the implementation sub-agent.
+3. After the implementer finishes, the review sub-agent runs independently.
+
+Each sub-agent should use a distinct actor ID (e.g., `agent:claude-opus-4-planner`, `agent:claude-opus-4-impl`, `agent:claude-opus-4-reviewer`) so the event log shows who did what.
+
 ### The Planning Gate
 
 Moving a task to `in_planning` means you are about to produce a plan. The plan file lives at `.lattice/plans/<task_id>.md` — it's scaffolded on task creation, but the scaffold is empty. `in_planning` is when you fill it in.
 
-**When you move a task to `in_planning`:**
-1. Open the plan file (`.lattice/plans/<task_id>.md`).
-2. Write the plan — scope, approach, key files, acceptance criteria. For trivial tasks, a single sentence is fine. For substantial work, be thorough.
-3. Move to `planned` only when the plan file reflects what you intend to build.
+This is the **planning sub-agent's** job. Spawn a sub-agent whose sole purpose is to explore the codebase, understand the problem, and write the plan. It should:
+1. Read the task description and any linked context.
+2. Explore the relevant source files — understand existing patterns and constraints.
+3. Write the plan to `.lattice/plans/<task_id>.md` — scope, approach, key files, acceptance criteria. For trivial tasks, a single sentence is fine. For substantial work, be thorough.
+4. Move to `planned` only when the plan file reflects what it intends to build.
 
 **The test:** If you moved from `in_planning` to `planned` and the plan file is still scaffold, you didn't plan. Every task gets a plan — even trivial tasks get a one-line plan. The CLI enforces this: transitioning to `in_progress` is blocked when the plan is still scaffold.
 
@@ -452,16 +474,18 @@ Moving a task to `in_planning` means you are about to produce a plan. The plan f
 
 Moving a task to `review` is not a formality — it is a commitment to actually review the work before it ships.
 
-**When you move a task to `review`:**
-1. Identify what changed — the commits, files modified, and scope of work under this task.
-2. Perform a code review. For substantial work, use a review skill (`/exit-review`, `/code_review`). For trivial tasks, a focused self-review is sufficient — but it must be real, not ceremonial.
-3. Record your findings with `lattice comment --role review` — what you reviewed, what you found, and whether it meets the acceptance criteria from the plan. This satisfies completion policy `require_roles` checks.
+This is the **review sub-agent's** job. Spawn a sub-agent with fresh context — it did NOT write the code and comes in cold. It should:
+1. Read the plan file to understand what was supposed to be built.
+2. Read the git diff to see what was actually built.
+3. Run tests and linting to verify nothing is broken.
+4. Compare the implementation against the plan's acceptance criteria.
+5. Record findings with `lattice comment --role review` — what was reviewed, what was found, and whether it meets acceptance criteria.
 
 **When moving from `review` to `done`:**
 - If the completion policy blocks you, **do the review** and record it with `lattice comment <task> "<findings>" --role review --actor ...`. This is the lightweight path that satisfies `require_roles` checks. Do not `--force` past it.
 - `--force --reason` on the completion policy is for genuinely exceptional cases (task cancelled, review happened outside Lattice, process validation). It is not a convenience shortcut.
 
-**The test:** If you moved to `review` and then to `done` in the same breath with nothing in between, you skipped the review. That's the exact failure mode this gate exists to prevent.
+**The test:** If the same agent that wrote the code also reviewed it without a fresh context boundary, the review gate is not doing its job. The whole point is independent verification.
 
 ### When You're Stuck
 
