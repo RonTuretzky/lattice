@@ -48,11 +48,6 @@ Role helpers:
 These include legacy fallbacks (`artifact_refs`, `comment_role_refs`) so older
 snapshots continue to function until rebuilt.
 
-## Epic Derived Status
-
-`compute_epic_derived_status()` infers epic status from subtask states. Epics are
-containers; direct status changes are blocked in CLI and dashboard write paths.
-
 ## Rebuild Path
 
 `src/lattice/cli/integrity_cmds.py` handles rebuild:

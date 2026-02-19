@@ -30,7 +30,7 @@ Before setting up your own project, you can explore a fully populated example:
 lattice demo init
 ```
 
-This seeds 30 tasks across 4 epics and opens the dashboard in your browser. Press Ctrl+C when you're done looking.
+This seeds 30 tasks across 4 parent tasks and opens the dashboard in your browser. Press Ctrl+C when you're done looking.
 
 ## Initialize in your project
 

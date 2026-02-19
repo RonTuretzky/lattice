@@ -334,30 +334,6 @@ class TestStatus:
         assert status_event["data"]["from"] == "backlog"
         assert status_event["data"]["to"] == "in_planning"
 
-    def test_epic_status_rejected(self, invoke):
-        """Setting status on an epic should fail with EPIC_STATUS_REJECTED."""
-        # Create an epic
-        result = invoke("create", "My epic", "--type", "epic", "--actor", "human:test", "--json")
-        data = json.loads(result.output)
-        epic_id = data["data"]["id"]
-        # Try to change its status
-        result = invoke("status", epic_id, "in_progress", "--actor", "human:test")
-        assert result.exit_code != 0
-        assert "Cannot set status on epics" in (
-            result.output + (result.stderr if hasattr(result, "stderr") else "")
-        )
-
-    def test_epic_status_rejected_json(self, invoke_json):
-        """JSON mode: setting status on an epic returns EPIC_STATUS_REJECTED error."""
-        # Create an epic
-        data, code = invoke_json("create", "My epic", "--type", "epic", "--actor", "human:test")
-        assert code == 0
-        epic_id = data["data"]["id"]
-        # Try to change its status
-        data, code = invoke_json("status", epic_id, "in_progress", "--actor", "human:test")
-        assert code != 0
-        assert data["ok"] is False
-        assert data["error"]["code"] == "EPIC_STATUS_REJECTED"
 
 
 # ---------------------------------------------------------------------------

@@ -106,11 +106,11 @@ def _task_definitions(ts: dict[str, str]) -> list[dict]:
     """
     tasks = [
         # -----------------------------------------------------------------
-        # EPICS (0-3)
+        # PARENT TASKS (0-3) — grouping containers
         # -----------------------------------------------------------------
         {
             "title": "The Foundation",
-            "type": "epic",
+            "type": "task",
             "priority": "high",
             "status": "backlog",
             "ts": ts["mon_9am"],
@@ -123,7 +123,7 @@ def _task_definitions(ts: dict[str, str]) -> list[dict]:
         },
         {
             "title": "The Lens",
-            "type": "epic",
+            "type": "task",
             "priority": "critical",
             "status": "backlog",
             "ts": ts["mon_9am"],
@@ -136,7 +136,7 @@ def _task_definitions(ts: dict[str, str]) -> list[dict]:
         },
         {
             "title": "The Signal",
-            "type": "epic",
+            "type": "task",
             "priority": "high",
             "status": "backlog",
             "ts": ts["mon_9am"],
@@ -150,7 +150,7 @@ def _task_definitions(ts: dict[str, str]) -> list[dict]:
         },
         {
             "title": "The Keeper's Log",
-            "type": "epic",
+            "type": "task",
             "priority": "medium",
             "status": "backlog",
             "ts": ts["mon_9am"],
@@ -908,7 +908,7 @@ def _task_definitions(ts: dict[str, str]) -> list[dict]:
             "parent_idx": 3,
         },
         # -----------------------------------------------------------------
-        # STANDALONE tasks (25-29) — outside the epics
+        # STANDALONE tasks (25-29) — no parent
         # -----------------------------------------------------------------
         {
             "title": "The lighthouse discovers it is not alone",
@@ -1266,7 +1266,7 @@ def _seed_demo(target_dir: Path, quiet: bool = False) -> None:
             all_events.append(status_event)
 
         # If target status not reached via history, force it
-        if snapshot["status"] != tdef["status"] and tdef["type"] != "epic":
+        if snapshot["status"] != tdef["status"]:
             final_event = create_event(
                 type="status_changed",
                 task_id=task_id,
@@ -1347,12 +1347,16 @@ def _seed_demo(target_dir: Path, quiet: bool = False) -> None:
         )
 
     if not quiet:
-        epic_count = sum(1 for t in task_defs if t["type"] == "epic")
+        parent_count = sum(1 for t in task_defs if "parent_idx" not in t and any(
+            other.get("parent_idx") == i for i, other in enumerate(task_defs)
+        ))
         standalone_count = sum(
-            1 for t in task_defs if t["type"] != "epic" and "parent_idx" not in t
+            1 for i, t in enumerate(task_defs) if "parent_idx" not in t and not any(
+                other.get("parent_idx") == i for other in task_defs
+            )
         )
         click.echo(
-            f"\nSeeded {len(task_defs)} tasks ({epic_count} epics, {standalone_count} standalone)."
+            f"\nSeeded {len(task_defs)} tasks ({parent_count} parents, {standalone_count} standalone)."
         )
 
 
@@ -1418,7 +1422,7 @@ def demo() -> None:
 def demo_init(target_path: str | None, quiet: bool, no_dashboard: bool) -> None:
     """Seed a demo Lattice project: 'The Lighthouse'.
 
-    Creates a fully populated Lattice instance with epics, tasks,
+    Creates a fully populated Lattice instance with tasks,
     comments, relationships, and branch links — a distributed health
     monitoring system built by a team of agents and humans, told in
     the voice of Gregorovich.

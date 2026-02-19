@@ -35,7 +35,7 @@ Key read endpoints:
 - `/api/tasks/<id>` and `/api/tasks/<id>/events`
 - `/api/tasks/<id>/comments`
 - `/api/tasks/<id>/full`
-- `/api/stats`, `/api/activity`, `/api/archived`, `/api/graph`, `/api/epics`
+- `/api/stats`, `/api/activity`, `/api/archived`, `/api/graph`
 - `/api/git`, `/api/git/branches/<name>/commits`
 
 These are used by the frontend for board, graph, activity, and git overlays.

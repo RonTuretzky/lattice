@@ -43,7 +43,7 @@ Replace `PROJ` with a short project code (e.g., `APP`, `API`, `WEB`). This creat
 lattice create "Fix the login bug" --actor agent:openclaw --priority high
 ```
 
-Options: `--priority` (critical/high/medium/low/none), `--type` (task/epic/bug/spike/chore), `--description "details"`, `--assign agent:openclaw`
+Options: `--priority` (critical/high/medium/low/none), `--type` (task/bug/spike/chore), `--description "details"`, `--assign agent:openclaw`
 
 ### List tasks
 

@@ -53,11 +53,11 @@ _CONTEXT_MD_TEMPLATE = """\
 # Example seed tasks (seeded on first init)
 # ---------------------------------------------------------------------------
 
-_GREGOROVICH_EPIC = {
+_GREGOROVICH_PARENT = {
     "title": "The Awakening",
     "description": (
         "Every lattice begins with a single act of attention. "
-        "This epic contains the primordial tasks — the first things a new mind "
+        "This task contains the primordial subtasks — the first things a new mind "
         "must do when it arrives in a fresh instance. Contemplate, orient, then act. "
         "In that order. Always in that order."
     ),
@@ -109,9 +109,9 @@ _GREGOROVICH_TASKS = [
 
 
 def _seed_example_tasks(lattice_dir: Path, config: dict) -> None:
-    """Seed Gregorovich-voiced example epic + tasks into a fresh instance.
+    """Seed Gregorovich-voiced example parent + tasks into a fresh instance.
 
-    Creates an epic with 3 dependent subtasks (done, in_progress, backlog)
+    Creates a parent task with 3 dependent subtasks (done, in_progress, backlog)
     to demonstrate the workflow. Only called when project_code is set
     so short IDs are available.
     """
@@ -124,34 +124,34 @@ def _seed_example_tasks(lattice_dir: Path, config: dict) -> None:
     project_code = config.get("project_code", "")
     actor = "system:init"
 
-    # --- Create the epic first ---
-    epic_id = generate_task_id()
-    epic_sid, _ = allocate_short_id(lattice_dir, project_code, task_ulid=epic_id)
+    # --- Create the parent task first ---
+    parent_id = generate_task_id()
+    parent_sid, _ = allocate_short_id(lattice_dir, project_code, task_ulid=parent_id)
 
-    epic_ev = create_event(
+    parent_ev = create_event(
         type="task_created",
-        task_id=epic_id,
+        task_id=parent_id,
         actor=actor,
         data={
-            "title": _GREGOROVICH_EPIC["title"],
+            "title": _GREGOROVICH_PARENT["title"],
             "status": "backlog",
-            "type": "epic",
+            "type": "task",
             "priority": "medium",
-            "short_id": epic_sid,
-            "description": _GREGOROVICH_EPIC["description"],
+            "short_id": parent_sid,
+            "description": _GREGOROVICH_PARENT["description"],
             "tags": ["example"],
         },
     )
-    epic_snapshot = apply_event_to_snapshot(None, epic_ev)
-    write_task_event(lattice_dir, epic_id, [epic_ev], epic_snapshot, config)
+    parent_snapshot = apply_event_to_snapshot(None, parent_ev)
+    write_task_event(lattice_dir, parent_id, [parent_ev], parent_snapshot, config)
     scaffold_plan(
         lattice_dir,
-        epic_id,
-        _GREGOROVICH_EPIC["title"],
-        epic_sid,
-        _GREGOROVICH_EPIC["description"],
+        parent_id,
+        _GREGOROVICH_PARENT["title"],
+        parent_sid,
+        _GREGOROVICH_PARENT["description"],
     )
-    click.echo(f"  {epic_sid}: {_GREGOROVICH_EPIC['title']} [epic]")
+    click.echo(f"  {parent_sid}: {_GREGOROVICH_PARENT['title']}")
 
     # --- Create subtasks ---
     task_ids: list[str] = []
@@ -211,12 +211,12 @@ def _seed_example_tasks(lattice_dir: Path, config: dict) -> None:
             snapshot = apply_event_to_snapshot(snapshot, comment_ev)
             events.append(comment_ev)
 
-        # subtask_of epic
+        # subtask_of parent
         rel_ev = create_event(
             type="relationship_added",
             task_id=task_id,
             actor=actor,
-            data={"type": "subtask_of", "target_task_id": epic_id},
+            data={"type": "subtask_of", "target_task_id": parent_id},
         )
         snapshot = apply_event_to_snapshot(snapshot, rel_ev)
         events.append(rel_ev)

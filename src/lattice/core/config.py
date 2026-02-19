@@ -207,7 +207,6 @@ def default_config(preset: str = "classic") -> LatticeConfig:
         "default_priority": "medium",
         "task_types": [
             "task",
-            "epic",
             "bug",
             "spike",
             "chore",

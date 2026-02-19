@@ -129,7 +129,7 @@ lattice restart --port 8769  # specific port
 - **List** — filterable table. search. slice by priority, type, tag, assignee. for when you know what you're looking for.
 - **Activity** — chronological feed. what your agents have been doing since you last checked. the river of events.
 - **Stats** — velocity. time-in-status. blocked counts. agent activity. the numbers behind the work. for when vibes aren't enough.
-- **Web** — force-directed graph of task relationships. see how epics and dependencies connect. the web of causation. made visible.
+- **Web** — force-directed graph of task relationships. see how parent tasks and dependencies connect. the web of causation. made visible.
 
 ### what you do
 
@@ -153,7 +153,7 @@ the advance is the pattern that makes Lattice click. here's what it looks like. 
 
 ### 1. you fill the backlog
 
-create tasks in the dashboard. set priorities. define epics and link subtasks. this is the thinking work. deciding *what* matters and *in what order*.
+create tasks in the dashboard. set priorities. link subtasks to parent tasks. this is the thinking work. deciding *what* matters and *in what order*.
 
 this is. your job. the part only you can do.
 
@@ -216,7 +216,7 @@ this means:
 
 ### actors
 
-every write is attributed. `human:alice` made that design call. `agent:claude-opus-4` fixed that bug. `team:frontend` owns that epic.
+every write is attributed. `human:alice` made that design call. `agent:claude-opus-4` fixed that bug. `team:frontend` owns that feature.
 
 attribution follows authorship of the *decision*. not who typed the command. the human who shaped the outcome gets the credit. even when the agent pressed the keys.
 

@@ -74,7 +74,7 @@ _CREATE_COMPARE_FIELDS = (
 @cli.command()
 @click.argument("title")
 @click.option(
-    "--type", "task_type", default=None, help="Task type (task, epic, bug, spike, chore)."
+    "--type", "task_type", default=None, help="Task type (task, bug, spike, chore)."
 )
 @click.option("--priority", default=None, help="Priority (critical, high, medium, low).")
 @click.option("--urgency", default=None, help="Urgency (immediate, high, normal, low).")
@@ -521,14 +521,6 @@ def status_cmd(
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
 
     snapshot = read_snapshot_or_exit(lattice_dir, task_id, is_json)
-
-    # Epics cannot have their status set directly — it's derived from subtasks
-    if snapshot.get("type") == "epic":
-        output_error(
-            "Cannot set status on epics. Epic status is derived from subtask completion.",
-            "EPIC_STATUS_REJECTED",
-            is_json,
-        )
 
     current_status = snapshot["status"]
 
@@ -1283,14 +1275,6 @@ def complete_cmd(
 
     task_id = resolve_task_id(lattice_dir, task_id, is_json)
     snapshot = read_snapshot_or_exit(lattice_dir, task_id, is_json)
-
-    # Epics cannot be completed directly
-    if snapshot.get("type") == "epic":
-        output_error(
-            "Cannot complete epics. Epic status is derived from subtask completion.",
-            "EPIC_STATUS_REJECTED",
-            is_json,
-        )
 
     current_status = snapshot["status"]
     already_in_review = current_status == "review"

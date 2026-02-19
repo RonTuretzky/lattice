@@ -8,7 +8,7 @@ Time-boxed iteration boundaries for agent work. Linear's model: auto-scheduled s
 
 ## Project-Level Grouping
 
-A first-class entity above epics for grouping related work toward a deliverable. Properties: name, lead, members, start/target dates, milestones, progress tracking. Currently Lattice uses `epic` task type + relationships, but this doesn't give you aggregate progress, status updates, or a dedicated view. A project entity would sit between tasks and any future roadmapping layer.
+A first-class entity above tasks for grouping related work toward a deliverable. Properties: name, lead, members, start/target dates, milestones, progress tracking. Currently Lattice uses `subtask_of` relationships for grouping, but this doesn't give you aggregate progress, status updates, or a dedicated view. A project entity would sit between tasks and any future roadmapping layer.
 
 ## Analytics / Metrics Aggregation
 
@@ -42,12 +42,12 @@ The key architectural constraint: the data model doesn't need to change. The gra
 
 A dashboard tab called **Web** that visualizes the complete coordination landscape: repos, branches, tasks, and agent activity as an interconnected web. Named after Indra's Net — the Buddhist/Hindu image of an infinite web where every node reflects every other node.
 
-**What it shows:** Where Cube visualizes the task graph (nodes are tasks, edges are relationships), Web visualizes the coordination landscape (hubs are epics or repos, nodes are tasks and commits). It answers the question: "Across all the repos and branches and agents, what is happening right now?"
+**What it shows:** Where Cube visualizes the task graph (nodes are tasks, edges are relationships), Web visualizes the coordination landscape (hubs are parent tasks or repos, nodes are tasks and commits). It answers the question: "Across all the repos and branches and agents, what is happening right now?"
 
 ### The Visual Model
 
-- **Hubs** — Epics (or repos, depending on the view). The central nodes from which work radiates.
-- **Nodes** — Tasks radiating from their parent epic. Each node represents a unit of work, typically with a linked git branch.
+- **Hubs** — Parent tasks (or repos, depending on the view). The central nodes from which work radiates.
+- **Nodes** — Tasks radiating from their parent task. Each node represents a unit of work, typically with a linked git branch.
 - **Activity indicators:**
   - Yellow: agent committed in the last ~10 minutes (git liveness)
   - Orange: task status is `in_progress` (Lattice liveness)
@@ -58,7 +58,7 @@ A dashboard tab called **Web** that visualizes the complete coordination landsca
 
 The web reads two independent signal sources that reinforce each other:
 
-**Lattice layer** (semantic, intentional): Task hierarchy, statuses, assignments, who's working on what and why. This provides the web's *structure* — the topology of epics and tasks.
+**Lattice layer** (semantic, intentional): Task hierarchy, statuses, assignments, who's working on what and why. This provides the web's *structure* — the topology of parent tasks and subtasks.
 
 **Git layer** (mechanical, factual): Branches, commits, recency, authorship. This provides the web's *vital signs* — liveness indicators showing where code is actually moving.
 
@@ -84,8 +84,8 @@ Lattice owns the link between branches and tasks. This is coordination state, an
 
 ### Design Principles
 
-- **Lattice-primary.** The web's topology comes from Lattice (epics and tasks). Git data enriches it with liveness. This is a Lattice visualization that incorporates git, not a git visualization annotated with Lattice.
-- **Agnostic.** Different teams will use the hierarchy differently. The web renders whatever structure exists — epics with tasks, flat tasks, deep nesting. No judgment.
+- **Lattice-primary.** The web's topology comes from Lattice (task hierarchy via subtask_of). Git data enriches it with liveness. This is a Lattice visualization that incorporates git, not a git visualization annotated with Lattice.
+- **Agnostic.** Different teams will use the hierarchy differently. The web renders whatever structure exists — parent tasks with subtasks, flat tasks, deep nesting. No judgment.
 - **Live.** The web animates as work happens. Spokes grow, dots appear, status colors shift. Watching the web is watching agents work.
 - **Orphan detection.** Branches without Lattice tasks are surfaced visually — untracked work is a coordination failure the web makes visible.
 
@@ -101,7 +101,7 @@ Cube and Web are complementary dashboard tabs:
 | | Cube | Web |
 |---|---|---|
 | **Shows** | Task relationship graph | Coordination landscape |
-| **Nodes** | Individual tasks | Epics, tasks, repos |
+| **Nodes** | Individual tasks | Hub tasks, subtasks, repos |
 | **Edges** | `blocks`, `depends_on`, etc. | `subtask_of` hierarchy + branch links |
 | **Data source** | Lattice only | Lattice + Git |
 | **Question it answers** | "What depends on what?" | "Where is work happening?" |

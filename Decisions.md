@@ -730,3 +730,13 @@ Additionally, `lattice advance N` processed multiple tasks in a single context w
 - **Decision:** The plan file (`.lattice/plans/<task_id>.md`) is the canonical home for all task-level context: scope, design decisions, acceptance criteria, and rationale. Design decisions that are scoped to a single task belong in the plan file, not in `Decisions.md`.
 - **Rationale:** The plan file is linked by task ID, travels with the task through archive, and is what agents read when picking up work. Scattering task-level decisions across `Decisions.md` dilutes both documents.
 - **Consequence:** `Decisions.md` is reserved for cross-cutting architectural decisions that affect the system as a whole. Plan scaffolding is intentionally minimal (title + description only) — the planning agent writes whatever structure the task needs.
+
+---
+
+## 44. Remove epic task type (LAT-171)
+
+**Date:** 2026-02-19
+**Status:** Accepted
+**Context:** Epics were redundant with the subtask_of relationship system and created lifecycle management overhead (zombie epics that nobody closes).
+**Decision:** Remove `type: epic` entirely. Grouping is handled by subtask_of relationships. The web visualization uses topology-based "hub" detection (nodes with children but no parent) instead of checking for epic type.
+**Consequences:** Existing epics in live instances will retain their type field in event history but the type value will no longer be validated as a known type. New task creation will reject "epic" as a type.

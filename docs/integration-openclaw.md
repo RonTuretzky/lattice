@@ -125,7 +125,7 @@ lattice dashboard
 Create a few tasks — from the dashboard UI or the terminal:
 
 ```bash
-lattice create "Add user authentication" --actor human:alice --priority high --type epic
+lattice create "Add user authentication" --actor human:alice --priority high
 lattice create "Set up OAuth provider config" --actor human:alice --priority high
 lattice create "Build login page" --actor human:alice --priority medium
 lattice create "Add session middleware" --actor human:alice --priority medium

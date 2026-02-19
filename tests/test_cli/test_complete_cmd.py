@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from lattice.storage.fs import LATTICE_DIR
 
@@ -225,31 +224,6 @@ class TestCompleteValidation:
         r = invoke("complete", task_id, "--actor", _ACTOR)
         assert r.exit_code != 0
         assert "Missing option '--review'" in r.output
-
-    def test_fails_on_epic(self, invoke, initialized_root) -> None:
-        r = invoke(
-            "create",
-            "Test epic",
-            "--type",
-            "epic",
-            "--actor",
-            _ACTOR,
-            "--json",
-        )
-        task_id = json.loads(r.output)["data"]["id"]
-
-        r = invoke(
-            "complete",
-            task_id,
-            "--review",
-            "Review",
-            "--actor",
-            _ACTOR,
-            "--json",
-        )
-        assert r.exit_code != 0
-        parsed = json.loads(r.output)
-        assert parsed["error"]["code"] == "EPIC_STATUS_REJECTED"
 
     def test_empty_review_text_fails(self, invoke, initialized_root, fill_plan) -> None:
         task_id = _create_and_advance_to(invoke, fill_plan, "in_progress")

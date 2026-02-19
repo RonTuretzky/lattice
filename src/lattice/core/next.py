@@ -54,9 +54,6 @@ def select_next(
     if ready_statuses is None:
         ready_statuses = DEFAULT_READY_STATUSES
 
-    # Filter out epics — they are containers, not actionable work items
-    snapshots = [s for s in snapshots if s.get("type") != "epic"]
-
     # Step 1: Resume interrupted work
     if actor:
         resume_candidates = []
@@ -108,9 +105,6 @@ def select_all_ready(
 
     candidates = []
     for snap in snapshots:
-        # Epics are containers, not actionable work items
-        if snap.get("type") == "epic":
-            continue
         status = snap.get("status", "")
         if status not in ready_statuses:
             continue

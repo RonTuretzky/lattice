@@ -6,12 +6,14 @@ Technical reference for Lattice's concepts, on-disk format, workflow patterns, a
 
 ## The work hierarchy
 
-| Tier | Purpose | Who thinks here |
-|------|---------|-----------------|
-| **Epic** | Strategic intent — "Build the auth system" | Leads, planners |
-| **Task** | A unit of work — "Implement OAuth for backend" | Humans, agents |
+All work items are **tasks**. Grouping is done via `subtask_of` relationships — any task can serve as a parent for other tasks.
 
-Available, not imposed. A quick bug fix can be a single task with no parent.
+| Scale | Example | Pattern |
+|-------|---------|---------|
+| Strategic | "Build the auth system" | Parent task with subtasks |
+| Tactical | "Implement OAuth for backend" | Standalone task or subtask |
+
+A quick bug fix can be a single task with no parent. A large feature can be a parent task with subtasks linked via `subtask_of`.
 
 ---
 
@@ -132,7 +134,7 @@ Split large work across agents running simultaneously. Each claims its own task 
 
 ```bash
 # Define the work graph
-lattice create "Auth feature" --type epic --actor human:you
+lattice create "Auth feature" --actor human:you
 lattice create "Backend: OAuth endpoints" --actor human:you
 lattice create "Frontend: login flow" --actor human:you
 lattice link PROJ-3 subtask_of PROJ-2 --actor human:you
@@ -242,7 +244,7 @@ The CLI is Lattice's write interface — the primary way agents interact with th
 - `--json` — structured output (all commands)
 - `--quiet` — just the ID (all commands)
 - `--actor` — who is performing the action (all write commands)
-- `--type` — task, epic, bug, spike, chore (create/list)
+- `--type` — task, bug, spike, chore (create/list)
 - `--priority` — critical, high, medium, low (create/list)
 - `--assigned` / `--assigned-to` — filter/set assignee (list/create)
 - `--tag` / `--tags` — filter/set tags (list/create)

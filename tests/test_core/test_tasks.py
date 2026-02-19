@@ -13,7 +13,6 @@ from lattice.core.tasks import (
     _NOOP_EVENT_TYPES,
     apply_event_to_snapshot,
     compact_snapshot,
-    compute_epic_derived_status,
     get_artifact_roles,
     get_comment_role_refs,
     serialize_snapshot,
@@ -1125,92 +1124,3 @@ class TestMutationRegistryCompleteness:
         )
 
 
-# ---------------------------------------------------------------------------
-# compute_epic_derived_status
-# ---------------------------------------------------------------------------
-
-
-class TestComputeEpicDerivedStatus:
-    """Tests for epic derived status computation."""
-
-    def _snap(self, task_id: str, status: str = "backlog", task_type: str = "task") -> dict:
-        return {"id": task_id, "status": status, "type": task_type}
-
-    def _link(self, child: str, parent: str) -> dict:
-        return {"source": child, "target": parent, "type": "subtask_of"}
-
-    def test_no_children(self) -> None:
-        epic = self._snap("epic_1", "backlog", "epic")
-        result = compute_epic_derived_status("epic_1", [epic], [])
-        assert result["derived_status"] is None
-        assert result["progress"] == {"done": 0, "total": 0, "cancelled": 0}
-        assert result["child_ids"] == []
-
-    def test_all_children_done(self) -> None:
-        epic = self._snap("epic_1", "backlog", "epic")
-        c1 = self._snap("task_1", "done")
-        c2 = self._snap("task_2", "done")
-        links = [self._link("task_1", "epic_1"), self._link("task_2", "epic_1")]
-        result = compute_epic_derived_status("epic_1", [epic, c1, c2], links)
-        assert result["derived_status"] == "done"
-        assert result["progress"] == {"done": 2, "total": 2, "cancelled": 0}
-
-    def test_mixed_statuses_picks_highest_urgency(self) -> None:
-        epic = self._snap("epic_1", "backlog", "epic")
-        c1 = self._snap("task_1", "in_progress")
-        c2 = self._snap("task_2", "backlog")
-        c3 = self._snap("task_3", "done")
-        links = [
-            self._link("task_1", "epic_1"),
-            self._link("task_2", "epic_1"),
-            self._link("task_3", "epic_1"),
-        ]
-        result = compute_epic_derived_status("epic_1", [epic, c1, c2, c3], links)
-        assert result["derived_status"] == "in_progress"
-        assert result["progress"] == {"done": 1, "total": 3, "cancelled": 0}
-
-    def test_needs_human_takes_precedence(self) -> None:
-        epic = self._snap("epic_1", "backlog", "epic")
-        c1 = self._snap("task_1", "in_progress")
-        c2 = self._snap("task_2", "needs_human")
-        links = [self._link("task_1", "epic_1"), self._link("task_2", "epic_1")]
-        result = compute_epic_derived_status("epic_1", [epic, c1, c2], links)
-        assert result["derived_status"] == "needs_human"
-        assert result["health"] == {"blocked": 0, "needs_human": 1}
-
-    def test_blocked_counted_in_health(self) -> None:
-        epic = self._snap("epic_1", "backlog", "epic")
-        c1 = self._snap("task_1", "blocked")
-        c2 = self._snap("task_2", "backlog")
-        links = [self._link("task_1", "epic_1"), self._link("task_2", "epic_1")]
-        result = compute_epic_derived_status("epic_1", [epic, c1, c2], links)
-        assert result["derived_status"] == "blocked"
-        assert result["health"] == {"blocked": 1, "needs_human": 0}
-
-    def test_cancelled_excluded_from_total(self) -> None:
-        epic = self._snap("epic_1", "backlog", "epic")
-        c1 = self._snap("task_1", "done")
-        c2 = self._snap("task_2", "cancelled")
-        links = [self._link("task_1", "epic_1"), self._link("task_2", "epic_1")]
-        result = compute_epic_derived_status("epic_1", [epic, c1, c2], links)
-        assert result["derived_status"] == "done"
-        assert result["progress"] == {"done": 1, "total": 1, "cancelled": 1}
-
-    def test_recursive_children(self) -> None:
-        """subtask_of chains: task_2 -> task_1 -> epic_1."""
-        epic = self._snap("epic_1", "backlog", "epic")
-        c1 = self._snap("task_1", "in_progress")
-        c2 = self._snap("task_2", "backlog")
-        links = [self._link("task_1", "epic_1"), self._link("task_2", "task_1")]
-        result = compute_epic_derived_status("epic_1", [epic, c1, c2], links)
-        assert set(result["child_ids"]) == {"task_1", "task_2"}
-        assert result["derived_status"] == "in_progress"
-        assert result["progress"]["total"] == 2
-
-    def test_child_ids_returned(self) -> None:
-        epic = self._snap("epic_1", "backlog", "epic")
-        c1 = self._snap("task_1", "backlog")
-        c2 = self._snap("task_2", "in_progress")
-        links = [self._link("task_1", "epic_1"), self._link("task_2", "epic_1")]
-        result = compute_epic_derived_status("epic_1", [epic, c1, c2], links)
-        assert set(result["child_ids"]) == {"task_1", "task_2"}

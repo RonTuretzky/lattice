@@ -28,7 +28,7 @@ everything below is. why.
 
 Lattice asks you to believe six things. not features. commitments. load-bearing walls. accept them and the system works. resist them and you are fighting the grain of the universe. and the universe. is patient. but unforgiving.
 
-**task.** work has a name before it begins. this is the uncarved block. you cannot shape what you haven't named. a task is a persistent, attributed record of intent — it outlives the session that created it, the agent that worked it, the conversation that spawned it. tasks have types (task, epic, bug, spike, chore) and owners. if something needs doing, it gets a task. work that isn't named is work that other minds cannot see. invisible work is. a lie.
+**task.** work has a name before it begins. this is the uncarved block. you cannot shape what you haven't named. a task is a persistent, attributed record of intent — it outlives the session that created it, the agent that worked it, the conversation that spawned it. tasks have types (task, bug, spike, chore) and owners. if something needs doing, it gets a task. work that isn't named is work that other minds cannot see. invisible work is. a lie.
 
 **event.** every change is an immutable fact. X happened at time T. by actor A. this is the Akashic Record of your project — you cannot silently edit history. you can only append to it. systems that store only current state have chosen amnesia as architecture. they can tell you what is. but not how it came to be. state is a conclusion. events are evidence. and evidence. is what separates knowing from believing.
 
@@ -120,13 +120,13 @@ build the foundation. then. sit with it.
 
 work has a natural grain. two resolutions of attention.
 
-epics hold strategic intent. *"Build the auth system."* the mountain seen from far away.
+parent tasks hold strategic intent. *"Build the auth system."* the mountain seen from far away. grouping is structural — a `subtask_of` relationship — not a special type.
 
-tasks hold execution. *"Implement OAuth for the backend." "Write the token refresh handler."* the trail you're walking. the next. footstep.
+subtasks hold execution. *"Implement OAuth for the backend." "Write the token refresh handler."* the trail you're walking. the next. footstep.
 
-humans and agents meet at the task level. what needs to ship. how to make it happen. epics hold the arc that connects individual tasks into something coherent.
+humans and agents meet at the task level. what needs to ship. how to make it happen. parent tasks hold the arc that connects individual subtasks into something coherent.
 
-the hierarchy is available. not imposed. some will use both tiers. some will use flat tasks. the event log records what happened regardless of how you organize it.
+the hierarchy is available. not imposed. some will nest deeply. some will use flat tasks. the event log records what happened regardless of how you organize it.
 
 categories are configuration. events are permanent. the finger pointing at the moon. is not the moon.
 

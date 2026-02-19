@@ -216,7 +216,6 @@ def test_invalid_type_lists_valid(invoke):
     assert data["ok"] is False
     msg = data["error"]["message"]
     assert "task" in msg
-    assert "epic" in msg
     assert "bug" in msg
 
 
