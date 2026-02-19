@@ -962,7 +962,7 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 return  # error already sent
 
             # Validate body structure: only allow known keys
-            allowed_keys = {"background_image", "lane_colors", "theme", "voice"}
+            allowed_keys = {"background_image", "column_width", "lane_colors", "theme", "voice"}
             unknown = set(body.keys()) - allowed_keys
             if unknown:
                 self._send_json(
@@ -1024,6 +1024,20 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                     self._send_json(400, _err("VALIDATION_ERROR", "'voice' must be a string"))
                     return
 
+            # Validate column_width if present
+            if "column_width" in body:
+                cw = body["column_width"]
+                if cw is not None:
+                    if not isinstance(cw, (int, float)) or cw < 200 or cw > 800:
+                        self._send_json(
+                            400,
+                            _err(
+                                "VALIDATION_ERROR",
+                                "'column_width' must be a number between 200 and 800, or null",
+                            ),
+                        )
+                        return
+
             # Read, merge, write config atomically
             config_path = ld / "config.json"
             locks_dir = ld / "locks"
@@ -1061,6 +1075,13 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                             dashboard.pop("voice", None)
                         else:
                             dashboard["voice"] = voice
+
+                    if "column_width" in body:
+                        cw = body["column_width"]
+                        if cw is None:
+                            dashboard.pop("column_width", None)
+                        else:
+                            dashboard["column_width"] = cw
 
                     if dashboard:
                         config["dashboard"] = dashboard

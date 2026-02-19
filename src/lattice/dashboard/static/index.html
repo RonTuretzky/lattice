@@ -3017,6 +3017,11 @@ select.form-control{cursor:pointer}
       <div class="hint">Choose a visual theme for the dashboard.</div>
     </div>
     <div class="settings-group">
+      <label for="col-width-slider">Column Width <span id="col-width-value" style="font-weight:400;color:var(--text-muted)">300px</span></label>
+      <input type="range" id="col-width-slider" min="200" max="800" step="10" value="300" style="width:100%;cursor:pointer">
+      <div class="hint">Adjust the width of board columns.</div>
+    </div>
+    <div class="settings-group">
       <label for="voice-select">Voice</label>
       <select class="form-control" id="voice-select"></select>
       <div class="hint">Choose how the dashboard speaks to you.</div>
@@ -3870,6 +3875,7 @@ async function init() {
     populateVoiceSelector();
     updateStaticVoiceStrings();
     populateLaneColorSettings();
+    loadColumnWidthSetting();
     loadBackgroundSetting();
     await route(hash);
   } catch(e) {
@@ -5541,6 +5547,16 @@ function applyBackgroundImage() {
     app.style.backgroundAttachment = "";
     app.style.minHeight = "";
   }
+}
+
+function loadColumnWidthSetting() {
+  var dc = (config && config.dashboard) || {};
+  var w = dc.column_width || 300;
+  var slider = document.getElementById("col-width-slider");
+  var label = document.getElementById("col-width-value");
+  slider.value = w;
+  label.textContent = w + "px";
+  document.documentElement.style.setProperty("--col-min-w", w + "px");
 }
 
 function loadBackgroundSetting() {
@@ -7824,6 +7840,29 @@ document.getElementById("theme-select").addEventListener("change", async functio
   }
 });
 
+// Column width slider — live update + persist on change
+(function() {
+  var slider = document.getElementById("col-width-slider");
+  var label = document.getElementById("col-width-value");
+  var debounceTimer = null;
+  slider.addEventListener("input", function() {
+    var v = slider.value + "px";
+    label.textContent = v;
+    document.documentElement.style.setProperty("--col-min-w", v);
+  });
+  slider.addEventListener("change", function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async function() {
+      try {
+        var result = await apiPost("/api/config/dashboard", {column_width: Number(slider.value)});
+        if (config) config.dashboard = result;
+      } catch(e) {
+        showToast(e.message, "error");
+      }
+    }, 300);
+  });
+})();
+
 // Voice selector
 document.getElementById("voice-select").addEventListener("change", async function() {
   var newVoice = this.value;
@@ -7920,6 +7959,7 @@ document.getElementById("refresh-btn").addEventListener("click", async function(
     populateVoiceSelector();
     updateStaticVoiceStrings();
     populateLaneColorSettings();
+    loadColumnWidthSetting();
     loadBackgroundSetting();
     await route(location.hash.slice(1));
   } catch(e) { showError(e.message); }
@@ -7988,6 +8028,7 @@ function startAutoRefresh() {
           populateVoiceSelector();
           updateStaticVoiceStrings();
           populateLaneColorSettings();
+          loadColumnWidthSetting();
           loadBackgroundSetting();
         }
         await route(location.hash.slice(1));
