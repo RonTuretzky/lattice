@@ -1028,12 +1028,25 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
             if "column_width" in body:
                 cw = body["column_width"]
                 if cw is not None:
-                    if not isinstance(cw, (int, float)) or cw < 200 or cw > 800:
+                    if not isinstance(cw, (int, float)) or cw < 150 or cw > 800:
                         self._send_json(
                             400,
                             _err(
                                 "VALIDATION_ERROR",
-                                "'column_width' must be a number between 200 and 800, or null",
+                                "'column_width' must be a number between 150 and 800, or null",
+                            ),
+                        )
+                        return
+
+            if "font_size" in body:
+                fs = body["font_size"]
+                if fs is not None:
+                    if not isinstance(fs, (int, float)) or fs < 10 or fs > 20:
+                        self._send_json(
+                            400,
+                            _err(
+                                "VALIDATION_ERROR",
+                                "'font_size' must be a number between 10 and 20, or null",
                             ),
                         )
                         return
@@ -1082,6 +1095,13 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                             dashboard.pop("column_width", None)
                         else:
                             dashboard["column_width"] = cw
+
+                    if "font_size" in body:
+                        fs = body["font_size"]
+                        if fs is None:
+                            dashboard.pop("font_size", None)
+                        else:
+                            dashboard["font_size"] = fs
 
                     if dashboard:
                         config["dashboard"] = dashboard

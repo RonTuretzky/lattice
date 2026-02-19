@@ -7,7 +7,7 @@
 <style>
 /* === Theme Variables === */
 :root,[data-theme="classic"]{
-  --col-min-w:300px;--scroll-shadow:rgba(0,0,0,.1);
+  --col-min-w:300px;--card-font-size:.85rem;--scroll-shadow:rgba(0,0,0,.1);
   --bg-base:#f8f9fa;--surface:#ffffff;--surface-hover:#e9ecef;--surface-raised:#e9ecef;--surface-card:#f8f9fa;
   --border:#dee2e6;--border-subtle:#e9ecef;--border-row:#f0f0f0;
   --text-primary:#212529;--text-secondary:#495057;--text-muted:#6c757d;--text-on-accent:#fff;
@@ -486,7 +486,7 @@ a:hover{text-decoration:underline}
 .board-col.drag-over{border-color:var(--accent-primary);box-shadow:0 0 0 2px var(--accent-glow)}
 .board-col.drag-invalid{border-color:var(--color-danger);box-shadow:0 0 0 2px var(--danger-glow)}
 .card.dragging{opacity:.4;transform:scale(.95)}
-.card{background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:6px;cursor:grab;font-size:.85rem;transition:box-shadow .15s,opacity .15s,transform .15s}
+.card{background:var(--surface-card);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:8px 10px;margin-bottom:6px;cursor:grab;font-size:var(--card-font-size,.85rem);transition:box-shadow .15s,opacity .15s,transform .15s}
 .card:hover{box-shadow:var(--shadow-card-hover)}
 .card:active{cursor:grabbing}
 .card-title{font-weight:600;margin-bottom:4px;word-break:break-word}
@@ -3018,8 +3018,13 @@ select.form-control{cursor:pointer}
     </div>
     <div class="settings-group">
       <label for="col-width-slider">Column Width <span id="col-width-value" style="font-weight:400;color:var(--text-muted)">300px</span></label>
-      <input type="range" id="col-width-slider" min="200" max="800" step="10" value="300" style="width:100%;cursor:pointer">
+      <input type="range" id="col-width-slider" min="150" max="800" step="10" value="300" style="width:100%;cursor:pointer">
       <div class="hint">Adjust the width of board columns.</div>
+    </div>
+    <div class="settings-group">
+      <label for="font-size-slider">Font Size <span id="font-size-value" style="font-weight:400;color:var(--text-muted)">14px</span></label>
+      <input type="range" id="font-size-slider" min="10" max="20" step="1" value="14" style="width:100%;cursor:pointer">
+      <div class="hint">Adjust the font size of board cards.</div>
     </div>
     <div class="settings-group">
       <label for="voice-select">Voice</label>
@@ -3876,6 +3881,7 @@ async function init() {
     updateStaticVoiceStrings();
     populateLaneColorSettings();
     loadColumnWidthSetting();
+    loadFontSizeSetting();
     loadBackgroundSetting();
     await route(hash);
   } catch(e) {
@@ -5557,6 +5563,16 @@ function loadColumnWidthSetting() {
   slider.value = w;
   label.textContent = w + "px";
   document.documentElement.style.setProperty("--col-min-w", w + "px");
+}
+
+function loadFontSizeSetting() {
+  var dc = (config && config.dashboard) || {};
+  var s = dc.font_size || 14;
+  var slider = document.getElementById("font-size-slider");
+  var label = document.getElementById("font-size-value");
+  slider.value = s;
+  label.textContent = s + "px";
+  document.documentElement.style.setProperty("--card-font-size", s + "px");
 }
 
 function loadBackgroundSetting() {
@@ -7863,6 +7879,29 @@ document.getElementById("theme-select").addEventListener("change", async functio
   });
 })();
 
+// Font size slider — live update + persist on change
+(function() {
+  var slider = document.getElementById("font-size-slider");
+  var label = document.getElementById("font-size-value");
+  var debounceTimer = null;
+  slider.addEventListener("input", function() {
+    var v = slider.value + "px";
+    label.textContent = v;
+    document.documentElement.style.setProperty("--card-font-size", v);
+  });
+  slider.addEventListener("change", function() {
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(async function() {
+      try {
+        var result = await apiPost("/api/config/dashboard", {font_size: Number(slider.value)});
+        if (config) config.dashboard = result;
+      } catch(e) {
+        showToast(e.message, "error");
+      }
+    }, 300);
+  });
+})();
+
 // Voice selector
 document.getElementById("voice-select").addEventListener("change", async function() {
   var newVoice = this.value;
@@ -7960,6 +7999,7 @@ document.getElementById("refresh-btn").addEventListener("click", async function(
     updateStaticVoiceStrings();
     populateLaneColorSettings();
     loadColumnWidthSetting();
+    loadFontSizeSetting();
     loadBackgroundSetting();
     await route(location.hash.slice(1));
   } catch(e) { showError(e.message); }
@@ -8029,6 +8069,7 @@ function startAutoRefresh() {
           updateStaticVoiceStrings();
           populateLaneColorSettings();
           loadColumnWidthSetting();
+          loadFontSizeSetting();
           loadBackgroundSetting();
         }
         await route(location.hash.slice(1));
