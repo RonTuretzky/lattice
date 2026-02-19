@@ -7,10 +7,12 @@ import json
 import pytest
 
 from lattice.core.config import (
+    STATUS_DESCRIPTIONS,
     VALID_PRIORITIES,
     VALID_URGENCIES,
     default_config,
     get_configured_roles,
+    get_status_description,
     get_wip_limit,
     load_config,
     serialize_config,
@@ -87,6 +89,28 @@ class TestDefaultConfig:
         config = default_config()
         wip = config["workflow"]["wip_limits"]
         assert wip == {"in_progress": 10, "review": 5}
+
+    def test_has_descriptions(self) -> None:
+        config = default_config()
+        assert "descriptions" in config["workflow"]
+        assert isinstance(config["workflow"]["descriptions"], dict)
+
+    def test_descriptions_cover_all_statuses(self) -> None:
+        config = default_config()
+        statuses = set(config["workflow"]["statuses"])
+        described = set(config["workflow"]["descriptions"].keys())
+        assert statuses == described
+
+    def test_descriptions_are_nonempty_strings(self) -> None:
+        config = default_config()
+        for status, desc in config["workflow"]["descriptions"].items():
+            assert isinstance(desc, str), f"Description for {status!r} is not a string"
+            assert len(desc) > 0, f"Description for {status!r} is empty"
+
+    def test_descriptions_same_for_both_presets(self) -> None:
+        classic = default_config("classic")
+        opinionated = default_config("opinionated")
+        assert classic["workflow"]["descriptions"] == opinionated["workflow"]["descriptions"]
 
 
 class TestSerializeConfig:
@@ -329,6 +353,33 @@ class TestGetWipLimit:
     def test_missing_workflow_key(self) -> None:
         config: dict = {"schema_version": 1}
         assert get_wip_limit(config, "in_progress") is None
+
+
+# ---------------------------------------------------------------------------
+# get_status_description
+# ---------------------------------------------------------------------------
+
+
+class TestGetStatusDescription:
+    """get_status_description() returns the operational description for a status."""
+
+    def test_returns_description_for_known_status(self) -> None:
+        config = default_config()
+        desc = get_status_description(config, "in_planning")
+        assert desc is not None
+        assert "implementation" not in desc.lower() or "no implementation" in desc.lower()
+        assert desc == STATUS_DESCRIPTIONS["in_planning"]
+
+    def test_returns_none_for_unknown_status(self) -> None:
+        config = default_config()
+        assert get_status_description(config, "nonexistent") is None
+
+    def test_returns_none_when_descriptions_missing(self) -> None:
+        config: dict = {"workflow": {"statuses": ["backlog"]}}
+        assert get_status_description(config, "backlog") is None
+
+    def test_returns_none_for_empty_config(self) -> None:
+        assert get_status_description({}, "backlog") is None
 
 
 # ---------------------------------------------------------------------------

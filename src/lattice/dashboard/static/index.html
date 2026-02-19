@@ -3764,6 +3764,14 @@ function getStatusDisplayName(slug) {
   return slug.replace(/_/g, " ");
 }
 
+// --- Status descriptions (operational contract for each status) ---
+function getStatusDescription(slug) {
+  if (!slug) return "";
+  var desc = config && config.workflow && config.workflow.descriptions;
+  if (desc && desc[slug]) return desc[slug];
+  return "";
+}
+
 // --- Web (Indra's Web view) state ---
 var webGraph = null;
 var webResizeHandler = null;
@@ -4797,7 +4805,7 @@ function openWebDetailPane(taskId) {
 
     // Status bar
     html += '<div class="pane-status-bar">';
-    if (task.status) html += '<span class="badge" style="background:' + esc(getLaneColor(task.status)) + ';color:#fff;padding:2px 8px;border-radius:4px;font-size:.8rem">' + esc(getStatusDisplayName(task.status)) + '</span>';
+    if (task.status) html += '<span class="badge" style="background:' + esc(getLaneColor(task.status)) + ';color:#fff;padding:2px 8px;border-radius:4px;font-size:.8rem" title="' + esc(getStatusDescription(task.status)) + '">' + esc(getStatusDisplayName(task.status)) + '</span>';
     if (task.priority) html += '<span class="badge pri-' + esc(task.priority) + '" style="padding:2px 8px;border-radius:4px;font-size:.8rem">' + esc(task.priority) + '</span>';
     if (task.type) html += '<span class="badge type-badge" style="padding:2px 8px;border-radius:4px;font-size:.8rem">' + esc(task.type) + '</span>';
     html += '</div>';
@@ -4974,7 +4982,7 @@ function _renderPanelContent(taskId, task, events) {
     html += '</div>';
   } else {
     html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">';
-    if (task.status) html += '<span class="badge" style="background:' + esc(getLaneColor(task.status)) + ';color:#fff;padding:2px 8px;border-radius:4px;font-size:.8rem">' + esc(getStatusDisplayName(task.status)) + '</span>';
+    if (task.status) html += '<span class="badge" style="background:' + esc(getLaneColor(task.status)) + ';color:#fff;padding:2px 8px;border-radius:4px;font-size:.8rem" title="' + esc(getStatusDescription(task.status)) + '">' + esc(getStatusDisplayName(task.status)) + '</span>';
     if (task.priority) html += '<span class="badge pri-' + esc(task.priority) + '" style="padding:2px 8px;border-radius:4px;font-size:.8rem">' + esc(task.priority) + '</span>';
     if (task.type) html += '<span class="badge type-badge" style="padding:2px 8px;border-radius:4px;font-size:.8rem">' + esc(task.type) + '</span>';
     html += ' <span class="archived-badge">ARCHIVED</span></div>';
@@ -5785,7 +5793,7 @@ function renderBoard() {
     var laneColor = getLaneColor(status);
     html += '<div class="board-col ' + cls + '" data-status="' + esc(status) + '"';
     html += ' ondragover="window._boardDragOver(event)" ondragleave="window._boardDragLeave(event)" ondrop="window._boardDrop(event)">';
-    html += '<div class="board-col-header" style="background:' + esc(laneColor) + ';color:var(--text-on-lane)">';
+    html += '<div class="board-col-header" style="background:' + esc(laneColor) + ';color:var(--text-on-lane)" title="' + esc(getStatusDescription(status)) + '">';
     html += '<span>' + esc(getStatusDisplayName(status)) + '</span>';
     html += '<span class="count">' + items.length + '</span>';
     html += '</div>';
@@ -6144,7 +6152,7 @@ async function renderDetail(taskId) {
       html += '</div>';
     } else {
       html += '<div class="detail-meta">';
-      if (task.status) html += '<span class="badge badge-stat">' + esc(getStatusDisplayName(task.status)) + '</span>';
+      if (task.status) html += '<span class="badge badge-stat" title="' + esc(getStatusDescription(task.status)) + '">' + esc(getStatusDisplayName(task.status)) + '</span>';
       if (task.priority) html += '<span class="badge pri-' + esc(task.priority) + '">' + esc(task.priority) + '</span>';
       if (task.type) html += '<span class="badge type-badge">' + esc(task.type) + '</span>';
       html += '</div>';
@@ -7546,7 +7554,7 @@ async function renderStats() {
         html += '<tr>';
         html += '<td class="id-cell"><a href="#/task/' + esc(task.full_id) + '">' + esc(task.id) + '</a></td>';
         html += '<td><a href="#/task/' + esc(task.full_id) + '">' + esc(task.title) + '</a></td>';
-        html += '<td><span class="badge badge-stat">' + esc(getStatusDisplayName(task.status)) + '</span></td>';
+        html += '<td><span class="badge badge-stat" title="' + esc(getStatusDescription(task.status)) + '">' + esc(getStatusDisplayName(task.status)) + '</span></td>';
         html += '<td>' + esc(task.updated_ago) + '</td>';
         html += '</tr>';
       });
@@ -7562,7 +7570,7 @@ async function renderStats() {
         html += '<tr>';
         html += '<td class="id-cell"><a href="#/task/' + esc(task.full_id) + '">' + esc(task.id) + '</a></td>';
         html += '<td><a href="#/task/' + esc(task.full_id) + '">' + esc(task.title) + '</a></td>';
-        html += '<td><span class="badge badge-stat">' + esc(getStatusDisplayName(task.status)) + '</span></td>';
+        html += '<td><span class="badge badge-stat" title="' + esc(getStatusDescription(task.status)) + '">' + esc(getStatusDisplayName(task.status)) + '</span></td>';
         html += '<td>' + esc(typeof task.days_stale === "number" ? task.days_stale.toFixed(1) : task.days_stale) + '</td>';
         html += '</tr>';
       });
@@ -8089,6 +8097,7 @@ window._lattice = {
   showToast: showToast,
   getLaneColor: getLaneColor,
   getStatusDisplayName: getStatusDisplayName,
+  getStatusDescription: getStatusDescription,
   getConfig: function() { return config; },
   getCurrentView: function() { return currentView; }
 };

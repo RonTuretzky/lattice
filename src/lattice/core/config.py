@@ -24,6 +24,7 @@ class Workflow(TypedDict, total=False):
     wip_limits: WipLimits
     completion_policies: dict[str, CompletionPolicy]
     roles: list[str]
+    descriptions: dict[str, str]
 
 
 class HooksOnConfig(TypedDict, total=False):
@@ -96,6 +97,26 @@ WORKFLOW_PRESETS: dict[str, dict[str, str]] = {
             "cancelled": "never mind",
         },
     },
+}
+
+
+# ---------------------------------------------------------------------------
+# Status descriptions — operational contract for each status
+# ---------------------------------------------------------------------------
+# Unlike display_names (which vary by personality preset), descriptions
+# define what each status *means* operationally.  They are the same
+# regardless of which preset is active.
+
+STATUS_DESCRIPTIONS: dict[str, str] = {
+    "backlog": "Task is captured but no work has started. No planning, no implementation.",
+    "in_planning": "Design, dialogue, and scoping underway. No implementation code should be written yet.",
+    "planned": "Plan is written and approved. Ready for implementation but work has not started.",
+    "in_progress": "Implementation is actively underway. Code is being written, tested, or integrated.",
+    "review": "Implementation is complete. Work is being reviewed before it can ship.",
+    "done": "Work is reviewed and shipped. No further action needed.",
+    "blocked": "Work cannot proceed due to an external dependency or unresolved issue.",
+    "needs_human": "A human decision, approval, or input is required before work can continue.",
+    "cancelled": "Work has been abandoned. No further action will be taken.",
 }
 
 
@@ -177,6 +198,8 @@ def default_config(preset: str = "classic") -> LatticeConfig:
     if display_names:
         workflow["display_names"] = display_names
 
+    workflow["descriptions"] = dict(STATUS_DESCRIPTIONS)
+
     config: LatticeConfig = {
         "schema_version": 1,
         "default_status": "backlog",
@@ -205,6 +228,11 @@ def get_display_name(config: dict, status: str) -> str:
     if display_names and status in display_names:
         return display_names[status]
     return status.replace("_", " ")
+
+
+def get_status_description(config: dict, status: str) -> str | None:
+    """Return the operational description for a status slug, or None if not defined."""
+    return config.get("workflow", {}).get("descriptions", {}).get(status)
 
 
 def resolve_status_input(config: dict, user_input: str) -> str:
