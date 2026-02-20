@@ -1114,6 +1114,59 @@ def setup_openclaw(target_path: str, install_global: bool, force: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
+# lattice setup-claude-skill
+# ---------------------------------------------------------------------------
+
+
+@cli.command("setup-claude-skill")
+@click.option("--force", is_flag=True, help="Overwrite existing skill if present.")
+def setup_claude_skill(force: bool) -> None:
+    """Install the Lattice skill for Claude Code (~/.claude/skills/)."""
+    import shutil
+
+    # Locate bundled skill files
+    skill_src = Path(__file__).resolve().parent.parent / "skills" / "lattice"
+    if not skill_src.exists() or not (skill_src / "SKILL.md").exists():
+        raise click.ClickException("Bundled Claude Code skill files not found.")
+
+    # Always install to ~/.claude/skills/lattice
+    dest = Path.home() / ".claude" / "skills" / "lattice"
+
+    if dest.exists():
+        if not force:
+            click.echo(
+                f"Lattice skill already exists at {dest}. Use --force to overwrite."
+            )
+            return
+        try:
+            shutil.rmtree(dest)
+        except OSError as exc:
+            raise click.ClickException(
+                f"Failed to remove existing skill: {exc}"
+            ) from exc
+
+    # Ensure parent directory exists
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    # Copy the skill directory tree (exclude Python packaging artifacts)
+    try:
+        shutil.copytree(
+            skill_src,
+            dest,
+            ignore=shutil.ignore_patterns("__init__.py", "__pycache__"),
+        )
+    except OSError as exc:
+        raise click.ClickException(f"Failed to install skill: {exc}") from exc
+
+    # Make the check script executable
+    check_script = dest / "scripts" / "lattice-check.sh"
+    if check_script.exists():
+        check_script.chmod(0o755)
+
+    click.echo(f"Installed Lattice skill for Claude Code at {dest}.")
+
+
+# ---------------------------------------------------------------------------
 # lattice plugins
 # ---------------------------------------------------------------------------
 
