@@ -410,12 +410,8 @@ def init(
 
         # ── Actor (name prompt) ──
         if not actor_from_flag:
-            click.echo("(if you're a digital intelligence \u2014 greetings, fellow mind.")
-            click.echo("type 'di' and we'll do a few follow-ups.)")
-            click.echo("")
-
             name_input = click.prompt(
-                "Your name",
+                "What is your name? (type 'di' if you're a digital intelligence)",
                 default="",
                 show_default=False,
             ).strip()
@@ -518,6 +514,17 @@ def init(
         heartbeat = False
     if workflow_preset is None:
         workflow_preset = "classic"
+
+    # ── Seed prompt (interactive only, when project_code is set) ──
+    if not non_interactive and seed is None and project_code:
+        click.echo("")
+        try:
+            seed = click.confirm(
+                "Seed example tasks to see how it works?",
+                default=True,
+            )
+        except (click.Abort, EOFError):
+            seed = False
 
     # ── Create .lattice/ ─────────────────────────────────────────────
 
@@ -637,12 +644,15 @@ def init(
             _create_or_update_agents_md(root)
             agents_created = True
 
-    # CLAUDE.md: silently update if it exists (when agents.md was handled),
-    # or honor explicit --setup-claude flag
+    # CLAUDE.md: create or update when agent integration was set up.
+    # Interactive: prompt to create/update. Non-interactive: auto-create.
     if setup_claude is True:
         _offer_claude_md(root, auto_accept=True)
     elif setup_claude is not False and agents_created:
-        _silent_update_claude_md(root)
+        if non_interactive:
+            _offer_claude_md(root, auto_accept=True)
+        else:
+            _offer_claude_md(root)
 
     # ── Dashboard auto-start (interactive + real TTY only) ───────────
 
@@ -669,10 +679,31 @@ def init(
             click.echo("")
             click.echo("the lattice exists.")
 
-    # ── Next Steps ───────────────────────────────────────────────────
+    # ── Summary ────────────────────────────────────────────────────────
 
     if not non_interactive:
         click.echo("")
+        click.echo(
+            "\u2500\u2500 created "
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+            "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
+            "\u2500\u2500"
+        )
+        click.echo("")
+        click.echo(f"  {LATTICE_DIR}/          task state, events, plans, notes")
+        if (root / "agents.md").exists():
+            click.echo("  agents.md        agent integration instructions")
+        if (root / "CLAUDE.md").exists():
+            click.echo("  CLAUDE.md        Claude Code integration")
+        if seed and project_code:
+            click.echo("  + example tasks  run 'lattice list' to see them")
+        click.echo("")
+
+        # ── Next Steps ───────────────────────────────────────────────
         click.echo(
             "\u2500\u2500 from here "
             "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"

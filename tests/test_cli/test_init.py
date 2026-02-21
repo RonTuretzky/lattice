@@ -597,7 +597,7 @@ class TestInitAgentsMd:
 class TestInitClaudeMd:
     """lattice init CLAUDE.md integration (now secondary to agents.md)."""
 
-    def test_init_updates_existing_claude_md_silently(self, tmp_path: Path) -> None:
+    def test_init_updates_existing_claude_md(self, tmp_path: Path) -> None:
         """When agents.md is created and CLAUDE.md exists, it gets updated too."""
         claude_md = tmp_path / "CLAUDE.md"
         claude_md.write_text("# My Project\n\nExisting content.\n")
@@ -608,14 +608,15 @@ class TestInitClaudeMd:
             ["init", "--path", str(tmp_path), "--actor", "human:test", "--project-code", "TST"],
         )
         assert result.exit_code == 0
-        assert "Updated CLAUDE.md with Lattice integration" in result.output
+        assert "Lattice integration" in result.output
+        assert "CLAUDE.md" in result.output
 
         content = claude_md.read_text()
         assert "## Lattice" in content
         assert "Existing content" in content
 
-    def test_init_does_not_create_claude_md_by_default(self, tmp_path: Path) -> None:
-        """Init no longer creates CLAUDE.md from scratch (agents.md is primary)."""
+    def test_init_creates_claude_md_in_noninteractive(self, tmp_path: Path) -> None:
+        """Non-interactive init auto-creates CLAUDE.md."""
         runner = CliRunner()
         result = runner.invoke(
             cli,
@@ -624,7 +625,8 @@ class TestInitClaudeMd:
         assert result.exit_code == 0
 
         claude_md = tmp_path / "CLAUDE.md"
-        assert not claude_md.exists()
+        assert claude_md.exists()
+        assert "## Lattice" in claude_md.read_text()
 
     def test_init_setup_claude_flag_creates(self, tmp_path: Path) -> None:
         """--setup-claude explicitly creates CLAUDE.md."""
