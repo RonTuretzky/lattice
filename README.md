@@ -16,6 +16,8 @@ we took what we liked from Linear. Jira. Trello. and turned it into something bu
 
 the `.lattice/` directory sits in your project like `.git/` does. plain files that any mind system can read. any tool can write. and git can merge. no database. no server. no authentication ceremony. just. files. like bones. you don't think about them. but try standing up without them.
 
+**first-class integrations:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex CLI](https://github.com/openai/codex), [OpenClaw](https://github.com/openclaw/openclaw), and any agent that follows the [SKILL.md convention](https://docs.anthropic.com/en/docs/claude-code/skills) or can run shell commands. if your agent can read files and execute commands, it can use Lattice.
+
 ---
 
 ## two surfaces. two kinds of mind.
@@ -66,10 +68,11 @@ uv tool install lattice-tracker
 cd your-project/
 lattice init --project-code PROJ --actor human:yourname
 
-# 3. connect to your coding agent
-lattice setup-claude            # Claude Code — adds workflow to CLAUDE.md
-# or: lattice setup-openclaw    # OpenClaw — installs the Lattice skill
-# or: configure MCP (see docs)  # any MCP-compatible tool
+# 3. connect to your coding agent (pick one)
+lattice setup-claude              # Claude Code — adds workflow to CLAUDE.md
+lattice setup-claude-skill        # Claude Code — installs as a skill (~/.claude/skills/)
+lattice setup-openclaw             # OpenClaw — installs the Lattice skill
+# or: configure MCP (see below)  # any MCP-compatible tool
 
 # 4. open the dashboard
 lattice dashboard
@@ -83,7 +86,7 @@ the hard part is not the install. the hard part is trusting the loop. give it ti
 
 - `uv tool install` put the `lattice` command on your PATH globally
 - `lattice init` created a `.lattice/` directory in your project (like `.git/`)
-- `lattice setup-claude` wrote instructions into your project's `CLAUDE.md` so that Claude Code automatically uses Lattice when working in this project
+- `lattice setup-claude` wrote instructions into your project's `CLAUDE.md` so Claude Code uses Lattice automatically (alternatively, `lattice setup-claude-skill` installs a global skill)
 - `lattice dashboard` opened a local web UI where you manage everything
 
 from this point forward, when you open Claude Code (or Codex, or OpenClaw) in this project, your agent already knows how to use Lattice. create tasks in the dashboard. tell your agent to advance. the loop is running.
@@ -249,51 +252,48 @@ no server. no database. no account. no vendor. just. files.
 
 ---
 
-## the daily rhythm
-
-here is what a day with Lattice looks like. if you let it breathe.
-
-**morning.** open the dashboard. scan the board. what's in review? what's blocked? what needs you? handle the `needs_human` queue first. those are agents. waiting. politely. don't keep them waiting longer than you must.
-
-**midday.** check activity feed. see what advanced. read agent comments. approve or redirect. maybe create a few new tasks from what you learned this morning. priorities shift. let them.
-
-**evening.** final scan. anything in review that you can close? any patterns emerging? any tasks that need splitting or rethinking? update priorities for tomorrow's advances.
-
-and then. let go. the agents will be here when you return. the event log will hold everything they did. nothing is lost.
-
----
-
 ## connecting your agents
 
 Lattice needs to know which coding tool you're using so it can teach the agent how to participate. this is the bridge. without it, you have a task tracker with no one to track.
 
 ### Claude Code
 
-the most common setup. one command.
+two options. pick the one that fits your workflow.
+
+**option A: project-level (CLAUDE.md)**
 
 ```bash
 lattice setup-claude
 ```
 
-this writes a block into your project's `CLAUDE.md` — the file Claude Code reads at the start of every session. the block teaches the agent to: create tasks before working. update status at transitions. leave breadcrumbs for the next mind. claim work from the backlog. signal when it needs you.
-
-without this block, Claude Code *can* use Lattice if you prompt it. with this block, it does it by default. every session. automatically.
+writes a block into your project's `CLAUDE.md`. every Claude Code session in this project reads it and knows the Lattice protocol automatically. project-scoped, committed to your repo, visible to every collaborator.
 
 ```bash
 lattice setup-claude --force   # update to latest template
 ```
 
-**how it works in practice:** you open Claude Code in your project. the agent reads `CLAUDE.md`, sees the Lattice block, and knows the protocol. you say "advance the project" or `/lattice`. the agent claims the top task, does the work, updates the status, leaves a comment. you come back to the dashboard and see what happened.
+**option B: global skill**
+
+```bash
+lattice setup-claude-skill
+```
+
+installs Lattice as a skill at `~/.claude/skills/lattice/`. available across all projects on your machine. invoked via `/lattice` in any session. no per-project setup needed.
+
+**how it works in practice:** you open Claude Code in your project. the agent reads the Lattice instructions (from `CLAUDE.md` or the skill) and knows the protocol. you say "advance the project" or `/lattice`. the agent claims the top task, does the work, updates the status, leaves a comment. you come back to the dashboard and see what happened.
 
 ### Codex CLI
 
-Codex can use Lattice through the CLI directly. initialize Lattice in your project, then Codex reads the `.lattice/` directory and executes `lattice` commands like any shell tool.
+Codex discovers Lattice through the same skill-based pattern. install the Claude Code skill, then symlink it into Codex's skill directory:
 
 ```bash
-codex exec "advance the project using lattice"
+lattice setup-claude-skill                          # installs to ~/.claude/skills/lattice/
+ln -sf ~/.claude/skills/lattice ~/.agents/skills/    # symlink for Codex discovery
 ```
 
-for deeper integration, add Lattice workflow instructions to your Codex prompts or use the MCP server.
+once linked, Codex reads the `SKILL.md` at session start and knows the full Lattice protocol: creating tasks, claiming work, updating statuses, leaving context. the same commands, the same lifecycle, the same coordination surface.
+
+you can also add Lattice instructions directly to your `AGENTS.md` or use the MCP server for tool-call integration.
 
 ### OpenClaw
 
@@ -355,6 +355,8 @@ lattice plugins    # list installed plugins
 | `lattice init` | initialize `.lattice/` in your project |
 | `lattice set-project-code CODE` | set or change the project code for short IDs |
 | `lattice setup-claude` | add Lattice integration block to CLAUDE.md |
+| `lattice setup-claude-skill` | install Lattice skill for Claude Code (~/.claude/skills/) |
+| `lattice setup-openclaw` | install Lattice skill for OpenClaw |
 | `lattice backfill-ids` | assign short IDs to existing tasks |
 
 ### task operations
