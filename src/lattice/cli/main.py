@@ -642,7 +642,7 @@ def init(
                 # OpenClaw prompt
                 try:
                     use_openclaw = click.confirm(
-                        "Do you use OpenClaw? (installs the Lattice skill)",
+                        "Also install for OpenClaw?",
                         default=False,
                     )
                 except (click.Abort, EOFError):
@@ -948,7 +948,7 @@ def _offer_claude_md(root: Path, *, auto_accept: bool = False) -> None:
         if claude_md.exists():
             content = claude_md.read_text()
             if marker in content:
-                click.echo("CLAUDE.md already has Lattice integration.")
+                click.echo("  CLAUDE.md already has Lattice integration.")
                 return
             if auto_accept or click.confirm(
                 "Found CLAUDE.md \u2014 add Lattice agent integration?",
@@ -956,14 +956,14 @@ def _offer_claude_md(root: Path, *, auto_accept: bool = False) -> None:
             ):
                 with open(claude_md, "a") as f:
                     f.write(composed_block)
-                click.echo("Added Lattice integration to CLAUDE.md.")
+                click.echo("  Updated CLAUDE.md with Lattice integration.")
         else:
             if auto_accept or click.confirm(
                 "Create CLAUDE.md with Lattice agent integration?",
                 default=True,
             ):
                 claude_md.write_text(f"# {root.name}\n{composed_block}")
-                click.echo("Created CLAUDE.md with Lattice integration.")
+                click.echo("  Created CLAUDE.md with Lattice integration.")
     except (click.Abort, EOFError):
         # Non-interactive mode — skip CLAUDE.md prompt silently.
         # The core init already succeeded; this is optional.
