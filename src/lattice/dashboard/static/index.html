@@ -204,12 +204,14 @@ a:hover{text-decoration:underline}
 .active-badge .active-dot{width:6px;height:6px}
 
 /* Heat indicator (based on last_status_changed_at) */
-.card.heat-hot{border-left:3px solid #ef4444}
-.card.heat-warm{border-left:3px solid #f97316}
-.card.heat-cooling{border-left:3px solid #eab308}
+/* Board cards: heat bar is rendered inline via JS; these classes add positioning context */
+.card.heat-hot,.card.heat-warm,.card.heat-cooling{position:relative}
+/* List view: colored left border */
 tr.heat-hot td:first-child{border-left:3px solid #ef4444}
 tr.heat-warm td:first-child{border-left:3px solid #f97316}
 tr.heat-cooling td:first-child{border-left:3px solid #eab308}
+/* Heat bar element inside board cards */
+.heat-bar{position:absolute;left:0;bottom:0;pointer-events:none;z-index:1;transition:height .5s linear}
 
 /* Priority badges */
 .pri-critical{background:var(--pri-critical-bg);color:var(--text-on-accent)}
@@ -564,9 +566,7 @@ select.form-control{cursor:pointer}
 [data-theme="carbon"] .board-col{background:#1E1E1E;border-color:#333;border-radius:3px}
 [data-theme="carbon"] .board-col-header{font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;font-weight:700;border-radius:3px 3px 0 0;padding:6px 10px}
 [data-theme="carbon"] .card{background:#1C1C1C;border-color:#2A2A2A;border-radius:2px;padding:6px 8px;margin-bottom:4px}
-[data-theme="carbon"] .card.heat-hot{border-left:3px solid #ef4444}
-[data-theme="carbon"] .card.heat-warm{border-left:3px solid #f97316}
-[data-theme="carbon"] .card.heat-cooling{border-left:3px solid #eab308}
+/* Carbon heat bar colors handled via JS inline styles */
 [data-theme="carbon"] .card:hover{box-shadow:0 1px 6px rgba(0,0,0,.4);border-color:#EA580C}
 [data-theme="carbon"] .card-title{}
 [data-theme="carbon"] .board-col.drag-over{border-color:#EA580C;box-shadow:inset 0 0 0 1px #EA580C}
@@ -3852,24 +3852,74 @@ function populateLaneColorSettings() {
   container.innerHTML = html;
 }
 
+// --- Heat map configuration ---
+// All heat timing and appearance knobs live here.
+var HEAT_CONFIG = {
+  // Duration (ms) for the bar to shrink from 100% to 0%.
+  fullDurationMs: 3600000,       // 1 hour
+
+  // Bar visual properties
+  barWidth: 3,                   // px
+  barBorderRadius: "0 1px 0 0",  // top-right corner only
+
+  // Default color thresholds: checked in order, first match wins.
+  // "upTo" is an upper bound in ms; null means "everything else".
+  tiers: [
+    { upTo: 60000,    cls: "heat-hot",     color: "#ef4444" },  // < 1 min — red
+    { upTo: 600000,   cls: "heat-warm",    color: "#f97316" },  // < 10 min — orange
+    { upTo: 3600000,  cls: "heat-cooling", color: "#eab308" },  // < 1 hr — yellow
+    { upTo: null,     cls: "",             color: null }         // cold
+  ],
+
+  // Per-theme color overrides. Only the "color" field is overridden;
+  // thresholds (upTo) and class names (cls) stay the same.
+  themeColors: {
+    // carbon: uses defaults (red / orange / yellow)
+    // linear: uses defaults (clean indicator colors on white)
+    vaporwave: ["#FF71CE", "#ffb347", "#01CDFE"],   // hot pink / neon orange / cyan
+    matrix:    ["#39FF14", "#22aa10", "#145a08"],    // bright green / mid green / dim green
+    holographic: ["#ff6b6b", "#ffd93d", "#6bccff"]   // pink / gold / cool blue
+  },
+
+  // How often (ms) to refresh heat bars between full data fetches.
+  refreshIntervalMs: 5000
+};
+
 // --- Heat map helpers ---
 function isHeatMapEnabled() {
   if (!config || !config.dashboard || config.dashboard.heat_map_enabled === undefined) return true;
   return !!config.dashboard.heat_map_enabled;
 }
 
+function getHeatTier(ts) {
+  var cold = HEAT_CONFIG.tiers[HEAT_CONFIG.tiers.length - 1];
+  if (!ts) return cold;
+  var diffMs = Date.now() - new Date(ts).getTime();
+  var theme = getTheme();
+  var overrides = HEAT_CONFIG.themeColors[theme] || null;
+  for (var i = 0; i < HEAT_CONFIG.tiers.length; i++) {
+    var tier = HEAT_CONFIG.tiers[i];
+    if (tier.upTo === null || diffMs < tier.upTo) {
+      if (overrides && i < overrides.length && tier.color) {
+        return { upTo: tier.upTo, cls: tier.cls, color: overrides[i] };
+      }
+      return tier;
+    }
+  }
+  return cold;
+}
+
 function getHeatClass(ts) {
-  if (!ts) return "";
-  var now = Date.now();
-  var then = new Date(ts).getTime();
-  var diffMs = now - then;
-  var oneMin = 60000;
-  var tenMin = 600000;
-  var oneHour = 3600000;
-  if (diffMs < oneMin) return "heat-hot";
-  if (diffMs < tenMin) return "heat-warm";
-  if (diffMs < oneHour) return "heat-cooling";
-  return "";
+  return getHeatTier(ts).cls;
+}
+
+// Returns 0..1 (1 = just changed, 0 = fully cooled).
+function getHeatBarRatio(ts) {
+  if (!ts) return 0;
+  var diffMs = Date.now() - new Date(ts).getTime();
+  if (diffMs <= 0) return 1;
+  if (diffMs >= HEAT_CONFIG.fullDurationMs) return 0;
+  return 1 - (diffMs / HEAT_CONFIG.fullDurationMs);
 }
 
 function loadHeatMapSetting() {
@@ -3888,16 +3938,27 @@ function formatHeatAge(ts) {
 }
 
 function renderBoardCard(t) {
-  var heatCls = isHeatMapEnabled() ? getHeatClass(t.last_status_changed_at) : "";
+  var heatEnabled = isHeatMapEnabled();
+  var heatCls = heatEnabled ? getHeatClass(t.last_status_changed_at) : "";
+  var tier = heatEnabled ? getHeatTier(t.last_status_changed_at) : null;
+  var ratio = heatEnabled ? getHeatBarRatio(t.last_status_changed_at) : 0;
+
   var html = '<div class="card' + (heatCls ? " " + heatCls : "") + '" draggable="true" data-task-id="' + esc(t.id) + '" data-task-status="' + esc(t.status || "") + '"';
+  if (t.last_status_changed_at) html += ' data-heat-ts="' + esc(t.last_status_changed_at) + '"';
   html += ' ondragstart="window._boardDragStart(event)" ondragend="window._boardDragEnd(event)">';
+
+  // Heat bar: vertical bar on left that shrinks as heat cools
+  if (heatEnabled && tier && tier.color && ratio > 0) {
+    html += '<div class="heat-bar" style="background:' + tier.color + ';height:' + (ratio * 100).toFixed(1) + '%;width:' + HEAT_CONFIG.barWidth + 'px"></div>';
+  }
+
   if (t.short_id) {
     html += '<div style="font-size:.7rem;font-weight:600;color:var(--accent-primary);margin-bottom:2px;display:flex;align-items:center;gap:5px">';
     if (t.has_active_session) html += '<span class="active-dot" title="Actively being worked"></span>';
     html += esc(t.short_id);
-    // Heat age indicator
-    if (isHeatMapEnabled() && t.last_status_changed_at) {
-      var heatColor = heatCls === "heat-hot" ? "#ef4444" : heatCls === "heat-warm" ? "#f97316" : heatCls === "heat-cooling" ? "#eab308" : "var(--text-muted)";
+    // Heat age indicator (text)
+    if (heatEnabled && t.last_status_changed_at) {
+      var heatColor = tier && tier.color ? tier.color : "var(--text-muted)";
       html += '<span style="font-size:.65rem;color:' + heatColor + ';font-weight:400" title="Last status change">' + formatHeatAge(t.last_status_changed_at) + '</span>';
     }
     html += '</div>';
@@ -4216,8 +4277,10 @@ function applyListFilters() {
     var displayId = t.short_id || (t.id ? t.id.slice(0,18) + "..." : "?");
     var updated = t.updated_at ? t.updated_at.slice(0,16).replace("T"," ") : "";
     var rowHeatCls = isHeatMapEnabled() ? " " + getHeatClass(t.last_status_changed_at) : "";
+    var rowTier = isHeatMapEnabled() ? getHeatTier(t.last_status_changed_at) : null;
+    var rowHeatBorder = (rowTier && rowTier.color) ? ' style="border-left:3px solid ' + rowTier.color + '"' : "";
     html += '<tr class="' + rowHeatCls.trim() + '" style="cursor:pointer" onclick="openDetailPanel(\'' + esc(t.id) + '\')">';
-    html += '<td class="id-cell" title="' + esc(t.id) + '">' + (t.short_id ? '<span style="font-weight:600;color:var(--accent-primary)">' + esc(t.short_id) + '</span>' : esc(displayId)) + "</td>";
+    html += '<td class="id-cell"' + rowHeatBorder + ' title="' + esc(t.id) + '">' + (t.short_id ? '<span style="font-weight:600;color:var(--accent-primary)">' + esc(t.short_id) + '</span>' : esc(displayId)) + "</td>";
     html += "<td>" + esc(t.title || "Untitled") + (t.archived ? ' <span class="archived-badge">archived</span>' : "") + (t.comment_count ? ' <span style="color:var(--text-muted);font-size:.75rem" title="' + t.comment_count + ' comment' + (t.comment_count === 1 ? '' : 's') + '">\uD83D\uDCAC ' + t.comment_count + '</span>' : '') + "</td>";
     html += "<td>" + esc(t.status || "") + (t.has_active_session ? ' <span class="active-badge"><span class="active-dot"></span>Active</span>' : "") + "</td>";
     html += "<td>";
@@ -6125,12 +6188,41 @@ function stopAutoRefresh() {
   }
 }
 
+// --- Heat bar tick: lightweight DOM-only update between data fetches ---
+var _heatBarInterval = null;
+function startHeatBarTick() {
+  stopHeatBarTick();
+  _heatBarInterval = setInterval(function() {
+    if (!isHeatMapEnabled() || currentView !== "board") return;
+    var cards = document.querySelectorAll(".card[data-heat-ts]");
+    for (var i = 0; i < cards.length; i++) {
+      var ts = cards[i].getAttribute("data-heat-ts");
+      var bar = cards[i].querySelector(".heat-bar");
+      var ratio = getHeatBarRatio(ts);
+      var tier = getHeatTier(ts);
+      if (ratio <= 0 || !tier.color) {
+        if (bar) bar.style.height = "0%";
+        continue;
+      }
+      if (bar) {
+        bar.style.height = (ratio * 100).toFixed(1) + "%";
+        bar.style.background = tier.color;
+      }
+    }
+  }, HEAT_CONFIG.refreshIntervalMs);
+}
+function stopHeatBarTick() {
+  if (_heatBarInterval) { clearInterval(_heatBarInterval); _heatBarInterval = null; }
+}
+
 // Pause auto-refresh when tab is hidden to avoid unnecessary requests
 document.addEventListener("visibilitychange", function() {
   if (document.hidden) {
     stopAutoRefresh();
+    stopHeatBarTick();
   } else {
     startAutoRefresh();
+    startHeatBarTick();
   }
 });
 
@@ -6210,7 +6302,7 @@ window._lattice = {
 };
 
 // --- Boot ---
-init().then(function() { startAutoRefresh(); });
+init().then(function() { startAutoRefresh(); startHeatBarTick(); });
 
 })();
 </script>
