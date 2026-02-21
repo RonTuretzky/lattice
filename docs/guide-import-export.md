@@ -2,6 +2,21 @@
 
 Here's something most tools don't tell you: **your agent can build any integration you need.** Not "we support 47 platforms." Not "coming soon in the roadmap." Right now, in your current session, you can tell your agent to connect Lattice to whatever you use, and it will.
 
+Most project management tools try to be the center of everything. They build integrations themselves, maintain them, charge for them. When the integration breaks or the tool you need isn't supported, you wait.
+
+Lattice takes a different position. Your agent is the integration layer. It can read from anything, write to anything, and build whatever glue logic you need. The integration isn't a feature we ship. It's a capability you already have.
+
+This means:
+
+- **No vendor lock-in** -- your data is plain files, importable and exportable by design
+- **No waiting for support** -- if your tool has an API, your agent can connect to it today
+- **No maintenance burden** -- the import script is yours, in your repo, readable and modifiable
+- **Infinite flexibility** -- your agent adapts the mapping to your workflow, not the other way around
+
+The tools you use will change. The agents you work with will evolve. The pattern stays the same: describe what you want, let the agent build it, verify the result.
+
+That's the whole philosophy. Your agent is more capable than you think. Let it prove it.
+
 This guide shows you the mental model. Linear and GitHub Issues are the worked examples. But the pattern is the same whether you're importing from Jira, Notion, Trello, Shortcut, a spreadsheet, or something you built yourself. The tool doesn't matter. The thinking does.
 
 ---
@@ -29,6 +44,10 @@ The key insight: **you don't need to write this mapping yourself.** You describe
 Once you've made those decisions, the agent handles the rest.
 
 ---
+
+## Why this matters
+
+
 
 ## Example: Importing from Linear
 
@@ -349,18 +368,3 @@ Each card becomes a task. Card descriptions go to notes files.
 
 ---
 
-## Why this matters
-
-Most project management tools try to be the center of everything. They build integrations themselves, maintain them, charge for them. When the integration breaks or the tool you need isn't supported, you wait.
-
-Lattice takes a different position. Your agent is the integration layer. It can read from anything, write to anything, and build whatever glue logic you need. The integration isn't a feature we ship. It's a capability you already have.
-
-This means:
-- **No vendor lock-in** -- your data is plain files, importable and exportable by design
-- **No waiting for support** -- if your tool has an API, your agent can connect to it today
-- **No maintenance burden** -- the import script is yours, in your repo, readable and modifiable
-- **Infinite flexibility** -- your agent adapts the mapping to your workflow, not the other way around
-
-The tools you use will change. The agents you work with will evolve. The pattern stays the same: describe what you want, let the agent build it, verify the result.
-
-That's the whole philosophy. Your agent is more capable than you think. Let it prove it.
