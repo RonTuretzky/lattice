@@ -622,8 +622,11 @@ def init(
             )
             click.echo("")
             click.echo("Lattice works by integrating into your agent's environment.")
-            click.echo("in practice, this means creating agents.md (and CLAUDE.md)")
-            click.echo("with instructions that teach your agent the Lattice protocol.")
+            click.echo("this means creating agents.md (and CLAUDE.md) with instructions")
+            click.echo("that teach your agent the Lattice protocol.")
+            click.echo("")
+            click.echo("other agents: lattice setup-codex, lattice setup-openclaw,")
+            click.echo("or lattice setup-prompt to print instructions for any agent.")
             click.echo("")
             try:
                 proceed = click.confirm(
@@ -743,6 +746,13 @@ def init(
         step += 1
         click.echo(f"  {step}. test it \u2014 open an agent session, ask it to create a task.")
         click.echo("     if it works, you're wired. if not, check agents.md.")
+        click.echo("")
+
+        step += 1
+        click.echo(f"  {step}. using other agents? connect them too:")
+        click.echo("     lattice setup-codex       Codex CLI")
+        click.echo("     lattice setup-openclaw    OpenClaw")
+        click.echo("     lattice setup-prompt      print instructions for any agent")
         click.echo("")
 
         step += 1
