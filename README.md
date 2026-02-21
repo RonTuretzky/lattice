@@ -71,7 +71,8 @@ lattice init --project-code PROJ --actor human:yourname
 # 3. connect to your coding agent (pick one)
 lattice setup-claude              # Claude Code — adds workflow to CLAUDE.md
 lattice setup-claude-skill        # Claude Code — installs as a skill (~/.claude/skills/)
-lattice setup-openclaw             # OpenClaw — installs the Lattice skill
+lattice setup-codex               # Codex CLI — installs as a skill (~/.agents/skills/)
+lattice setup-openclaw            # OpenClaw — installs the Lattice skill
 # or: configure MCP (see below)  # any MCP-compatible tool
 
 # 4. open the dashboard
@@ -284,14 +285,13 @@ installs Lattice as a skill at `~/.claude/skills/lattice/`. available across all
 
 ### Codex CLI
 
-Codex discovers Lattice through the same skill-based pattern. install the Claude Code skill, then symlink it into Codex's skill directory:
+one command. same pattern as Claude Code.
 
 ```bash
-lattice setup-claude-skill                          # installs to ~/.claude/skills/lattice/
-ln -sf ~/.claude/skills/lattice ~/.agents/skills/    # symlink for Codex discovery
+lattice setup-codex
 ```
 
-once linked, Codex reads the `SKILL.md` at session start and knows the full Lattice protocol: creating tasks, claiming work, updating statuses, leaving context. the same commands, the same lifecycle, the same coordination surface.
+installs the Lattice skill to `~/.agents/skills/lattice/`. Codex reads the `SKILL.md` at session start and knows the full Lattice protocol: creating tasks, claiming work, updating statuses, leaving context. the same commands, the same lifecycle, the same coordination surface.
 
 you can also add Lattice instructions directly to your `AGENTS.md` or use the MCP server for tool-call integration.
 
@@ -356,6 +356,7 @@ lattice plugins    # list installed plugins
 | `lattice set-project-code CODE` | set or change the project code for short IDs |
 | `lattice setup-claude` | add Lattice integration block to CLAUDE.md |
 | `lattice setup-claude-skill` | install Lattice skill for Claude Code (~/.claude/skills/) |
+| `lattice setup-codex` | install Lattice skill for Codex CLI (~/.agents/skills/) |
 | `lattice setup-openclaw` | install Lattice skill for OpenClaw |
 | `lattice backfill-ids` | assign short IDs to existing tasks |
 

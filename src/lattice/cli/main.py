@@ -1167,6 +1167,59 @@ def setup_claude_skill(force: bool) -> None:
 
 
 # ---------------------------------------------------------------------------
+# lattice setup-codex
+# ---------------------------------------------------------------------------
+
+
+@cli.command("setup-codex")
+@click.option("--force", is_flag=True, help="Overwrite existing skill if present.")
+def setup_codex(force: bool) -> None:
+    """Install the Lattice skill for Codex CLI (~/.agents/skills/)."""
+    import shutil
+
+    # Locate bundled skill files
+    skill_src = Path(__file__).resolve().parent.parent / "skills" / "lattice"
+    if not skill_src.exists() or not (skill_src / "SKILL.md").exists():
+        raise click.ClickException("Bundled Codex skill files not found.")
+
+    # Always install to ~/.agents/skills/lattice
+    dest = Path.home() / ".agents" / "skills" / "lattice"
+
+    if dest.exists():
+        if not force:
+            click.echo(
+                f"Lattice skill already exists at {dest}. Use --force to overwrite."
+            )
+            return
+        try:
+            shutil.rmtree(dest)
+        except OSError as exc:
+            raise click.ClickException(
+                f"Failed to remove existing skill: {exc}"
+            ) from exc
+
+    # Ensure parent directory exists
+    dest.parent.mkdir(parents=True, exist_ok=True)
+
+    # Copy the skill directory tree (exclude Python packaging artifacts)
+    try:
+        shutil.copytree(
+            skill_src,
+            dest,
+            ignore=shutil.ignore_patterns("__init__.py", "__pycache__"),
+        )
+    except OSError as exc:
+        raise click.ClickException(f"Failed to install skill: {exc}") from exc
+
+    # Make the check script executable
+    check_script = dest / "scripts" / "lattice-check.sh"
+    if check_script.exists():
+        check_script.chmod(0o755)
+
+    click.echo(f"Installed Lattice skill for Codex CLI at {dest}.")
+
+
+# ---------------------------------------------------------------------------
 # lattice plugins
 # ---------------------------------------------------------------------------
 
