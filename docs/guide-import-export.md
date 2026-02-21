@@ -2,7 +2,7 @@
 
 Here's something most tools don't tell you: **your agent can build any integration you need.** Not "we support 47 platforms." Not "coming soon in the roadmap." Right now, in your current session, you can tell your agent to connect Lattice to whatever you use, and it will.
 
-This guide shows you the mental model. Linear is the worked example because it maps beautifully to Lattice's data model. But the pattern is the same whether you're importing from Jira, GitHub Issues, Notion, Trello, Shortcut, a spreadsheet, or something you built yourself. The tool doesn't matter. The thinking does.
+This guide shows you the mental model. Linear and GitHub Issues are the worked examples. But the pattern is the same whether you're importing from Jira, Notion, Trello, Shortcut, a spreadsheet, or something you built yourself. The tool doesn't matter. The thinking does.
 
 ---
 
@@ -214,17 +214,106 @@ Your agent executes the import. You verify on the dashboard. Done.
 
 ---
 
-## Examples for other tools
+## Example: Importing from GitHub Issues
 
-You don't need detailed guides for each tool. The prompt template is enough.
+GitHub Issues is the other tool everyone's seen. It's simpler than Linear (no separate status workflow, no priority field, no cycles), but millions of repos use it. The `gh` CLI makes it trivially accessible to any agent.
 
-### GitHub Issues
+### The data model
+
+GitHub Issues are intentionally minimal:
+
+- **Title and body** (markdown)
+- **State**: `open` or `closed`. That's it. Two states.
+- **Labels**: freeform strings (e.g., "bug", "enhancement", "priority:high")
+- **Assignees**: GitHub usernames (can have multiple)
+- **Milestone**: optional grouping with a due date
+- **Projects (v2)**: GitHub's newer project boards add custom fields, status columns, and sprint-like iterations. If you use these, your agent can read them via `gh project` commands.
+
+The simplicity is a feature. There's less to map. But it also means people encode things in labels that other tools give you as first-class fields ("priority:high" as a label instead of a priority dropdown).
+
+### Step 1: Tell your agent what you want
 
 ```
 Import all open issues from this repo's GitHub Issues into Lattice.
-Use `gh issue list --json` to read them.
-Map labels to tags. Map milestones to a custom field.
+Use `gh issue list --state open --json number,title,body,state,labels,assignees,milestone,createdAt,updatedAt --limit 500` to read them.
+
+Map them like this:
+
+Labels that encode status -> Lattice status:
+  No status label  -> open
+  "in-progress"    -> in_progress
+  "needs-review"   -> in_review
+  "blocked"        -> needs_human
+
+Labels that encode priority -> Lattice priority:
+  "priority:critical" -> critical
+  "priority:high"     -> high
+  "priority:medium"   -> medium
+  "priority:low"      -> low
+  No priority label   -> medium
+
+All other labels -> Lattice tags (e.g., "bug", "enhancement", "docs").
+
+Assignees: map GitHub username to human:<username>.
+Milestone name -> custom field "milestone".
+Issue number (e.g., #42) -> custom field "github_issue".
+Issue body -> notes file.
+
+After import, for any issue that has "blocked" label AND a comment
+mentioning another issue number (like "blocked by #38"), create a
+depends_on relationship if #38 was also imported.
 ```
+
+### Step 2: The agent reads and transforms
+
+Your agent runs `gh issue list` (one command, returns JSON), iterates through the results, and creates Lattice tasks. The key difference from Linear: GitHub doesn't give you a status workflow, so the agent has to infer status from labels. The prompt above makes that mapping explicit.
+
+For a repo with 80 open issues, this takes a couple minutes. The agent will:
+
+1. Run the `gh` command to pull all issues as JSON
+2. Parse each issue, separate labels into status-labels, priority-labels, and regular tags
+3. Run `lattice create` for each, with the appropriate status and priority
+4. Write issue bodies to `.lattice/notes/<task_id>.md`
+5. Scan for cross-references in comments and create `depends_on` links
+6. Report: "Imported 80 issues. 45 open, 20 in progress, 10 in review, 5 needs_human."
+
+### The field mapping reference
+
+| GitHub field | Lattice target | Notes |
+|---|---|---|
+| `title` | title | Direct |
+| `body` | `.lattice/notes/<id>.md` | Markdown |
+| `state` (open/closed) | status | `open` -> `open`, `closed` -> `done` (or use labels for finer granularity) |
+| `labels` (status-like) | status | Parse convention: "in-progress", "needs-review", etc. |
+| `labels` (priority-like) | priority | Parse convention: "priority:high", "P1", etc. |
+| `labels` (everything else) | tags | Direct |
+| `assignees[0]` | assigned_to | `human:<github_username>` |
+| `milestone.title` | custom field `milestone` | For grouping |
+| `number` (e.g., 42) | custom field `github_issue` | For cross-referencing |
+| `html_url` | custom field `github_url` | Link back to original |
+| `createdAt` | preserved in event metadata | Provenance |
+
+### If you use GitHub Projects (v2)
+
+GitHub Projects add a richer data model on top of issues: custom status columns, iteration fields, priority fields, and more. Your agent can read these too:
+
+```
+Also read project board data using `gh project item-list <number> --format json`.
+Use the project's Status column instead of inferring from labels:
+  "Todo"        -> open
+  "In Progress" -> in_progress
+  "In Review"   -> in_review
+  "Done"        -> done
+Use the project's Priority field instead of parsing labels.
+```
+
+This gives you the best of both worlds: GitHub's familiar interface for humans, Lattice's agent-native tracking for your AI workforce.
+
+---
+
+## More examples (prompt templates)
+
+The two worked examples above cover 90% of the thinking. For other tools, a prompt template is all you need. Your agent knows these tools.
 
 ### Jira
 
