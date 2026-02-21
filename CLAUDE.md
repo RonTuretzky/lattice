@@ -33,6 +33,32 @@ This project **dogfoods itself**. Two distinct things called "Lattice":
 
 **Rule:** Never confuse changes to `src/lattice/` (source code) with changes to `.lattice/` (instance data). They are independent. Editing source code does not affect the running instance until you reinstall (`uv pip install -e ".[dev]"`).
 
+## Global Tool vs. Dev Install — Known Failure Mode
+
+Lattice is installed two ways on this machine. Mixing them up causes silent bugs where your code changes have no effect.
+
+| Install | Binary | Python path | When to use |
+|---------|--------|-------------|-------------|
+| **Global tool** | `lattice` (bare) | `~/.local/share/uv/tools/lattice-tracker/` | End-user usage, running the dashboard day-to-day |
+| **Dev install** | `uv run lattice` | Project venv, reads `src/` directly | Development, testing code changes |
+
+**The failure mode:** You edit source files in `src/lattice/`, then run `lattice dashboard` (bare). The global tool serves its own installed copy of the code, not your source tree. Your changes are invisible. Everything looks wrong and you waste time debugging CSS/JS/Python that is actually correct.
+
+**How to avoid it:**
+- **During development**, always use `uv run lattice` (not bare `lattice`)
+- **After finishing work**, update the global tool: `uv tool install . --force`
+- **When the dashboard looks stale**, check which binary is running: `ps aux | grep lattice` — if it shows `~/.local/share/uv/tools/`, that's the global install
+
+**Quick reference:**
+```bash
+# Dev: run from source (changes take effect immediately)
+uv run lattice dashboard
+
+# Global: update after committing changes
+uv tool install . --force
+lattice dashboard
+```
+
 ## Quick Reference
 
 | Item | Value |
