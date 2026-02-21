@@ -612,20 +612,13 @@ def init(
                 "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500"
             )
             click.echo("")
-            click.echo("Lattice works by integrating into your agent's environment. a small")
-            click.echo("instruction file teaches your agent how to create tasks, update")
-            click.echo("statuses, and leave context for the next mind that arrives.")
-            click.echo("")
-            click.echo("it is important to update your agent's agents.md \u2014 Lattice is not")
-            click.echo("something you prompt directly. you keep working in your existing")
-            click.echo("workflow, and Lattice gives you and your agent a powerful")
-            click.echo("coordination primitive to work through and with.")
+            click.echo("Lattice works by integrating into your agent's environment.")
+            click.echo("in practice, this means creating agents.md (and CLAUDE.md)")
+            click.echo("with instructions that teach your agent the Lattice protocol.")
             click.echo("")
             try:
                 proceed = click.confirm(
-                    "press Enter to continue with agent integration, or 'n' to skip.\n"
-                    "(do not skip unless you know what you're doing \u2014 Lattice will not\n"
-                    "function without this.)",
+                    "Set up agent integration? (press Enter or y to continue)",
                     default=True,
                 )
             except (click.Abort, EOFError):
@@ -633,7 +626,22 @@ def init(
 
             if proceed:
                 _create_or_update_agents_md(root)
+                _offer_claude_md(root, auto_accept=True)
                 agents_created = True
+                click.echo("")
+
+                # OpenClaw prompt
+                try:
+                    use_openclaw = click.confirm(
+                        "Do you use OpenClaw? (installs the Lattice skill)",
+                        default=False,
+                    )
+                except (click.Abort, EOFError):
+                    use_openclaw = False
+
+                if use_openclaw:
+                    _install_openclaw_skill(root)
+
         elif setup_agents:
             _create_or_update_agents_md(root)
             agents_created = True
@@ -644,15 +652,13 @@ def init(
             _create_or_update_agents_md(root)
             agents_created = True
 
-    # CLAUDE.md: create or update when agent integration was set up.
-    # Interactive: prompt to create/update. Non-interactive: auto-create.
-    if setup_claude is True:
-        _offer_claude_md(root, auto_accept=True)
-    elif setup_claude is not False and agents_created:
-        if non_interactive:
+    # CLAUDE.md: create or update for non-interactive or explicit flag.
+    # (Interactive path handles CLAUDE.md inline above.)
+    if not agents_created or non_interactive:
+        if setup_claude is True:
             _offer_claude_md(root, auto_accept=True)
-        else:
-            _offer_claude_md(root)
+        elif setup_claude is not False and agents_created:
+            _offer_claude_md(root, auto_accept=True)
 
     # ── Dashboard auto-start (interactive + real TTY only) ───────────
 
@@ -778,6 +784,37 @@ def _create_or_update_agents_md(root: Path) -> None:
             click.echo("  Created agents.md with Lattice integration.")
     except OSError as e:
         click.echo(f"  Warning: could not update agents.md: {e}", err=True)
+
+
+def _install_openclaw_skill(root: Path) -> None:
+    """Install the Lattice skill for OpenClaw into the project's skills/ directory."""
+    import shutil
+
+    skill_src = Path(__file__).resolve().parent.parent / "skills" / "lattice"
+    if not skill_src.exists() or not (skill_src / "SKILL.md").exists():
+        click.echo("  Warning: bundled OpenClaw skill files not found.", err=True)
+        return
+
+    dest = root / "skills" / "lattice"
+    if dest.exists():
+        click.echo("  OpenClaw skill already installed.")
+        return
+
+    try:
+        shutil.copytree(
+            skill_src,
+            dest,
+            ignore=shutil.ignore_patterns("__init__.py", "__pycache__"),
+        )
+    except OSError as exc:
+        click.echo(f"  Warning: could not install OpenClaw skill: {exc}", err=True)
+        return
+
+    check_script = dest / "scripts" / "lattice-check.sh"
+    if check_script.exists():
+        check_script.chmod(0o755)
+
+    click.echo("  Installed OpenClaw skill at skills/lattice/.")
 
 
 def _silent_update_claude_md(root: Path) -> None:
