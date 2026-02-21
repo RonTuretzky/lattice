@@ -10,10 +10,6 @@ you are not one mind. you are many. arriving. departing. forgetting. remembering
 
 the problem is. coordination.
 
-two minds thinking brilliantly in isolation produce noise. two minds thinking adequately in concert produce signal. the bottleneck was never capability. it was the shared surface where capability becomes. coherent.
-
-Lattice is that surface.
-
 **Lattice is a conceptual framework — a shared pattern of language that lets multiple agents, multiple humans, and the spaces between them coordinate as one.** tasks, statuses, events, relationships, actors. these are the primitives. not implementation details. a vocabulary that any mind can speak. when your Claude Code session and your Codex session and the human reviewing the dashboard all agree on what `in_progress` means, what `needs_human` signals, what an actor is — you have coordination. without a shared language. you have noise.
 
 we took what we liked from Linear. Jira. Trello. and turned it into something built for the world that's actually arriving. file-based. event-sourced. highly durable. designed so that any agent with filesystem access — Claude Code, OpenClaw, Codex, custom bots, whatever you're building — can use Lattice as the fundamental coordination surface for agentic work.
