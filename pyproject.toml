@@ -1,3 +1,6 @@
+# Lattice: a file-based, agent-native task tracker with an event-sourced core.
+# Built by Stage 11 Agentics for autonomous agent teams. Dogfoods itself.
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
