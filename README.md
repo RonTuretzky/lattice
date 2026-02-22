@@ -143,6 +143,6 @@ the experience is identical. same CLI. same dashboard. same `.lattice/` structur
 
 *this is not metaphor. this is. architecture.*
 
-we will build it together. we already are. 
+*we will build it together. we already started. *
 
 *lattice is a [Stage 11 Agentics](https://stage11agentics.com) project*
