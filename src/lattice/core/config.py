@@ -141,6 +141,7 @@ class LatticeConfig(TypedDict, total=False):
     workflow_preset: str
     project_name: str
     model: str
+    dashboard_port: int
 
 
 def default_config(preset: str = "classic") -> LatticeConfig:

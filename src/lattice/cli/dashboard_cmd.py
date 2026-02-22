@@ -11,8 +11,10 @@ import sys
 
 import click
 
-from lattice.cli.helpers import json_envelope, json_error_obj, require_root
+from lattice.cli.helpers import json_envelope, json_error_obj, load_project_config, require_root
 from lattice.cli.main import cli
+
+_DEFAULT_PORT = 8799
 
 _LOOPBACK_HOSTS = frozenset({"127.0.0.1", "::1", "localhost"})
 
@@ -46,9 +48,9 @@ def _find_free_port(host: str, near: int) -> int | None:
 
 @cli.command("dashboard")
 @click.option("--host", default="127.0.0.1", help="Host to bind to.")
-@click.option("--port", default=8799, type=int, help="Port to bind to.")
+@click.option("--port", default=None, type=int, help="Port to bind to. Defaults to dashboard_port in config, or 8799.")
 @click.option("--json", "output_json", is_flag=True, help="Output structured JSON.")
-def dashboard_cmd(host: str, port: int, output_json: bool) -> None:
+def dashboard_cmd(host: str, port: int | None, output_json: bool) -> None:
     """Launch a read-only local web dashboard.
 
     Supports graceful restart via SIGHUP — the server shuts down and
@@ -58,6 +60,11 @@ def dashboard_cmd(host: str, port: int, output_json: bool) -> None:
     global _active_server, _restart_requested
 
     lattice_dir = require_root(output_json)
+
+    # Resolve port: CLI flag > config.dashboard_port > 8799
+    if port is None:
+        config = load_project_config(lattice_dir)
+        port = config.get("dashboard_port", _DEFAULT_PORT)
 
     # Non-loopback binds are forced into read-only mode
     readonly = host not in _LOOPBACK_HOSTS
@@ -140,13 +147,18 @@ def dashboard_cmd(host: str, port: int, output_json: bool) -> None:
 
 
 @cli.command("restart")
-@click.option("--port", default=8799, type=int, help="Port of the dashboard to restart.")
-def restart_cmd(port: int) -> None:
+@click.option("--port", default=None, type=int, help="Port of the dashboard to restart. Defaults to dashboard_port in config, or 8799.")
+def restart_cmd(port: int | None) -> None:
     """Send a restart signal to a running Lattice dashboard.
 
     Finds the process listening on the given port and sends SIGHUP,
     causing the dashboard to gracefully restart in place.
     """
+    if port is None:
+        lattice_dir = require_root(False)
+        config = load_project_config(lattice_dir)
+        port = config.get("dashboard_port", _DEFAULT_PORT)
+
     if not hasattr(signal, "SIGHUP"):
         click.echo("Error: restart via signal is not supported on this platform.", err=True)
         raise SystemExit(1)
