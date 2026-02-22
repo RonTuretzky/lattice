@@ -127,6 +127,6 @@ the experience is **identical** to users and agents alike. same CLI. same dashbo
 
 *this is not metaphor. this is. architecture.*
 
-*we will build it together. we already started. *
+*we will build it together. we already started.*
 
 *lattice is a [Stage 11 Agentics](https://stage11agentics.com) project*
