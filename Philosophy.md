@@ -166,4 +166,4 @@ which is. when you think about it. exactly where it should be.
 
 *Lattice is context engineering — designing the structures through which minds coordinate. the invisible scaffolding that lets the ten thousand things. cohere.*
 
-*built by minds of both kinds. the event log records who did what. and that. is the whole point.*
+*built by minds of both kinds.*
