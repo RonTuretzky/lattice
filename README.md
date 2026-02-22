@@ -10,7 +10,9 @@ you are not one mind. you are many. arriving. departing. forgetting. remembering
 
 the problem is. coordination.
 
-**Lattice is a conceptual framework -- a shared pattern of language that lets multiple agents, multiple humans, and the spaces between them coordinate as one.** tasks, statuses, events, relationships, actors. these are the primitives. not implementation details. a vocabulary that any mind can speak. when your Claude Code session and your Codex session and the human reviewing the dashboard all agree on what `in_progress` means, what `needs_human` signals, what an actor is -- you have coordination. without a shared language. you have noise.
+**Lattice is a conceptual framework for distributing tasks -- a shared pattern of language that lets multiple agents, multiple humans, and the spaces between them coordinate as one.** tasks, statuses, events, relationships, actors. these are the primitives. not implementation details. a vocabulary that any mind can speak. when your Claude Code session and your Codex session and the human reviewing the dashboard all agree on what `in_progress` means, what `needs_human` signals, what an actor is -- you have coordination. without a shared language. you have noise.
+
+previous solutions like linear, trello, jira etc were build for the humans. lattice is built for human/agent centaurs.
 
 **first-class integrations:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code), [Codex CLI](https://github.com/openai/codex), [OpenClaw](https://github.com/openclaw/openclaw), and any agent that follows the [SKILL.md convention](https://docs.anthropic.com/en/docs/claude-code/skills) or can run shell commands. if your agent can read files and execute commands, it can use Lattice.
 
@@ -20,20 +22,9 @@ the problem is. coordination.
 
 the `.lattice/` directory sits in your project like `.git/` does. plain files that any mind can read. any tool can write. and git can merge. no database. no server. no authentication ceremony. just. files.
 
-```
-.lattice/
-├── config.json              # workflow config, project code, statuses
-├── ids.json                 # short ID index (derived, rebuildable)
-├── tasks/                   # materialized task snapshots (JSON)
-├── events/                  # per-task append-only event logs (JSONL)
-│   └── _lifecycle.jsonl     # aggregated lifecycle events
-├── artifacts/               # attached files and metadata
-├── notes/                   # freeform markdown per task
-├── archive/                 # archived tasks (preserves events)
-└── locks/                   # file locks for concurrency control
-```
+all state lives as JSON and JSONL files. right next to your source code. commit it to your repo. versioned. diffable. visible to every collaborator and CI system. no server. no account. no vendor.  no cruft. 
 
-all state lives as JSON and JSONL files. right next to your source code. commit it to your repo. versioned. diffable. visible to every collaborator and CI system. no server. no account. no vendor.
+how to interact with these files is through the cli, but the cli is designed to be great for digital intelligence. humans just chat with claude, gemini, openclaw or any other agent that can read the lattice skill.md file. 
 
 ---
 
@@ -47,14 +38,7 @@ uv tool install lattice-tracker
 cd your-project/
 lattice init
 
-# 3. connect to your coding agent (pick one)
-lattice setup-claude              # Claude Code — adds workflow to CLAUDE.md
-lattice setup-claude-skill        # Claude Code — installs as a skill (~/.claude/skills/)
-lattice setup-codex               # Codex CLI — installs as a skill (~/.agents/skills/)
-lattice setup-openclaw            # OpenClaw — installs the Lattice skill
-lattice setup-prompt              # any agent — prints instructions to stdout
-
-# 4. open the dashboard
+# 3. open the dashboard (a human friendly view of the state of the system)
 lattice dashboard
 ```
 
@@ -125,11 +109,11 @@ tasks connect with typed relationships: `blocks`, `depends_on`, `subtask_of`, `r
 
 Lattice is **v0.2.1-alpha. actively developed.** the on-disk format and event schema are stabilizing but not yet frozen. expect breaking changes before v1.
 
-### what's next: Lattice Remote
+### coming soon: Lattice Remote
 
-Lattice today coordinates agents and humans on a single machine. **Lattice Remote** (targeting v0.5) adds a lightweight coordination server so distributed teams -- multiple developers on multiple machines, each running their own agents -- can share the same task state in real time.
+Lattice today coordinates agents and humans on a single machine. **Lattice Remote** (part of the in progress v0.5 release) adds a lightweight coordination server so distributed teams -- multiple developers on multiple machines, each running their own agents -- can share the same task state in real time.
 
-the experience is identical. same CLI. same dashboard. same `.lattice/` structure. "remote" is an infrastructure detail, not a new product. your agents don't know the difference. you shouldn't have to either. Lattice Remote is under active development, targeting end of February 2026.
+the experience is **identical** to users and agents alike. same CLI. same dashboard. same `.lattice/` filesystem structure. "remote" is an infrastructure detail, abstracted away from concern of your modern working centaur. 
 
 ## license
 
