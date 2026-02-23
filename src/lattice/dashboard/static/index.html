@@ -1570,7 +1570,7 @@ var VOICES = {
     "btn.back": "&larr; Back",
     "loading": "Gathering state...",
     "empty.board": "The board is clear \u2014 a workspace awaits its first intention.",
-    "empty.board.cta": "Begin",
+    "empty.board.cta": "Get Started",
     "empty.list": "No tasks have been set into motion.",
     "empty.list.filtered": "No tasks match the current lens.",
     "empty.activity": "No echoes yet \u2014 all is still.",
@@ -3991,7 +3991,7 @@ function renderBoard() {
 
   var statuses = config.workflow ? config.workflow.statuses : [];
   if (tasks.length === 0) {
-    app.innerHTML = '<div class="empty"><p>' + esc(t("empty.board")) + '</p><p><button class="btn btn-primary" onclick="showCreateTaskModal()">' + t("empty.board.cta") + '</button></p></div>';
+    app.innerHTML = '<div class="empty"><p>' + esc(t("empty.board")) + '</p><p><button class="btn btn-primary" onclick="window.open(\'https://thelattice.works/getting-started\', \'_blank\')">' + t("empty.board.cta") + '</button></p></div>';
     return;
   }
 
