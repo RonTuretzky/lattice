@@ -1,0 +1,12 @@
+---
+import Base from '../layouts/Base.astro';
+import { renderMarkdown } from '../lib/markdown';
+
+const html = renderMarkdown('FutureFeatures.md');
+---
+
+<Base title="Roadmap — Lattice" description="What's next for Lattice. Post-v0 candidates and future directions." active="roadmap">
+  <div style="padding-top: 3rem;">
+    <div class="content" set:html={html} />
+  </div>
+</Base>
