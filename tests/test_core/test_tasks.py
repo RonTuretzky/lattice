@@ -1033,6 +1033,7 @@ class TestCompactSnapshot:
             "relationships_out_count",
             "evidence_ref_count",
             "branch_link_count",
+            "custom_fields",
         }
         assert set(compact.keys()) == expected_keys
 
@@ -1093,7 +1094,6 @@ class TestCompactSnapshot:
         assert "relationships_out" not in compact
         assert "evidence_refs" not in compact
         assert "branch_links" not in compact
-        assert "custom_fields" not in compact
         assert "last_event_id" not in compact
 
 

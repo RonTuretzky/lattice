@@ -1317,6 +1317,45 @@ select.form-control{cursor:pointer}
 .dp-event{font-size:.8rem;padding:3px 0;display:flex;gap:6px;color:var(--text-secondary)}
 .dp-event .ev-type{font-weight:600;color:var(--text-primary)}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+/* --- Roadmap View --- */
+.roadmap-view{display:flex;flex-direction:column;height:calc(100vh - 60px);overflow:hidden}
+.roadmap-toolbar{display:flex;align-items:center;gap:12px;padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0}
+.roadmap-toolbar .btn{font-size:.8rem;padding:4px 10px}
+.roadmap-zoom-label{font-size:.8rem;color:var(--text-secondary)}
+.roadmap-container{display:flex;flex:1;overflow:hidden}
+.roadmap-sidebar{width:260px;min-width:200px;flex-shrink:0;border-right:1px solid var(--border);overflow-y:auto}
+.roadmap-sidebar-header{padding:8px 12px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--bg-base);z-index:1}
+.roadmap-task-label{display:flex;align-items:center;gap:8px;padding:6px 12px;height:36px;box-sizing:border-box;border-bottom:1px solid var(--border-subtle,rgba(255,255,255,.04));cursor:pointer;font-size:.82rem;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.roadmap-task-label:hover{background:var(--surface-hover,rgba(255,255,255,.03))}
+.roadmap-task-label .short-id{color:var(--text-muted);font-size:.75rem;flex-shrink:0}
+.roadmap-task-label .title{overflow:hidden;text-overflow:ellipsis}
+.roadmap-timeline-area{flex:1;overflow:auto;position:relative}
+.roadmap-timeline-header{display:flex;position:sticky;top:0;z-index:2;background:var(--bg-base);border-bottom:1px solid var(--border)}
+.roadmap-month-group{display:flex;flex-direction:column}
+.roadmap-month-label{text-align:center;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text-muted);padding:2px 0;border-bottom:1px solid var(--border-subtle,rgba(255,255,255,.04))}
+.roadmap-days-row{display:flex}
+.roadmap-day-cell{width:var(--day-width,28px);flex-shrink:0;text-align:center;font-size:.65rem;color:var(--text-muted);padding:2px 0;border-right:1px solid var(--border-subtle,rgba(255,255,255,.04));box-sizing:border-box}
+.roadmap-day-cell.weekend{background:rgba(255,255,255,.015)}
+.roadmap-day-cell.today{color:var(--accent-primary);font-weight:700}
+.roadmap-body{position:relative}
+.roadmap-row{height:36px;position:relative;border-bottom:1px solid var(--border-subtle,rgba(255,255,255,.04))}
+.roadmap-grid-line{position:absolute;top:0;bottom:0;width:1px;background:var(--border-subtle,rgba(255,255,255,.04))}
+.roadmap-grid-line.weekend{background:rgba(255,255,255,.02)}
+.roadmap-today-line{position:absolute;top:0;bottom:0;width:2px;background:var(--accent-primary);opacity:.6;z-index:3;pointer-events:none}
+.roadmap-bar{position:absolute;top:6px;height:24px;border-radius:4px;cursor:grab;display:flex;align-items:center;padding:0 8px;font-size:.72rem;font-weight:600;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;user-select:none;min-width:8px;z-index:2;transition:box-shadow .15s}
+.roadmap-bar:hover{box-shadow:0 0 0 2px var(--accent-primary);z-index:4}
+.roadmap-bar.dragging{opacity:.85;cursor:grabbing;box-shadow:0 0 0 2px var(--accent-primary);z-index:5}
+.roadmap-bar-handle{position:absolute;top:0;width:6px;height:100%;cursor:col-resize;z-index:3}
+.roadmap-bar-handle.left{left:0;border-radius:4px 0 0 4px}
+.roadmap-bar-handle.right{right:0;border-radius:0 4px 4px 0}
+.roadmap-bar-handle:hover{background:rgba(255,255,255,.2)}
+.roadmap-unscheduled{border-top:1px solid var(--border);flex-shrink:0;max-height:180px;overflow-y:auto}
+.roadmap-unscheduled-header{padding:8px 12px;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-muted);position:sticky;top:0;background:var(--bg-base)}
+.roadmap-unscheduled-item{display:flex;align-items:center;gap:8px;padding:4px 12px;font-size:.82rem;cursor:pointer;color:var(--text-secondary)}
+.roadmap-unscheduled-item:hover{background:var(--surface-hover,rgba(255,255,255,.03));color:var(--text-primary)}
+.roadmap-unscheduled-item .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.roadmap-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:60vh;color:var(--text-muted);gap:8px}
+.roadmap-empty p{font-size:.9rem}
 </style>
 </head>
 <body>
@@ -1336,6 +1375,7 @@ select.form-control{cursor:pointer}
   <span class="nav-tab" data-view="stats">Stats</span>
   <span class="nav-tab" data-view="cube" onclick="location.hash='#/cube'">Cube</span>
   <span class="nav-tab" data-view="web" onclick="location.hash='#/web'">Web</span>
+  <span class="nav-tab" data-view="roadmap">Roadmap</span>
   <div class="nav-right" style="position:relative">
     <span id="stats-badges"></span>
     <button type="button" class="btn btn-new-task" id="new-task-btn" title="Create new task">+ New Task</button>
@@ -3601,6 +3641,415 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 });
 
+// --- Roadmap View ---
+function renderRoadmap() {
+  var app = document.getElementById("app");
+  if (!config || !tasks) {
+    app.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+    return;
+  }
+  if (tasks.length === 0) {
+    app.innerHTML = '<div class="roadmap-empty"><p>' + esc(t("empty.board") || "No tasks yet") + '</p></div>';
+    return;
+  }
+
+  // Separate scheduled vs unscheduled tasks
+  var scheduled = [];
+  var unscheduled = [];
+  tasks.forEach(function(tk) {
+    var cf = tk.custom_fields || {};
+    if (cf.start_date && cf.end_date) {
+      scheduled.push(tk);
+    } else {
+      unscheduled.push(tk);
+    }
+  });
+
+  // Determine visible date range
+  var DAY_WIDTH = 28;
+  var today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  var rangeStart, rangeEnd;
+  if (scheduled.length > 0) {
+    var starts = scheduled.map(function(tk) { return new Date(tk.custom_fields.start_date); });
+    var ends = scheduled.map(function(tk) { return new Date(tk.custom_fields.end_date); });
+    rangeStart = new Date(Math.min.apply(null, starts));
+    rangeEnd = new Date(Math.max.apply(null, ends));
+    // Add padding: 2 weeks before, 4 weeks after
+    rangeStart.setDate(rangeStart.getDate() - 14);
+    rangeEnd.setDate(rangeEnd.getDate() + 28);
+    // Also ensure today is visible
+    if (today < rangeStart) rangeStart = new Date(today.getTime() - 14 * 86400000);
+    if (today > rangeEnd) rangeEnd = new Date(today.getTime() + 28 * 86400000);
+  } else {
+    // Default: 2 months before to 2 months after today
+    rangeStart = new Date(today);
+    rangeStart.setDate(rangeStart.getDate() - 30);
+    rangeEnd = new Date(today);
+    rangeEnd.setDate(rangeEnd.getDate() + 60);
+  }
+  // Snap to first of month for clean headers
+  rangeStart.setDate(1);
+
+  // Build array of days
+  var days = [];
+  var d = new Date(rangeStart);
+  while (d <= rangeEnd) {
+    days.push(new Date(d));
+    d.setDate(d.getDate() + 1);
+  }
+  var totalWidth = days.length * DAY_WIDTH;
+
+  // Group days by month for header
+  var months = [];
+  var currentMonth = null;
+  days.forEach(function(day, i) {
+    var key = day.getFullYear() + "-" + day.getMonth();
+    if (!currentMonth || currentMonth.key !== key) {
+      currentMonth = {
+        key: key,
+        label: day.toLocaleString("default", { month: "short", year: "numeric" }),
+        days: []
+      };
+      months.push(currentMonth);
+    }
+    currentMonth.days.push({ date: day, index: i });
+  });
+
+  // Helper: date to X offset
+  function dateToX(dateStr) {
+    var dt = new Date(dateStr);
+    dt.setHours(0, 0, 0, 0);
+    var diff = (dt - rangeStart) / 86400000;
+    return Math.round(diff * DAY_WIDTH);
+  }
+
+  function formatDate(d) {
+    var dt = new Date(d);
+    return dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0") + "-" + String(dt.getDate()).padStart(2, "0");
+  }
+
+  function isSameDay(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+
+  // Build header HTML
+  var headerHtml = '';
+  months.forEach(function(m) {
+    headerHtml += '<div class="roadmap-month-group" style="width:' + (m.days.length * DAY_WIDTH) + 'px">';
+    headerHtml += '<div class="roadmap-month-label">' + esc(m.label) + '</div>';
+    headerHtml += '<div class="roadmap-days-row">';
+    m.days.forEach(function(info) {
+      var dow = info.date.getDay();
+      var cls = "roadmap-day-cell";
+      if (dow === 0 || dow === 6) cls += " weekend";
+      if (isSameDay(info.date, today)) cls += " today";
+      headerHtml += '<div class="' + cls + '">' + info.date.getDate() + '</div>';
+    });
+    headerHtml += '</div></div>';
+  });
+
+  // Build sidebar + body rows for scheduled tasks
+  var sidebarHtml = '<div class="roadmap-sidebar-header">Task</div>';
+  var bodyHtml = '';
+
+  // Grid lines for weeks (every Monday)
+  days.forEach(function(day, i) {
+    if (day.getDay() === 1) { // Monday
+      bodyHtml += '<div class="roadmap-grid-line" style="left:' + (i * DAY_WIDTH) + 'px"></div>';
+    }
+  });
+
+  // Today line
+  var todayX = dateToX(formatDate(today));
+  if (todayX >= 0 && todayX <= totalWidth) {
+    bodyHtml += '<div class="roadmap-today-line" style="left:' + todayX + 'px"></div>';
+  }
+
+  // Sort scheduled by start_date
+  scheduled.sort(function(a, b) {
+    return new Date(a.custom_fields.start_date) - new Date(b.custom_fields.start_date);
+  });
+
+  scheduled.forEach(function(tk) {
+    var cf = tk.custom_fields;
+    var label = tk.short_id || tk.id.slice(0, 8);
+    sidebarHtml += '<div class="roadmap-task-label" data-task-id="' + esc(tk.id) + '">';
+    sidebarHtml += '<span class="short-id">' + esc(label) + '</span> ';
+    sidebarHtml += '<span class="title">' + esc(tk.title) + '</span>';
+    sidebarHtml += '</div>';
+
+    var x = dateToX(cf.start_date);
+    var x2 = dateToX(cf.end_date);
+    var w = Math.max(x2 - x, DAY_WIDTH);
+    var color = getLaneColor(tk.status);
+
+    bodyHtml += '<div class="roadmap-row">';
+    bodyHtml += '<div class="roadmap-bar" data-task-id="' + esc(tk.id) + '" style="left:' + x + 'px;width:' + w + 'px;background:' + color + '">';
+    bodyHtml += '<div class="roadmap-bar-handle left"></div>';
+    bodyHtml += '<span>' + esc(label) + '</span>';
+    bodyHtml += '<div class="roadmap-bar-handle right"></div>';
+    bodyHtml += '</div></div>';
+  });
+
+  // Unscheduled section
+  var unschedHtml = '';
+  if (unscheduled.length > 0) {
+    unschedHtml += '<div class="roadmap-unscheduled">';
+    unschedHtml += '<div class="roadmap-unscheduled-header">Unscheduled (' + unscheduled.length + ')</div>';
+    unscheduled.forEach(function(tk) {
+      var label = tk.short_id || tk.id.slice(0, 8);
+      var color = getLaneColor(tk.status);
+      unschedHtml += '<div class="roadmap-unscheduled-item" data-task-id="' + esc(tk.id) + '">';
+      unschedHtml += '<span class="dot" style="background:' + color + '"></span>';
+      unschedHtml += '<span class="short-id" style="color:var(--text-muted);font-size:.75rem">' + esc(label) + '</span> ';
+      unschedHtml += '<span>' + esc(tk.title) + '</span>';
+      unschedHtml += '</div>';
+    });
+    unschedHtml += '</div>';
+  }
+
+  // Assemble full view
+  var html = '<div class="roadmap-view" style="--day-width:' + DAY_WIDTH + 'px">';
+  html += '<div class="roadmap-toolbar">';
+  html += '<span class="roadmap-zoom-label">Day width:</span>';
+  html += '<button class="btn" id="roadmap-zoom-out">−</button>';
+  html += '<span class="roadmap-zoom-label" id="roadmap-zoom-val">' + DAY_WIDTH + 'px</span>';
+  html += '<button class="btn" id="roadmap-zoom-in">+</button>';
+  html += '<button class="btn" id="roadmap-today-btn">Today</button>';
+  html += '</div>';
+  html += '<div class="roadmap-container">';
+  html += '<div class="roadmap-sidebar" id="roadmap-sidebar">' + sidebarHtml + '</div>';
+  html += '<div class="roadmap-timeline-area" id="roadmap-timeline">';
+  html += '<div class="roadmap-timeline-header" style="width:' + totalWidth + 'px">' + headerHtml + '</div>';
+  html += '<div class="roadmap-body" id="roadmap-body" style="width:' + totalWidth + 'px;min-height:' + (scheduled.length * 36) + 'px">' + bodyHtml + '</div>';
+  html += '</div></div>';
+  html += unschedHtml;
+  html += '</div>';
+
+  app.innerHTML = html;
+
+  // --- Scroll sync: sidebar + timeline vertical scroll ---
+  var timeline = document.getElementById("roadmap-timeline");
+  var sidebar = document.getElementById("roadmap-sidebar");
+  var syncing = false;
+  timeline.addEventListener("scroll", function() {
+    if (syncing) return;
+    syncing = true;
+    sidebar.scrollTop = timeline.scrollTop;
+    syncing = false;
+  });
+  sidebar.addEventListener("scroll", function() {
+    if (syncing) return;
+    syncing = true;
+    timeline.scrollTop = sidebar.scrollTop;
+    syncing = false;
+  });
+
+  // --- Scroll to today ---
+  function scrollToToday() {
+    var tx = dateToX(formatDate(today));
+    timeline.scrollLeft = Math.max(0, tx - timeline.clientWidth / 3);
+  }
+  scrollToToday();
+
+  document.getElementById("roadmap-today-btn").addEventListener("click", scrollToToday);
+
+  // --- Zoom ---
+  var currentDayWidth = DAY_WIDTH;
+  function applyZoom(newWidth) {
+    currentDayWidth = Math.max(12, Math.min(80, newWidth));
+    document.getElementById("roadmap-zoom-val").textContent = currentDayWidth + "px";
+    app.querySelector(".roadmap-view").style.setProperty("--day-width", currentDayWidth + "px");
+    // Recalculate widths
+    var newTotal = days.length * currentDayWidth;
+    app.querySelector(".roadmap-timeline-header").style.width = newTotal + "px";
+    document.getElementById("roadmap-body").style.width = newTotal + "px";
+    // Update month group widths
+    var monthEls = app.querySelectorAll(".roadmap-month-group");
+    months.forEach(function(m, i) {
+      if (monthEls[i]) monthEls[i].style.width = (m.days.length * currentDayWidth) + "px";
+    });
+    // Update day cell widths
+    app.querySelectorAll(".roadmap-day-cell").forEach(function(el) {
+      el.style.width = currentDayWidth + "px";
+    });
+    // Update bar positions
+    app.querySelectorAll(".roadmap-bar").forEach(function(bar) {
+      var tid = bar.dataset.taskId;
+      var tk = tasks.find(function(t) { return t.id === tid; });
+      if (tk && tk.custom_fields && tk.custom_fields.start_date && tk.custom_fields.end_date) {
+        var bx = dateToXZoomed(tk.custom_fields.start_date);
+        var bx2 = dateToXZoomed(tk.custom_fields.end_date);
+        bar.style.left = bx + "px";
+        bar.style.width = Math.max(bx2 - bx, currentDayWidth) + "px";
+      }
+    });
+    // Update grid lines
+    app.querySelectorAll(".roadmap-grid-line").forEach(function(el) { el.remove(); });
+    var bodyEl = document.getElementById("roadmap-body");
+    days.forEach(function(day, i) {
+      if (day.getDay() === 1) {
+        var gl = document.createElement("div");
+        gl.className = "roadmap-grid-line";
+        gl.style.left = (i * currentDayWidth) + "px";
+        bodyEl.insertBefore(gl, bodyEl.firstChild);
+      }
+    });
+    // Update today line
+    var todayLine = bodyEl.querySelector(".roadmap-today-line");
+    if (todayLine) todayLine.style.left = dateToXZoomed(formatDate(today)) + "px";
+  }
+
+  function dateToXZoomed(dateStr) {
+    var dt = new Date(dateStr);
+    dt.setHours(0, 0, 0, 0);
+    var diff = (dt - rangeStart) / 86400000;
+    return Math.round(diff * currentDayWidth);
+  }
+
+  document.getElementById("roadmap-zoom-in").addEventListener("click", function() { applyZoom(currentDayWidth + 4); });
+  document.getElementById("roadmap-zoom-out").addEventListener("click", function() { applyZoom(currentDayWidth - 4); });
+
+  // --- Click handlers ---
+  app.querySelectorAll(".roadmap-task-label").forEach(function(el) {
+    el.addEventListener("click", function() { openDetailPanel(el.dataset.taskId); });
+  });
+  app.querySelectorAll(".roadmap-unscheduled-item").forEach(function(el) {
+    el.addEventListener("click", function() { openDetailPanel(el.dataset.taskId); });
+  });
+
+  // --- Drag to move / resize bars ---
+  app.querySelectorAll(".roadmap-bar").forEach(function(bar) {
+    var taskId = bar.dataset.taskId;
+
+    function onDragStart(e, mode) {
+      e.preventDefault();
+      e.stopPropagation();
+      bar.classList.add("dragging");
+
+      var startX = e.clientX;
+      var origLeft = parseInt(bar.style.left, 10);
+      var origWidth = parseInt(bar.style.width, 10);
+      var moved = false;
+
+      function onMove(ev) {
+        var dx = ev.clientX - startX;
+        moved = true;
+        if (mode === "move") {
+          bar.style.left = (origLeft + dx) + "px";
+        } else if (mode === "left") {
+          var newLeft = origLeft + dx;
+          var newWidth = origWidth - dx;
+          if (newWidth >= currentDayWidth) {
+            bar.style.left = newLeft + "px";
+            bar.style.width = newWidth + "px";
+          }
+        } else if (mode === "right") {
+          var newW = origWidth + dx;
+          if (newW >= currentDayWidth) {
+            bar.style.width = newW + "px";
+          }
+        }
+      }
+
+      function onUp() {
+        document.removeEventListener("mousemove", onMove);
+        document.removeEventListener("mouseup", onUp);
+        bar.classList.remove("dragging");
+
+        if (!moved) {
+          openDetailPanel(taskId);
+          return;
+        }
+
+        // Calculate new dates from pixel positions
+        var finalLeft = parseInt(bar.style.left, 10);
+        var finalWidth = parseInt(bar.style.width, 10);
+        var newStartDays = Math.round(finalLeft / currentDayWidth);
+        var newEndDays = Math.round((finalLeft + finalWidth) / currentDayWidth);
+
+        var newStart = new Date(rangeStart);
+        newStart.setDate(newStart.getDate() + newStartDays);
+        var newEnd = new Date(rangeStart);
+        newEnd.setDate(newEnd.getDate() + newEndDays);
+
+        var startStr = formatDate(newStart);
+        var endStr = formatDate(newEnd);
+
+        // Update via API
+        apiPost("/api/tasks/" + taskId + "/update", {
+          fields: {
+            "custom_fields.start_date": startStr,
+            "custom_fields.end_date": endStr
+          },
+          actor: "dashboard:web"
+        }).then(function() {
+          // Update local task data
+          var tk = tasks.find(function(t) { return t.id === taskId; });
+          if (tk) {
+            if (!tk.custom_fields) tk.custom_fields = {};
+            tk.custom_fields.start_date = startStr;
+            tk.custom_fields.end_date = endStr;
+          }
+          showToast(t("toast.updated") || "Updated", "success");
+        }).catch(function(err) {
+          showToast("Failed to save: " + err.message, "error");
+          // Re-render to reset position
+          renderRoadmap();
+        });
+      }
+
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+    }
+
+    // Handle handles (resize)
+    bar.querySelectorAll(".roadmap-bar-handle").forEach(function(handle) {
+      handle.addEventListener("mousedown", function(e) {
+        onDragStart(e, handle.classList.contains("left") ? "left" : "right");
+      });
+    });
+
+    // Handle bar body (move)
+    bar.addEventListener("mousedown", function(e) {
+      if (e.target.classList.contains("roadmap-bar-handle")) return;
+      onDragStart(e, "move");
+    });
+  });
+
+  // --- Double-click unscheduled to assign dates ---
+  app.querySelectorAll(".roadmap-unscheduled-item").forEach(function(el) {
+    el.addEventListener("dblclick", function() {
+      var tid = el.dataset.taskId;
+      var startStr = formatDate(today);
+      var endDate = new Date(today);
+      endDate.setDate(endDate.getDate() + 7);
+      var endStr = formatDate(endDate);
+
+      apiPost("/api/tasks/" + tid + "/update", {
+        fields: {
+          "custom_fields.start_date": startStr,
+          "custom_fields.end_date": endStr
+        },
+        actor: "dashboard:web"
+      }).then(function() {
+        var tk = tasks.find(function(t) { return t.id === tid; });
+        if (tk) {
+          if (!tk.custom_fields) tk.custom_fields = {};
+          tk.custom_fields.start_date = startStr;
+          tk.custom_fields.end_date = endStr;
+        }
+        showToast("Scheduled: " + startStr + " → " + endStr, "success");
+        renderRoadmap();
+      }).catch(function(err) {
+        showToast("Failed: " + err.message, "error");
+      });
+    });
+  });
+}
+
 // --- Routing ---
 async function route(hash) {
   var h = (hash || "/board").replace(/^#?\/?/, "/");
@@ -3628,6 +4077,7 @@ async function route(hash) {
   else if (view === "stats") await renderStats();
   else if (view === "cube") await renderCube();
   else if (view === "web") await renderWeb();
+  else if (view === "roadmap") renderRoadmap();
   else if (view === "task" && parts[1]) await renderDetail(parts[1]);
   else renderBoard();
 }
