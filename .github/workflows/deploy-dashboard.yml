@@ -34,7 +34,7 @@ jobs:
       - name: Generate dashboard data from GitHub Project
         continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.GH_PROJECT_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PROJECT_TOKEN || github.token }}
           GH_ORG: ${{ vars.GH_ORG }}
           GH_PROJECT_NUMBER: ${{ vars.GH_PROJECT_NUMBER }}
           GH_REPO: ${{ vars.GH_REPO }}
