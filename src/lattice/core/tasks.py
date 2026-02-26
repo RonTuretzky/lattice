@@ -131,6 +131,7 @@ def compact_snapshot(snapshot: dict) -> dict:
         "relationships_out_count": len(snapshot.get("relationships_out", [])),
         "evidence_ref_count": len(snapshot.get("evidence_refs", [])),
         "branch_link_count": len(snapshot.get("branch_links", [])),
+        "custom_fields": snapshot.get("custom_fields") or {},
     }
     short_id = snapshot.get("short_id")
     if short_id is not None:

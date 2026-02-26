@@ -1332,7 +1332,11 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
                 return
 
             # Validate field names
-            unknown = set(fields.keys()) - self._UPDATABLE_FIELDS
+            unknown = set(
+                k for k in fields.keys()
+                if k not in self._UPDATABLE_FIELDS
+                and not k.startswith("custom_fields.")
+            )
             if unknown:
                 valid = ", ".join(sorted(self._UPDATABLE_FIELDS))
                 self._send_json(
@@ -1402,6 +1406,9 @@ def _make_handler_class(lattice_dir: Path, *, readonly: bool = False) -> type:
             for field, new_value in fields.items():
                 if field == "tags":
                     old_value = snapshot.get("tags") or []
+                elif field.startswith("custom_fields."):
+                    key = field[len("custom_fields."):]
+                    old_value = (snapshot.get("custom_fields") or {}).get(key)
                 else:
                     old_value = snapshot.get(field)
 
