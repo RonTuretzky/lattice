@@ -110,7 +110,7 @@ def map_item_to_task(item: dict, index: int) -> dict:
 
     task = {
         "id": item_id,
-        "short_id": f"GH-{issue_number}" if issue_number else f"GH-{index + 1}",
+        "short_id": f"STKS-{issue_number}" if issue_number else f"STKS-{index + 1}",
         "title": title,
         "status": lattice_status,
         "priority": lattice_priority,
@@ -159,7 +159,7 @@ def build_config(tasks: list[dict]) -> dict:
 
     config = {
         "mode": "github",
-        "project_code": "GH",
+        "project_code": "STKS",
         "instance_name": f"{GH_ORG} Project #{GH_PROJECT_NUMBER}",
         "default_status": "backlog",
         "default_priority": "medium",
