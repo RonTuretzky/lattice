@@ -32,14 +32,20 @@ jobs:
           python-version: "3.12"
 
       - name: Generate dashboard data from GitHub Project
+        continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PROJECT_TOKEN }}
           GH_ORG: ${{ vars.GH_ORG }}
           GH_PROJECT_NUMBER: ${{ vars.GH_PROJECT_NUMBER }}
           GH_REPO: ${{ vars.GH_REPO }}
           OAUTH_CLIENT_ID: ${{ vars.OAUTH_CLIENT_ID }}
           OAUTH_PROXY_URL: ${{ vars.OAUTH_PROXY_URL }}
-        run: python scripts/generate_dashboard_data.py
+        run: |
+          if [ -n "$GH_ORG" ] && [ -n "$GH_PROJECT_NUMBER" ]; then
+            python scripts/generate_dashboard_data.py || echo "::warning::Data generation failed, using committed data/ files"
+          else
+            echo "::notice::GH_ORG/GH_PROJECT_NUMBER not set, using committed data/ files"
+          fi
 
       - name: Prepare Pages artifact
         run: |
@@ -47,9 +53,16 @@ jobs:
           cp src/lattice/dashboard/static/index.html _site/
           cp src/lattice/dashboard/static/cube3d.css _site/static/
           cp src/lattice/dashboard/static/cube3d.js _site/static/
-          cp data/snapshot.json _site/data/
-          cp data/config.json _site/data/
-          cp data/graph.json _site/data/
+          # Use generated data if available, otherwise use committed data/
+          if [ -f data/snapshot.json ]; then
+            cp data/snapshot.json _site/data/
+            cp data/config.json _site/data/
+            cp data/graph.json _site/data/
+          else
+            echo '{"ok":true,"data":[]}' > _site/data/snapshot.json
+            echo '{"workflow":{"statuses":["backlog","in_progress","review","done"],"transitions":{}}}' > _site/data/config.json
+            echo '{"ok":true,"data":{"links":[]}}' > _site/data/graph.json
+          fi
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
