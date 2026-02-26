@@ -33,3 +33,20 @@ export interface ParsedMessage {
   groupId: string;
   timestamp: number;
 }
+
+/** A single chat message stored in history (all messages, not just triggered) */
+export interface ChatMessage {
+  sender: string;
+  text: string;
+  timestamp: number;
+  /** Whether this message was a trigger (had @lattice / /lat prefix) */
+  isTriggered: boolean;
+}
+
+/** Chat history for a group, passed to the workflow */
+export interface ChatHistory {
+  /** The triggered message (prefix already stripped) */
+  triggered: ParsedMessage;
+  /** Recent messages in the group, oldest first (includes non-triggered) */
+  recentMessages: ChatMessage[];
+}

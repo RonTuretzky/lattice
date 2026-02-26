@@ -3,7 +3,7 @@ import {
   runWorkflow as smithersRun,
 } from "smithers-orchestrator";
 import type { Config } from "../config";
-import type { ParsedMessage } from "../signal/types";
+import type { ChatHistory, ChatMessage } from "../signal/types";
 import {
   InterpretationSchema,
   WRITE_COMMANDS,
@@ -32,20 +32,50 @@ const { Workflow, Task, smithers, outputs } = createSmithers(
 );
 
 /**
+ * Format chat history into a readable conversation transcript for the LLM.
+ */
+function formatChatContext(messages: ChatMessage[]): string {
+  if (messages.length === 0) return "(no prior messages)";
+
+  return messages
+    .map((m) => {
+      const time = new Date(m.timestamp).toLocaleTimeString();
+      const prefix = m.isTriggered ? "[TRIGGERED] " : "";
+      return `[${time}] ${prefix}${m.sender}: ${m.text}`;
+    })
+    .join("\n");
+}
+
+/**
  * Build a Smithers workflow definition for message interpretation.
  * The workflow has one agent task: Claude interprets the NL message
- * into a list of structured LatticeCommands via the Zod schema.
+ * (with full chat history context) into a list of structured LatticeCommands.
  */
 function buildInterpretWorkflow(config: Config) {
   const agent = new LatticeInterpreterAgent(config.llm.model);
 
-  return smithers((ctx) => (
-    <Workflow name="lattice-signal-bot">
-      <Task id="interpret" output={outputs.interpret} agent={agent}>
-        {`Signal message from ${(ctx.input as any).sender}:\n\n"${(ctx.input as any).text}"\n\nInterpret this as one or more Lattice commands.`}
-      </Task>
-    </Workflow>
-  ));
+  return smithers((ctx) => {
+    const input = ctx.input as any;
+    const prompt = [
+      `## Recent Chat History`,
+      ``,
+      input.chatContext,
+      ``,
+      `## Triggered Message`,
+      `From: ${input.sender}`,
+      `Message: "${input.text}"`,
+      ``,
+      `Interpret this message (considering the chat history for context) as one or more Lattice commands.`,
+    ].join("\n");
+
+    return (
+      <Workflow name="lattice-signal-bot">
+        <Task id="interpret" output={outputs.interpret} agent={agent}>
+          {prompt}
+        </Task>
+      </Workflow>
+    );
+  });
 }
 
 /**
@@ -72,19 +102,23 @@ function extractTaskId(parsed: any): string | null {
 }
 
 /**
- * Run the full workflow for a single Signal message:
- * 1. Smithers workflow: Claude interprets NL → list of LatticeCommands
+ * Run the full workflow for a Signal message with chat history context:
+ * 1. Smithers workflow: Claude interprets NL + context → list of LatticeCommands
  * 2. Execute each command sequentially, chaining $PREV_ID
  * 3. If any write command, generate kanban board PNG
  * 4. Return aggregated text + optional image
  */
 export async function runWorkflow(
-  msg: ParsedMessage,
+  history: ChatHistory,
   config: Config,
 ): Promise<WorkflowResult> {
-  console.log(`[workflow] Processing: "${msg.text}" from ${msg.sender}`);
+  const msg = history.triggered;
+  const chatContext = formatChatContext(history.recentMessages);
+  console.log(
+    `[workflow] Processing: "${msg.text}" from ${msg.sender} (${history.recentMessages.length} msgs context)`,
+  );
 
-  // Step 1: Smithers-orchestrated interpretation
+  // Step 1: Smithers-orchestrated interpretation with chat history
   const workflow = buildInterpretWorkflow(config);
   const result = await smithersRun(workflow, {
     input: {
@@ -93,6 +127,7 @@ export async function runWorkflow(
       senderUuid: msg.senderUuid,
       groupId: msg.groupId,
       timestamp: String(msg.timestamp),
+      chatContext,
     },
   });
 

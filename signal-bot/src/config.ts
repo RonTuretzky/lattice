@@ -20,6 +20,7 @@ const ConfigSchema = z.object({
   bot: z.object({
     name: z.string().default("LatticeBot"),
     help_text: z.string().optional(),
+    history_max_messages: z.number().default(50),
   }),
 });
 

@@ -17,6 +17,7 @@ llm:
 
 bot:
   name: "LatticeBot"
+  history_max_messages: 50
   help_text: |
     I can help manage Lattice tasks. Try:
     - "create a bug for login timeout, high priority"
@@ -25,3 +26,4 @@ bot:
     - "what's the weather?"
     - "assign LAT-15 to human:alice"
     - "move LAT-10 to review"
+    I also read chat context — discuss a problem, then "@lattice track this".

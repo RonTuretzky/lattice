@@ -2,7 +2,7 @@ import { loadConfig } from "./config";
 import { SignalClient } from "./signal/client";
 import { SignalPoller } from "./signal/poller";
 import { runWorkflow } from "./workflow/run.tsx";
-import type { ParsedMessage } from "./signal/types";
+import type { ChatHistory } from "./signal/types";
 
 // --- Load config ---
 const configPath = process.argv[2] || "./config.yaml";
@@ -19,12 +19,15 @@ const client = new SignalClient(config.signal.api_url, config.signal.phone_numbe
 const allowedGroups = new Set(config.signal.groups);
 
 // --- Message handler ---
-async function handleMessage(msg: ParsedMessage): Promise<void> {
+async function handleMessage(history: ChatHistory): Promise<void> {
   const ts = new Date().toISOString();
-  console.log(`[${ts}] ${msg.sender}: "${msg.text}"`);
+  const msg = history.triggered;
+  console.log(
+    `[${ts}] ${msg.sender}: "${msg.text}" (${history.recentMessages.length} msgs in context)`,
+  );
 
   try {
-    const result = await runWorkflow(msg, config!);
+    const result = await runWorkflow(history, config!);
 
     // Send text + optional kanban image
     const attachments = result.kanbanBase64 ? [result.kanbanBase64] : undefined;
@@ -48,6 +51,7 @@ const poller = new SignalPoller(
   config.signal.trigger_prefixes,
   handleMessage,
   config.signal.poll_interval_ms,
+  config.bot.history_max_messages,
 );
 
 // Graceful shutdown
