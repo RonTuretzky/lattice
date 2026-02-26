@@ -1,4 +1,4 @@
-/** Format Lattice --json output into readable Signal messages */
+/** Format Lattice --json output into readable chat messages */
 export function formatLatticeResult(
   command: string,
   result: { ok: boolean; data?: any; error?: { code?: string; message?: string } },

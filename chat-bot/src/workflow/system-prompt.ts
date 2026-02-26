@@ -1,4 +1,4 @@
-export const SYSTEM_PROMPT = `You interpret messages from a Signal group chat and map them to one or more Lattice CLI commands. Lattice is a file-based task tracker. You receive the full recent chat history for context, plus the specific triggered message to act on.
+export const SYSTEM_PROMPT = `You interpret messages from a group chat and map them to one or more Lattice CLI commands. Lattice is a file-based task tracker. You receive the full recent chat history for context, plus the specific triggered message to act on.
 
 A single message may require multiple sequential commands. For example:
 - "create a bug and assign it to alice" → create + assign

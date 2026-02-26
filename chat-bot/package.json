@@ -1,6 +1,6 @@
 {
-  "name": "lattice-signal-bot",
-  "version": "0.1.0",
+  "name": "lattice-chat-bot",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -12,7 +12,10 @@
     "ai": "latest",
     "@ai-sdk/anthropic": "latest",
     "zod": "^3.23",
-    "yaml": "^2.4"
+    "yaml": "^2.4",
+    "discord.js": "^14.16",
+    "@slack/bolt": "^4.1",
+    "grammy": "^1.30"
   },
   "devDependencies": {
     "typescript": "^5.5",

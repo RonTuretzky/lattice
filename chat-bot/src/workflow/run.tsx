@@ -3,7 +3,7 @@ import {
   runWorkflow as smithersRun,
 } from "smithers-orchestrator";
 import type { Config } from "../config";
-import type { ChatHistory, ChatMessage } from "../signal/types";
+import type { ChatHistory, ChatMessage } from "../types";
 import {
   InterpretationSchema,
   WRITE_COMMANDS,
@@ -11,12 +11,12 @@ import {
 } from "./schemas";
 import { LatticeInterpreterAgent } from "./agent";
 import { buildCommandString, executeLatticeCommand } from "./execute";
-import { formatLatticeResult } from "../signal/formatter";
+import { formatLatticeResult } from "../formatter";
 import { generateKanbanMermaid } from "../kanban/generate";
 import { renderMermaidToBase64 } from "../kanban/render";
 
 export interface WorkflowResult {
-  /** Text message to send back to Signal */
+  /** Text message to send back */
   text: string;
   /** Base64-encoded PNG of kanban board (only for write commands) */
   kanbanBase64: string | null;
@@ -69,7 +69,7 @@ function buildInterpretWorkflow(config: Config) {
     ].join("\n");
 
     return (
-      <Workflow name="lattice-signal-bot">
+      <Workflow name="lattice-chat-bot">
         <Task id="interpret" output={outputs.interpret} agent={agent}>
           {prompt}
         </Task>
@@ -102,7 +102,7 @@ function extractTaskId(parsed: any): string | null {
 }
 
 /**
- * Run the full workflow for a Signal message with chat history context:
+ * Run the full workflow for a chat message with chat history context:
  * 1. Smithers workflow: Claude interprets NL + context → list of LatticeCommands
  * 2. Execute each command sequentially, chaining $PREV_ID
  * 3. If any write command, generate kanban board PNG
@@ -124,8 +124,9 @@ export async function runWorkflow(
     input: {
       text: msg.text,
       sender: msg.sender,
-      senderUuid: msg.senderUuid,
-      groupId: msg.groupId,
+      senderId: msg.senderId,
+      platform: msg.conversation.platform,
+      channelId: msg.conversation.channelId,
       timestamp: String(msg.timestamp),
       chatContext,
     },
